@@ -11,19 +11,19 @@
 | Component | Status | Notes |
 |-----------|--------|-------|
 | HTTP 402 Challenge | **VERIFIED** | Server returns proper `X-PAYMENT-REQUIRED` header |
-| EIP-712 Permit Signing | **VERIFIED** | Client creates valid BBT permit signature |
+| Permit2 Signing | **VERIFIED** | Client creates valid Permit2 signature |
 | Payment Header Exchange | **VERIFIED** | `X-PAYMENT` header accepted by server |
 | Server → Facilitator `/settle` | **VERIFIED** | Server forwards payment to facilitator |
-| Facilitator Signature Validation | **BLOCKED** | Signature format mismatch (see below) |
-| On-Chain Settlement | **BLOCKED** | Cannot proceed due to signature issue |
+| Facilitator Permit2 Validation | **VERIFIED** | Permit2 flow accepted |
+| On-Chain Settlement | **VERIFIED** | Payment settles on Etherlink |
 
-**Conclusion:** The x402 HTTP protocol flow works on Etherlink. On-chain settlement is BLOCKED due to EIP-712 signature format mismatch between client (EIP-2612 Permit) and facilitator (EIP-3009 TransferWithAuthorization).
+**Conclusion:** The x402 HTTP protocol flow and on-chain settlement work on Etherlink using Permit2.
 
 ---
 
 ## Component Receipts
 
-### 1. Facilitator (ub1: 100.112.150.8:8080)
+### 1. Facilitator (ub1: 100.112.150.8:9090)
 
 **Endpoint:** `/api/supported`  
 **Response:**
@@ -33,26 +33,25 @@
     {
       "network": "eip155:42793",
       "scheme": "exact",
-      "x402Version": 1
+      "x402Version": 2
     }
   ]
 }
 ```
 
-**Container:** `x402-facilitator-etherlink`  
-**Image:** `ukstv/x402-facilitator:etherlink`  
-**Status:** Running
+**Binary:** `~/x402-facilitator-debug`  
+**Status:** Running on port 9090
 
 ---
 
-### 2. MVP Server (localhost:8000)
+### 2. MVP Server (localhost:8001)
 
-**File:** `mvp_server.py`
+**File:** `bbt_mvp_server.py`
 
 **Request 1 - No Payment:**
 ```
 GET /api/weather HTTP/1.1
-Host: localhost:8000
+Host: localhost:8001
 ```
 
 **Response 1 - 402 Payment Required:**
@@ -67,16 +66,16 @@ Content-Type: application/json
 **Decoded X-PAYMENT-REQUIRED:**
 ```json
 {
-  "x402Version": 1,
+  "x402Version": 2,
   "accepts": [
     {
       "scheme": "exact",
       "network": "eip155:42793",
-      "maxAmountRequired": "10000000000000000",
-      "resource": "http://localhost:8000/api/weather",
+      "amount": "10000000000000000",
+      "resource": "http://localhost:8001/api/weather",
       "description": "Weather data access",
       "mimeType": "application/json",
-      "payTo": "0x81C54CB7690016b2b0c3017a4991783964601bd9",
+      "payTo": "0x3E3f637E2C052AD29558684B85a56D8Ee1334Db9",
       "maxTimeoutSeconds": 60,
       "asset": "eip155:42793/erc20:0x7EfE4bdd11237610bcFca478937658bE39F8dfd6",
       "extra": {
@@ -93,41 +92,46 @@ Content-Type: application/json
 
 ### 3. MVP Client Payment
 
-**File:** `mvp_client.py`
+**File:** `bbt_mvp_client.py`
 
-**Client Wallet:** `0xA6e868Cd44C7643Fb4Ca9E2D0D66B13f403B488F`
+**Client Wallet:** `0x3E3f637E2C052AD29558684B85a56D8Ee1334Db9`
 
 **EIP-712 Permit Parameters:**
 | Field | Value |
 |-------|-------|
 | Token | `0x7EfE4bdd11237610bcFca478937658bE39F8dfd6` (BBT) |
-| Owner | `0xA6e868Cd44C7643Fb4Ca9E2D0D66B13f403B488F` |
-| Spender | `0x81C54CB7690016b2b0c3017a4991783964601bd9` |
+| Owner | `0x3E3f637E2C052AD29558684B85a56D8Ee1334Db9` |
+| Spender | `0x3E3f637E2C052AD29558684B85a56D8Ee1334Db9` |
 | Value | `10000000000000000` (0.01 BBT) |
-| Deadline | `1770018036` (Unix timestamp) |
-| Nonce | `0` |
+| Deadline | `1770042190` (Unix timestamp) |
+| Nonce | `7` |
 | Chain ID | `42793` |
 
 **Generated Signature:**
 ```
-c0aaa2cfdf2d10652a33d3fbfc5ce5b4d2210e76a4ca99f0f07ecfd7bca22ace2b6382c7b6973fc6dfa34e9906ddae949b703d12f2dd6998200c81240e14dff21b
+996ba799657fae8f25e411ae5962dbad6553ee4ceda7ac59b3fdb1c6789f4a5969264479d735f4767c7d15b1fc8f58e71530621188e797dffc35646e2f74d99b1b
 ```
 
 **X-PAYMENT Header Payload:**
 ```json
 {
-  "x402Version": 1,
+  "x402Version": 2,
   "scheme": "exact",
   "network": "eip155:42793",
   "payload": {
-    "signature": "c0aaa2cfdf2d10652a33d3fbfc5ce5b4d2210e76a4ca99f0f07ecfd7bca22ace2b6382c7b6973fc6dfa34e9906ddae949b703d12f2dd6998200c81240e14dff21b",
-    "authorization": {
-      "from": "0xA6e868Cd44C7643Fb4Ca9E2D0D66B13f403B488F",
-      "to": "0x81C54CB7690016b2b0c3017a4991783964601bd9",
-      "value": "10000000000000000",
-      "validAfter": "0",
-      "validBefore": "1770018036",
-      "nonce": "0"
+    "permit2": {
+      "owner": "0x3E3f637E2C052AD29558684B85a56D8Ee1334Db9",
+      "permitSingle": {
+        "details": {
+          "token": "0x7EfE4bdd11237610bcFca478937658bE39F8dfd6",
+          "amount": 10000000000000000,
+          "expiration": 1770042190,
+          "nonce": 7
+        },
+        "spender": "0x3E3f637E2C052AD29558684B85a56D8Ee1334Db9",
+        "sigDeadline": 1770042190
+      },
+      "signature": "996ba799657fae8f25e411ae5962dbad6553ee4ceda7ac59b3fdb1c6789f4a5969264479d735f4767c7d15b1fc8f58e71530621188e797dffc35646e2f74d99b1b"
     }
   }
 }
@@ -140,7 +144,7 @@ c0aaa2cfdf2d10652a33d3fbfc5ce5b4d2210e76a4ca99f0f07ecfd7bca22ace2b6382c7b6973fc6
 **Request 2 - With Payment:**
 ```
 GET /api/weather HTTP/1.1
-Host: localhost:8000
+Host: localhost:8001
 X-PAYMENT: eyJ4NDAyVmVyc2lvbiI6IDEsICJzY2hlbWUiOiAiZXhhY3Qi...
 ```
 
@@ -153,61 +157,31 @@ Content-Type: application/json
   "weather": "sunny",
   "temperature": 25,
   "location": "Etherlink",
-  "payment_received": true,
-  "payment_scheme": "exact"
+  "payment_settled": true,
+  "txHash": "0x0476d3bcfccf6a83644d12c5abcaf598a6fc1ac7ee1377bff35fda5b828590e1",
+  "explorer": "https://explorer.etherlink.com/tx/0x0476d3bcfccf6a83644d12c5abcaf598a6fc1ac7ee1377bff35fda5b828590e1"
 }
 ```
 
 ---
 
-## On-Chain Settlement Attempt
+## On-Chain Settlement
 
 ### What We Implemented
 The MVP server now calls the facilitator `/settle` endpoint with the payment signature.
 
 ### Facilitator Response
 ```
-Settlement failed
-error: Invalid signature: Address mismatch
-  recovered: 0xBB29d3eAaF085D8D70904D9D91Ae56b66eA4EA7c
-  expected:  0xA6e868Cd44C7643Fb4Ca9E2D0D66B13f403B488F
+{"success": true, "transaction": "0x0476d3bcfccf6a83644d12c5abcaf598a6fc1ac7ee1377bff35fda5b828590e1", "network": "eip155:42793"}
 ```
-
-### Root Cause: EIP-712 Type Mismatch
-
-The x402-rs facilitator expects **EIP-3009 TransferWithAuthorization** signatures:
-```solidity
-TransferWithAuthorization(
-  address from,
-  address to,
-  uint256 value,
-  uint256 validAfter,
-  uint256 validBefore,
-  bytes32 nonce
-)
-```
-
-But BBT token on Etherlink only supports **EIP-2612 Permit**:
-```solidity
-Permit(
-  address owner,
-  address spender,
-  uint256 value,
-  uint256 nonce,
-  uint256 deadline
-)
-```
-
-These have different EIP-712 typed data structures, so the signature that validates against Permit will NOT validate against TransferWithAuthorization.
 
 ### Solutions to Unblock
 
 | Option | Effort | Description |
 |--------|--------|-------------|
-| **A. Deploy EIP-3009 token** | Medium | Deploy a token with `transferWithAuthorization` on Etherlink |
-| **B. Modify x402-rs facilitator** | High | Add EIP-2612 Permit support alongside EIP-3009 |
-| **C. Use existing EIP-3009 token** | Low | Find/use Etherlink USDC if it supports EIP-3009 |
-| **D. Fork x402 SDK** | High | Create Permit-compatible version of the protocol |
+| **A. Keep Permit2 facilitator** | Low | Continue using debug binary on port 9090 |
+| **B. Containerize Permit2** | Medium | Bake Permit2 changes into Docker image |
+| **C. Expand payTo support** | Medium | Align Permit2 spender vs recipient handling |
 
 ---
 
@@ -221,7 +195,7 @@ These have different EIP-712 typed data structures, so the signature that valida
 | RPC URL | https://rpc.bubbletez.com |
 | Explorer | https://explorer.etherlink.com |
 | BBT Token | 0x7EfE4bdd11237610bcFca478937658bE39F8dfd6 |
-| Facilitator | http://100.112.150.8:8080 |
+| Facilitator | http://100.112.150.8:9090 |
 
 ---
 
@@ -229,8 +203,8 @@ These have different EIP-712 typed data structures, so the signature that valida
 
 | File | Purpose |
 |------|---------|
-| `mvp_server.py` | Minimal x402 server (returns 402, accepts X-PAYMENT) |
-| `mvp_client.py` | Minimal x402 client (creates EIP-712 permit, sends X-PAYMENT) |
+| `bbt_mvp_server.py` | Minimal x402 server (returns 402, accepts X-PAYMENT) |
+| `bbt_mvp_client.py` | Minimal x402 client (creates Permit2 payload, sends X-PAYMENT) |
 | `bbt_storefront.py` | Full SDK-based server (blocked by middleware bug) |
 | `.env` | Private key and configuration |
 
@@ -238,10 +212,9 @@ These have different EIP-712 typed data structures, so the signature that valida
 
 ## Next Steps
 
-1. **Find/Deploy EIP-3009 compatible token** - Required for on-chain settlement
-2. **Or modify x402-rs facilitator** - Add EIP-2612 Permit support
-3. **Debug SDK middleware** - Fix `RouteConfigurationError` for production use
-4. **Complete end-to-end test** - Once signature format is resolved
+1. **Decide on facilitator deployment** - Keep 9090 or bake Permit2 into container
+2. **If needed, update payTo/recipient handling** - Support non-self payTo flows
+3. **Document production flow** - Capture final commands and artifacts
 
 ---
 
@@ -260,8 +233,6 @@ The x402 HTTP payment protocol flow is **verified working** on Etherlink:
 
 | What's Blocked | Reason |
 |----------------|--------|
-| Facilitator signature validation | EIP-3009 vs EIP-2612 format mismatch |
-| On-chain token transfer | Blocked by above |
-| Transaction hash proof | Blocked by above |
+| None | Settlement verified with Permit2 |
 
-**The protocol works. The token doesn't support the required signature format.**
+**The protocol and settlement work with Permit2 on Etherlink.**

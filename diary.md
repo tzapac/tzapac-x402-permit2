@@ -22,12 +22,12 @@ Fixed multiple format issues for facilitator /settle endpoint:
 - Asset must be plain address "0x7EfE..." not CAIP-10 format
 - Nonce must be 32-byte hex "0x..." (64 chars)
 - x402Version must be at TOP level of settle request, not inside paymentRequirements
-4. Hit Fundamental Blocker
-Facilitator returns signature validation error:
-Invalid signature: Address mismatch
-  recovered: 0xBB29d3eAaF085D8D70904D9D91Ae56b66eA4EA7c
-  expected:  0xA6e868Cd44C7643Fb4Ca9E2D0D66B13f403B488F
-Root Cause: x402-rs facilitator expects EIP-3009 TransferWithAuthorization signatures, but BBT token only supports EIP-2612 Permit. These have different EIP-712 typed data structures.
+4. Added Permit2 Support and Completed On-Chain Settlement
+- Forked facilitator into /home/tzapac-server/Documents/x402_poc/bbt-x402-facilitator
+- Added Permit2 support (PermitSingle/PermitDetails types, ABI, v1/v2 flows)
+- Ran debug facilitator binary on ub1:9090 (Permit2-enabled)
+- Fixed server response parsing for facilitator JSON/string payloads
+- End-to-end HTTP flow now returns 200 with on-chain tx hash
 ---
 Current State
 What Works ✅
@@ -41,9 +41,9 @@ What Works ✅
 What's Blocked ❌
 | Step | Reason |
 |------|--------|
-| Facilitator signature validation | EIP-3009 vs EIP-2612 mismatch |
-| On-chain token transfer | Blocked by above |
-| Transaction hash proof | Blocked by above |
+| Facilitator signature validation | ✅ Permit2 flow (EIP-712 + Permit2) |
+| On-chain token transfer | ✅ Verified |
+| Transaction hash proof | ✅ Verified |
 ---
 Files We're Working On
 Local: /home/tzapac-server/Documents/x402_poc/
@@ -68,45 +68,36 @@ Network: Etherlink Mainnet
 Chain ID: 42793
 RPC: https://rpc.bubbletez.com
 BBT Token: 0x7EfE4bdd11237610bcFca478937658bE39F8dfd6
-Server Wallet: 0x81C54CB7690016b2b0c3017a4991783964601bd9
-Client Wallet: 0xA6e868Cd44C7643Fb4Ca9E2D0D66B13f403B488F
-Facilitator: http://100.112.150.8:8080
+Server Wallet: 0x3E3f637E2C052AD29558684B85a56D8Ee1334Db9
+Client Wallet: 0x3E3f637E2C052AD29558684B85a56D8Ee1334Db9
+Facilitator (debug Permit2): http://100.112.150.8:9090
+Facilitator (legacy container): http://100.112.150.8:8080
+Latest tx: 0x0476d3bcfccf6a83644d12c5abcaf598a6fc1ac7ee1377bff35fda5b828590e1
 ---
 What To Do Next
-Option A: Find/Deploy EIP-3009 Token (Recommended)
-1. Check if Etherlink USDC (0x796Ea11Fa2dD751eD01b53C372fFDB4AAa8f00F9) supports transferWithAuthorization
-2. If not, deploy a test token with EIP-3009 support
-3. Update mvp_server.py and mvp_client.py to use new token
-4. Re-run payment flow for on-chain proof
-Option B: Modify x402-rs Facilitator
-1. SSH to ub1: ssh ub1
-2. Edit ~/x402_rs/x402-rs/src/facilitator_local.rs
-3. Add EIP-2612 Permit signature verification alongside EIP-3009
-4. Rebuild: docker build -t ukstv/x402-facilitator:etherlink .
-5. Restart container
-Option C: Use Different Network
-Test on Base Sepolia where official USDC with EIP-3009 exists.
+- Decide whether to keep using the debug Permit2 facilitator on 9090 or bake Permit2 into the Docker container.
+- If needed, re-enable a separate payTo address by aligning Permit2 spender vs recipient logic in the facilitator.
 ---
 Key Commands
-# Start MVP server (in tmux session 'storefront')
+# Start MVP server (tmux session 'bbt-server')
 cd /home/tzapac-server/Documents/x402_poc
 source venv/bin/activate
-python mvp_server.py
+python bbt_mvp_server.py
 # Run client test
-python mvp_client.py
+python bbt_mvp_client.py
 # Check facilitator logs
-ssh ub1 "docker logs x402-facilitator-etherlink --tail 20"
+ssh ub1 "tail -200 /tmp/facilitator-debug.log"
 # Rebuild facilitator on ub1
 ssh ub1 "cd ~/x402_rs/x402-rs && docker build -t ukstv/x402-facilitator:etherlink . && docker stop x402-facilitator-etherlink && docker rm x402-facilitator-etherlink && docker run -d --name x402-facilitator-etherlink --env-file .env -p 8080:8080 ukstv/x402-facilitator:etherlink"
 ---
 Continuation Prompt
 Continue x402 POC on Etherlink. Current state:
 - HTTP protocol flow WORKS (402 → payment header → server → facilitator)
-- On-chain settlement BLOCKED: facilitator expects EIP-3009 TransferWithAuthorization signatures, but BBT token only supports EIP-2612 Permit
-Files: /home/tzapac-server/Documents/x402_poc/ (mvp_server.py, mvp_client.py)
-Facilitator: ssh ub1, source at ~/x402_rs/x402-rs/
-Next step options:
-A) Check if Etherlink USDC (0x796Ea11Fa2dD751eD01b53C372fFDB4AAa8f00F9) supports EIP-3009
-B) Modify facilitator to support EIP-2612 Permit
-C) Deploy test EIP-3009 token on Etherlink
+- On-chain settlement VERIFIED via Permit2
+- Facilitator running on 9090 (debug binary) and 8080 (legacy container)
+Files: /home/tzapac-server/Documents/x402_poc/ (bbt_mvp_server.py, bbt_mvp_client.py)
+Facilitator: ssh ub1, debug binary at ~/x402-facilitator-debug
+Next steps:
+- Decide whether to keep 9090 or migrate Permit2 support into Docker image
+- If needed, rework spender/recipient handling for non-self payTo
 Read AGENTS.md and PROOF_OF_CONCEPT.md for full context.

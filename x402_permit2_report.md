@@ -2,11 +2,12 @@
 
 ## Summary
 - Facilitator accepted x402 v2 exact scheme and settled a Permit2 transfer.
-- On-chain transaction succeeded for 0.01 BBT.
-- Remaining issue: server response parsing (not settlement).
+- On-chain transactions succeeded for 0.01 BBT.
+- Server response parsing fixed; end-to-end HTTP flow returns 200.
 
 ## Transaction
-- Tx hash: `0xd33f139dce4ec8666756f5aafa061605f5e1041aae7c99809af3f9432b36d04a`
+- Tx hash (latest): `0x0476d3bcfccf6a83644d12c5abcaf598a6fc1ac7ee1377bff35fda5b828590e1`
+- Tx hash (prior): `0xd33f139dce4ec8666756f5aafa061605f5e1041aae7c99809af3f9432b36d04a`
 - Method: `Permit2.transferFrom`
 - Amount: `0.01 BBT`
 - From/To: `0x3E3f637E2C052AD29558684B85a56D8Ee1334Db9`
@@ -39,4 +40,4 @@ Facilitator response (200): {"success": true, "payer": "0x3E3f...", "transaction
 - Facilitator returned success with transaction hash.
 
 ## Notes
-- The settlement is confirmed on-chain; any remaining errors are in server response parsing.
+- The settlement is confirmed on-chain and the server returns 200 with tx hash.
