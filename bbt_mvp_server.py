@@ -129,9 +129,31 @@ async def weather(request: Request):
                 media_type="application/json",
             )
 
-        tx_hash = settle_data.get("txHash") or settle_data.get("transaction", {}).get(
-            "hash"
-        )
+        tx_hash = None
+        if isinstance(settle_data, dict):
+            tx_hash = settle_data.get("txHash")
+            if not tx_hash:
+                transaction = settle_data.get("transaction")
+                if isinstance(transaction, dict):
+                    tx_hash = transaction.get("hash")
+                elif isinstance(transaction, str):
+                    if transaction.startswith("0x") and len(transaction) == 66:
+                        tx_hash = transaction
+        elif isinstance(settle_data, str):
+            try:
+                parsed = json.loads(settle_data)
+                if isinstance(parsed, dict):
+                    tx_hash = parsed.get("txHash")
+                    if not tx_hash:
+                        transaction = parsed.get("transaction")
+                        if isinstance(transaction, dict):
+                            tx_hash = transaction.get("hash")
+                        elif isinstance(transaction, str):
+                            if transaction.startswith("0x") and len(transaction) == 66:
+                                tx_hash = transaction
+            except json.JSONDecodeError:
+                if settle_data.startswith("0x") and len(settle_data) == 66:
+                    tx_hash = settle_data
 
     except Exception as e:
         print(f"Facilitator error: {e}")
