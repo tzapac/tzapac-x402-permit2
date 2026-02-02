@@ -13,7 +13,7 @@
 //! let client = V1Eip155ExactClient::new(signer);
 //! ```
 
-use alloy_primitives::{Address, FixedBytes, Signature, U256};
+use alloy_primitives::{Address, Bytes, FixedBytes, Signature, U256};
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::{SolStruct, eip712_domain};
 use async_trait::async_trait;
@@ -197,8 +197,9 @@ pub async fn sign_erc3009_authorization<S: SignerLike + Sync>(
         .map_err(|e| X402Error::SigningError(format!("{e:?}")))?;
 
     Ok(ExactEvmPayload {
-        signature: signature.as_bytes().into(),
-        authorization,
+        signature: Some(Bytes::from(signature.as_bytes().to_vec())),
+        authorization: Some(authorization),
+        permit2: None,
     })
 }
 

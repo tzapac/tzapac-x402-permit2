@@ -1274,10 +1274,14 @@ where
     Eip155ExactError: From<E>,
 {
     let _ = eip712_domain;
+    tracing::info!("[DEBUG] settle_payment_permit2 START: owner={}, spender={}, token={}, amount={}", 
+        payment.owner, payment.spender, payment.token, payment.amount);
+    
     let signature_bytes = payment.signature.clone();
     let permit_single = build_permit2_single_call(payment)?;
     let transfer_amount = permit2_amount(payment.transfer_amount)?;
 
+    tracing::info!("[DEBUG] calling permit() on Permit2 contract...");
     let permit_tx = contract.permit(payment.owner, permit_single, signature_bytes);
     let permit_tx_fut = Eip155MetaTransactionProvider::send_transaction(
         provider,
@@ -1301,12 +1305,15 @@ where
     #[cfg(not(feature = "telemetry"))]
     let permit_receipt = permit_tx_fut.await?;
 
+    tracing::info!("[DEBUG] permit() completed, status={}", permit_receipt.status());
     if !permit_receipt.status() {
+        tracing::error!("[DEBUG] permit() REVERTED!");
         return Err(Eip155ExactError::TransactionReverted(
             permit_receipt.transaction_hash,
         ));
     }
 
+    tracing::info!("[DEBUG] calling transferFrom() on Permit2 contract...");
     let transfer_tx =
         contract.transferFrom(payment.owner, payment.spender, transfer_amount, payment.token);
     let transfer_tx_fut = Eip155MetaTransactionProvider::send_transaction(
@@ -1331,9 +1338,12 @@ where
     #[cfg(not(feature = "telemetry"))]
     let transfer_receipt = transfer_tx_fut.await?;
 
+    tracing::info!("[DEBUG] transferFrom() completed, status={}", transfer_receipt.status());
     if transfer_receipt.status() {
+        tracing::info!("[DEBUG] settle_payment_permit2 SUCCESS, tx={}", transfer_receipt.transaction_hash);
         Ok(transfer_receipt.transaction_hash)
     } else {
+        tracing::error!("[DEBUG] transferFrom() REVERTED!");
         Err(Eip155ExactError::TransactionReverted(
             transfer_receipt.transaction_hash,
         ))

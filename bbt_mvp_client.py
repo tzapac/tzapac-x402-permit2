@@ -153,13 +153,19 @@ async def main():
     asset = accept["asset"]
     pay_to = Web3.to_checksum_address(accept["payTo"])
     max_amount = int(accept.get("amount") or accept.get("maxAmountRequired"))
+    network = accept["network"]
 
     token_address = Web3.to_checksum_address(asset.split("erc20:")[-1])
+
+    # With current facilitator code, spender must == payTo
+    # This is a limitation we work around by using payTo as spender
+    spender = pay_to
+    print(f"Permit2 spender (must == payTo for this facilitator): {spender}")
 
     now = int(time.time())
     sig_deadline = now + 3600
     expiration = now + 3600
-    nonce = get_permit2_nonce(w3, account.address, token_address, pay_to)
+    nonce = get_permit2_nonce(w3, account.address, token_address, spender)
 
     print(f"Token: {token_address}")
     print(f"Pay to: {pay_to}")
@@ -170,7 +176,7 @@ async def main():
     signature = sign_permit2_with_domain_separator(
         w3=w3,
         token_address=token_address,
-        spender=pay_to,
+        spender=spender,
         amount=max_amount,
         expiration=expiration,
         nonce=nonce,
@@ -191,7 +197,7 @@ async def main():
                         "expiration": expiration,
                         "nonce": nonce,
                     },
-                    "spender": pay_to,
+                    "spender": spender,
                     "sigDeadline": sig_deadline,
                 },
                 "signature": f"0x{signature}",

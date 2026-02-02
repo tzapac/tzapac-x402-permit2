@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = FastAPI()
-http_client = httpx.AsyncClient(timeout=30.0)
+http_client = httpx.AsyncClient(timeout=120.0)
 
 FACILITATOR_URL = os.getenv("FACILITATOR_URL", "http://localhost:9090")
 SERVER_WALLET = os.getenv("SERVER_WALLET", "0xA6e868Cd44C7643Fb4Ca9E2D0D66B13f403B488F")
