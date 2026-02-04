@@ -72,6 +72,7 @@ where
         Ok(v2::SettleResponse::Success {
             payer,
             transaction: tx_sig.to_string(),
+            permit_transaction: None,
             network: self.provider.chain_id().to_string(),
         }
         .into())

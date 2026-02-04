@@ -1,10 +1,11 @@
 # AGENTS
 
 ## Project Overview
-Proof of concept for etherlink x402 support testing via web3.py and ThirdWeb.
+Proof of concept for Etherlink x402 support testing via web3.py plus a local Rust facilitator fork (Permit2-enabled).
 
 ## Project Structure & Module Organization
-- Primary project lives in `Documents/x402_poc/` with web3.py integration tests.
+- Primary project lives in `Documents/x402_poc/` with web3.py integration tests and MVP scripts.
+- Facilitator fork lives in `Documents/x402_poc/bbt-x402-facilitator/` (Rust, Permit2 support).
 - Scripts and test files use `snake_case.py` convention for module names.
 
 ## Build, Test, and Development Commands
@@ -21,6 +22,9 @@ Proof of concept for etherlink x402 support testing via web3.py and ThirdWeb.
   - `ruff format .` (format)
 - Type checking (if using mypy):
   - `mypy .`
+- Rust facilitator (from `bbt-x402-facilitator/`):
+  - `cargo build`
+  - `cargo test`
 
 ## Coding Style & Naming Conventions
 - Python: 4-space indent, PEP8 style.
@@ -59,11 +63,11 @@ Proof of concept for etherlink x402 support testing via web3.py and ThirdWeb.
 - Start node via scripts in etherlink-node directory (see README.md there).
 
 ### Reference Contracts (Mainnet)
-- **bbtez (BBT) Token** - EIP-2612 verified ✅
+- **bbtez (BBT) Token** - EIP-2612 verified; used via Permit2 flow ✅
   - Contract: `0x7EfE4bdd11237610bcFca478937658bE39F8dfd6`
   - Deployed at block: `37605399`
   - Tx hash: `bd4c8f42e609fa40bffdda68ccf6d8616178604d76cdaa1ef3e08a3adc428cae`
-  - Use this contract as reference for x402/permit testing patterns.
+  - Use this contract as reference for x402/Permit2 testing patterns.
 
 ## Testing Guidelines
 - Use pytest for all tests; name test files `test_*.py`.
@@ -87,27 +91,29 @@ Proof of concept for etherlink x402 support testing via web3.py and ThirdWeb.
 ## x402 Protocol POC (2026-02-02)
 
 ### Overview
-Testing Coinbase x402 HTTP payment protocol on Etherlink mainnet with BBT token.
+Testing Coinbase x402 HTTP payment protocol on Etherlink mainnet with BBT token using Permit2.
 
 ### Architecture
 ```
-Client (mvp_client.py) --> Server (mvp_server.py:8000) --> Facilitator (ub1:8080) --> Etherlink RPC
+Client (bbt_mvp_client.py) --> Server (bbt_mvp_server.py:8001) --> Facilitator (ub1:9090) --> Etherlink RPC
 ```
 
 ### Key Files
 | File | Purpose |
 |------|---------|
-| `mvp_server.py` | FastAPI server with 402 payment flow |
-| `mvp_client.py` | EIP-712 signing client |
+| `bbt_mvp_server.py` | FastAPI server with 402 payment flow (Permit2 payload) |
+| `bbt_mvp_client.py` | EIP-712 signing client (Permit2) |
 | `bbt_storefront.py` | SDK-based server (blocked by middleware bug) |
 | `PROOF_OF_CONCEPT.md` | Full documentation of POC results |
+| `bbt-x402-facilitator/` | Permit2-enabled Rust facilitator fork |
 
 ### Remote Facilitator (ub1)
 - Host: `100.112.150.8` (SSH alias: `ub1`)
-- Facilitator: `http://100.112.150.8:8080`
+- Facilitator (Permit2 debug binary): `http://100.112.150.8:9090`
+- Legacy container (non-Permit2): `http://100.112.150.8:8080`
 - Container: `x402-facilitator-etherlink`
-- Source: `~/x402_rs/x402-rs/`
-- Rebuild: `cd ~/x402_rs/x402-rs && docker build -t ukstv/x402-facilitator:etherlink . && docker stop x402-facilitator-etherlink && docker rm x402-facilitator-etherlink && docker run -d --name x402-facilitator-etherlink --env-file .env -p 8080:8080 ukstv/x402-facilitator:etherlink`
+- Source (legacy): `~/x402_rs/x402-rs/`
+- Rebuild (legacy): `cd ~/x402_rs/x402-rs && docker build -t ukstv/x402-facilitator:etherlink . && docker stop x402-facilitator-etherlink && docker rm x402-facilitator-etherlink && docker run -d --name x402-facilitator-etherlink --env-file .env -p 8080:8080 ukstv/x402-facilitator:etherlink`
 
 ### Endpoints Modified on Facilitator
 - Added `/api/supported` route (SDK expects `/api/` prefix)
@@ -117,46 +123,29 @@ Client (mvp_client.py) --> Server (mvp_server.py:8000) --> Facilitator (ub1:8080
 ```bash
 cd /home/tzapac-server/Documents/x402_poc
 source venv/bin/activate
-python mvp_server.py
+python bbt_mvp_server.py
 ```
 
 ### Run Client Test
 ```bash
 source venv/bin/activate
-python mvp_client.py
+python bbt_mvp_client.py
 ```
 
-### Current Status: BLOCKED
+### Current Status: VERIFIED
 
-**Issue**: EIP-712 signature mismatch
-
-The x402-rs facilitator expects **EIP-3009 TransferWithAuthorization** signatures:
-```
-TransferWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)
-```
-
-But BBT token on Etherlink only supports **EIP-2612 Permit**:
-```
-Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)
-```
-
-**Result**: Signature verification fails in facilitator with "Address mismatch".
-
-### Solutions
-1. **Deploy EIP-3009 token** on Etherlink (e.g., USDC with transferWithAuthorization)
-2. **Modify facilitator** to support EIP-2612 Permit signatures
-3. **Use Etherlink native USDC** if it supports EIP-3009
+**Outcome**: Permit2 flow is supported by the local facilitator fork and settles on-chain.
 
 ### HTTP Flow Verified
 | Step | Status |
 |------|--------|
 | Server returns 402 with X-PAYMENT-REQUIRED | ✅ |
 | Client decodes requirements | ✅ |
-| Client creates EIP-712 signature | ✅ |
+| Client creates Permit2 EIP-712 signature | ✅ |
 | Client sends X-PAYMENT header | ✅ |
 | Server forwards to facilitator /settle | ✅ |
-| Facilitator validates signature | ❌ (format mismatch) |
-| On-chain settlement | ❌ (blocked) |
+| Facilitator validates Permit2 | ✅ |
+| On-chain settlement | ✅ |
 
 ### Network Configuration
 | Parameter | Value |
@@ -166,4 +155,4 @@ Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadlin
 | Facilitator network name | "etherlink" |
 | RPC | https://rpc.bubbletez.com |
 | BBT Token | 0x7EfE4bdd11237610bcFca478937658bE39F8dfd6 |
-| Server Wallet | 0x81C54CB7690016b2b0c3017a4991783964601bd9 |
+| Server Wallet | Configured via `.env` (`SERVER_WALLET`) |

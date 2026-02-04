@@ -7,14 +7,14 @@ What We Did
   - Added /api/supported route (SDK requires /api/ prefix)
   - Rebuilt Docker image: ukstv/x402-facilitator:etherlink
 2. Created MVP Implementation (Bypassing Buggy SDK Middleware)
-- mvp_server.py - FastAPI server that:
+- bbt_mvp_server.py - FastAPI server that:
   - Returns HTTP 402 with X-PAYMENT-REQUIRED header
   - Accepts X-PAYMENT header with signed payment
   - Forwards to facilitator /settle endpoint
   
-- mvp_client.py - Payment client that:
+- bbt_mvp_client.py - Payment client that:
   - Requests protected resource, receives 402
-  - Creates EIP-712 permit signature for BBT token
+  - Creates EIP-712 Permit2 signature for BBT token
   - Sends payment via X-PAYMENT header
 3. Debugged Facilitator Integration
 Fixed multiple format issues for facilitator /settle endpoint:
@@ -35,29 +35,29 @@ What Works ✅
 |------|--------|
 | Server returns 402 with X-PAYMENT-REQUIRED | ✅ |
 | Client decodes requirements | ✅ |
-| Client creates EIP-712 signature | ✅ |
+| Client creates EIP-712 Permit2 signature | ✅ |
 | Client sends X-PAYMENT header | ✅ |
 | Server calls facilitator /settle | ✅ |
 What's Blocked ❌
 | Step | Reason |
 |------|--------|
-| Facilitator signature validation | ✅ Permit2 flow (EIP-712 + Permit2) |
-| On-chain token transfer | ✅ Verified |
-| Transaction hash proof | ✅ Verified |
+| None | Settlement verified with Permit2 |
 ---
 Files We're Working On
 Local: /home/tzapac-server/Documents/x402_poc/
 | File | Purpose |
 |------|---------|
-| mvp_server.py | FastAPI x402 server with /settle integration |
-| mvp_client.py | EIP-712 signing client |
+| bbt_mvp_server.py | FastAPI x402 server with /settle integration |
+| bbt_mvp_client.py | EIP-712 signing client (Permit2) |
 | bbt_storefront.py | SDK-based server (middleware bug, not used) |
+| bbt-x402-facilitator/ | Permit2-enabled Rust facilitator fork |
 | AGENTS.md | Project documentation (updated with x402 section) |
 | PROOF_OF_CONCEPT.md | Full POC results documentation |
 | .env | Contains PRIVATE_KEY for client wallet |
 Remote (ub1 - 100.112.150.8):
 | Path | Purpose |
 |------|---------|
+| ~/x402-facilitator-debug | Permit2-enabled facilitator binary (9090) |
 | ~/x402_rs/x402-rs/ | Rust facilitator source |
 | ~/x402_rs/x402-rs/src/main.rs | Routes (added /api/supported) |
 | ~/x402_rs/x402-rs/src/network.rs | Network enum (added Etherlink) |
@@ -68,8 +68,8 @@ Network: Etherlink Mainnet
 Chain ID: 42793
 RPC: https://rpc.bubbletez.com
 BBT Token: 0x7EfE4bdd11237610bcFca478937658bE39F8dfd6
-Server Wallet: 0x3E3f637E2C052AD29558684B85a56D8Ee1334Db9
-Client Wallet: 0x3E3f637E2C052AD29558684B85a56D8Ee1334Db9
+Server Wallet: configured via .env (SERVER_WALLET); POC run used 0x3E3f637E2C052AD29558684B85a56D8Ee1334Db9
+Client Wallet: configured via .env (PRIVATE_KEY); POC run used 0x3E3f637E2C052AD29558684B85a56D8Ee1334Db9
 Facilitator (debug Permit2): http://100.112.150.8:9090
 Facilitator (legacy container): http://100.112.150.8:8080
 Latest tx: 0x0476d3bcfccf6a83644d12c5abcaf598a6fc1ac7ee1377bff35fda5b828590e1

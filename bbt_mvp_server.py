@@ -130,8 +130,12 @@ async def weather(request: Request):
             )
 
         tx_hash = None
+        permit_tx = None
         if isinstance(settle_data, dict):
             tx_hash = settle_data.get("txHash")
+            permit_tx = settle_data.get("permitTransaction") or settle_data.get(
+                "permit_transaction"
+            )
             if not tx_hash:
                 transaction = settle_data.get("transaction")
                 if isinstance(transaction, dict):
@@ -144,6 +148,9 @@ async def weather(request: Request):
                 parsed = json.loads(settle_data)
                 if isinstance(parsed, dict):
                     tx_hash = parsed.get("txHash")
+                    permit_tx = parsed.get("permitTransaction") or parsed.get(
+                        "permit_transaction"
+                    )
                     if not tx_hash:
                         transaction = parsed.get("transaction")
                         if isinstance(transaction, dict):
@@ -166,6 +173,7 @@ async def weather(request: Request):
     response_payload = {
         "success": True,
         "txHash": tx_hash,
+        "permitTx": permit_tx,
         "network": NETWORK,
         "explorer": f"https://explorer.etherlink.com/tx/{tx_hash}" if tx_hash else None,
     }
@@ -181,6 +189,7 @@ async def weather(request: Request):
                 "location": "Etherlink",
                 "payment_settled": True,
                 "txHash": tx_hash,
+                "permitTx": permit_tx,
                 "explorer": f"https://explorer.etherlink.com/tx/{tx_hash}"
                 if tx_hash
                 else None,

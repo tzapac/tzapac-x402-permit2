@@ -22,7 +22,7 @@ use crate::V2Eip155Exact;
 use crate::chain::{Eip155ChainReference, Eip155MetaTransactionProvider};
 use crate::v1_eip155_exact::ExactScheme;
 use crate::v1_eip155_exact::facilitator::{
-    Eip155ExactError, ExactEvmPayment, IEIP3009, IPermit2, Permit2Payment,
+    Eip155ExactError, ExactEvmPayment, IEIP3009, IPermit2, Permit2Payment, Permit2Settlement,
     assert_domain, assert_enough_balance, assert_enough_value, assert_permit2_domain,
     assert_permit2_time, assert_time, settle_payment, settle_payment_permit2,
     verify_payment, verify_payment_permit2,
@@ -116,7 +116,11 @@ where
         )
         .await?;
 
-        let (payer, tx_hash): (alloy_primitives::Address, alloy_primitives::TxHash) = match context {
+        let (payer, tx_hash, permit_tx_hash): (
+            alloy_primitives::Address,
+            alloy_primitives::TxHash,
+            Option<alloy_primitives::TxHash>,
+        ) = match context {
             PaymentContext::Eip3009 {
                 contract,
                 payment,
@@ -124,20 +128,27 @@ where
             } => (
                 payment.from,
                 settle_payment(&self.provider, &contract, &payment, &domain).await?,
+                None,
             ),
             PaymentContext::Permit2 {
                 contract,
                 payment,
                 domain,
-            } => (
-                payment.owner,
-                settle_payment_permit2(&self.provider, &contract, &payment, &domain).await?,
-            ),
+            } => {
+                let settlement: Permit2Settlement =
+                    settle_payment_permit2(&self.provider, &contract, &payment, &domain).await?;
+                (
+                    payment.owner,
+                    settlement.transfer_tx,
+                    Some(settlement.permit_tx),
+                )
+            }
         };
 
         Ok(v2::SettleResponse::Success {
             payer: payer.to_string(),
             transaction: tx_hash.to_string(),
+            permit_transaction: permit_tx_hash.map(|tx| tx.to_string()),
             network: payload.accepted.network.to_string(),
         }
         .into())

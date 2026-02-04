@@ -138,7 +138,7 @@ where
         )
         .await?;
 
-        let (payer, tx_hash) = match context {
+        let (payer, tx_hash, permit_tx_hash) = match context {
             PaymentContext::Eip3009 {
                 contract,
                 payment,
@@ -146,19 +146,26 @@ where
             } => (
                 payment.from,
                 settle_payment(&self.provider, &contract, &payment, &domain).await?,
+                None,
             ),
             PaymentContext::Permit2 {
                 contract,
                 payment,
                 domain,
-            } => (
-                payment.owner,
-                settle_payment_permit2(&self.provider, &contract, &payment, &domain).await?,
-            ),
+            } => {
+                let settlement =
+                    settle_payment_permit2(&self.provider, &contract, &payment, &domain).await?;
+                (
+                    payment.owner,
+                    settlement.transfer_tx,
+                    Some(settlement.permit_tx),
+                )
+            }
         };
         Ok(v1::SettleResponse::Success {
             payer: payer.to_string(),
             transaction: tx_hash.to_string(),
+            permit_transaction: permit_tx_hash.map(|tx| tx.to_string()),
             network: payload.network.clone(),
         }
         .into())
@@ -1263,12 +1270,17 @@ where
     }
 }
 
+pub struct Permit2Settlement {
+    pub permit_tx: TxHash,
+    pub transfer_tx: TxHash,
+}
+
 pub async fn settle_payment_permit2<P, E>(
     provider: &P,
     contract: &IPermit2::IPermit2Instance<&P::Inner>,
     payment: &Permit2Payment,
     eip712_domain: &Eip712Domain,
-) -> Result<TxHash, Eip155ExactError>
+) -> Result<Permit2Settlement, Eip155ExactError>
 where
     P: Eip155MetaTransactionProvider<Error = E>,
     Eip155ExactError: From<E>,
@@ -1341,7 +1353,10 @@ where
     tracing::info!("[DEBUG] transferFrom() completed, status={}", transfer_receipt.status());
     if transfer_receipt.status() {
         tracing::info!("[DEBUG] settle_payment_permit2 SUCCESS, tx={}", transfer_receipt.transaction_hash);
-        Ok(transfer_receipt.transaction_hash)
+        Ok(Permit2Settlement {
+            permit_tx: permit_receipt.transaction_hash,
+            transfer_tx: transfer_receipt.transaction_hash,
+        })
     } else {
         tracing::error!("[DEBUG] transferFrom() REVERTED!");
         Err(Eip155ExactError::TransactionReverted(

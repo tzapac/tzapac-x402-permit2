@@ -1,6 +1,6 @@
 # x402 Payment Protocol - Etherlink BBT Token Proof of Concept
 
-**Date:** 2026-02-02  
+**Date:** 2026-02-02 (updated 2026-02-04)  
 **Network:** Etherlink Mainnet (Chain ID: 42793)  
 **Token:** BBT (bbtez) - `0x7EfE4bdd11237610bcFca478937658bE39F8dfd6`
 
@@ -40,7 +40,7 @@
 ```
 
 **Binary:** `~/x402-facilitator-debug`  
-**Status:** Running on port 9090
+**Status:** Running on port 9090 (Permit2-enabled)
 
 ---
 
@@ -94,9 +94,9 @@ Content-Type: application/json
 
 **File:** `bbt_mvp_client.py`
 
-**Client Wallet:** `0x3E3f637E2C052AD29558684B85a56D8Ee1334Db9`
+**Client Wallet:** Configured via `.env` (POC run used `0x3E3f637E2C052AD29558684B85a56D8Ee1334Db9`)
 
-**EIP-712 Permit Parameters:**
+**EIP-712 Permit2 Parameters:**
 | Field | Value |
 |-------|-------|
 | Token | `0x7EfE4bdd11237610bcFca478937658bE39F8dfd6` (BBT) |
@@ -168,7 +168,7 @@ Content-Type: application/json
 ## On-Chain Settlement
 
 ### What We Implemented
-The MVP server now calls the facilitator `/settle` endpoint with the payment signature.
+The MVP server now calls the facilitator `/settle` endpoint with the Permit2 payment signature.
 
 ### Facilitator Response
 ```
@@ -195,7 +195,8 @@ The MVP server now calls the facilitator `/settle` endpoint with the payment sig
 | RPC URL | https://rpc.bubbletez.com |
 | Explorer | https://explorer.etherlink.com |
 | BBT Token | 0x7EfE4bdd11237610bcFca478937658bE39F8dfd6 |
-| Facilitator | http://100.112.150.8:9090 |
+| Facilitator (Permit2 debug) | http://100.112.150.8:9090 |
+| Facilitator (legacy container) | http://100.112.150.8:8080 |
 
 ---
 
@@ -206,6 +207,7 @@ The MVP server now calls the facilitator `/settle` endpoint with the payment sig
 | `bbt_mvp_server.py` | Minimal x402 server (returns 402, accepts X-PAYMENT) |
 | `bbt_mvp_client.py` | Minimal x402 client (creates Permit2 payload, sends X-PAYMENT) |
 | `bbt_storefront.py` | Full SDK-based server (blocked by middleware bug) |
+| `bbt-x402-facilitator/` | Permit2-enabled Rust facilitator fork |
 | `.env` | Private key and configuration |
 
 ---
@@ -226,7 +228,7 @@ The x402 HTTP payment protocol flow is **verified working** on Etherlink:
 |------------|--------|
 | Server returns HTTP 402 with `X-PAYMENT-REQUIRED` | ✅ |
 | Client decodes payment requirements | ✅ |
-| Client creates EIP-712 signature | ✅ |
+| Client creates Permit2 typed-data (EIP-712) signature | ✅ |
 | Client sends `X-PAYMENT` header | ✅ |
 | Server receives and parses payment | ✅ |
 | Server calls facilitator `/settle` | ✅ |

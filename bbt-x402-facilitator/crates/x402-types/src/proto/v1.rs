@@ -86,6 +86,8 @@ pub enum SettleResponse {
         payer: String,
         /// The transaction hash.
         transaction: String,
+        /// Optional permit transaction hash (e.g., Permit2 permit()).
+        permit_transaction: Option<String>,
         /// The network where settlement occurred.
         network: String,
     },
@@ -115,6 +117,9 @@ struct SettleResponseWire {
     pub payer: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transaction: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "permitTransaction", alias = "permit_transaction")]
+    pub permit_transaction: Option<String>,
     pub network: String,
 }
 
@@ -127,12 +132,14 @@ impl Serialize for SettleResponse {
             SettleResponse::Success {
                 payer,
                 transaction,
+                permit_transaction,
                 network,
             } => SettleResponseWire {
                 success: true,
                 error_reason: None,
                 payer: Some(payer.clone()),
                 transaction: Some(transaction.clone()),
+                permit_transaction: permit_transaction.clone(),
                 network: network.clone(),
             },
             SettleResponse::Error { reason, network } => SettleResponseWire {
@@ -140,6 +147,7 @@ impl Serialize for SettleResponse {
                 error_reason: Some(reason.clone()),
                 payer: None,
                 transaction: None,
+                permit_transaction: None,
                 network: network.clone(),
             },
         };
@@ -164,6 +172,7 @@ impl<'de> Deserialize<'de> for SettleResponse {
                 Ok(SettleResponse::Success {
                     payer,
                     transaction,
+                    permit_transaction: wire.permit_transaction,
                     network: wire.network,
                 })
             }
