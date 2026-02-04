@@ -104,6 +104,7 @@ where
             self.provider.chain(),
             payload,
             requirements,
+            Some(self.provider.signer_addresses()),
         )
         .await?;
 
@@ -135,6 +136,7 @@ where
             self.provider.chain(),
             payload,
             requirements,
+            Some(self.provider.signer_addresses()),
         )
         .await?;
 
@@ -224,6 +226,8 @@ pub struct Permit2Payment {
     pub owner: Address,
     /// Permit2 spender authorized to transfer.
     pub spender: Address,
+    /// Recipient address for the transfer.
+    pub pay_to: Address,
     /// Token address being authorized.
     pub token: Address,
     /// Permitted allowance amount (uint160 bounded).
@@ -293,6 +297,7 @@ async fn assert_valid_payment<'a, P: Provider>(
     chain: &Eip155ChainReference,
     payload: &types::PaymentPayload,
     requirements: &types::PaymentRequirements,
+    allowed_spenders: Option<Vec<Address>>,
 ) -> Result<PaymentContext<'a, P>, Eip155ExactError> {
     let chain_id: ChainId = chain.into();
     let payload_chain_id = ChainId::from_network_name(&payload.network)
@@ -312,8 +317,10 @@ async fn assert_valid_payment<'a, P: Provider>(
         if details.token != requirements.asset {
             return Err(PaymentVerificationError::AssetMismatch.into());
         }
-        if permit_single.spender != requirements.pay_to {
-            return Err(PaymentVerificationError::RecipientMismatch.into());
+        if let Some(spenders) = allowed_spenders.as_ref() {
+            if !spenders.iter().any(|s| *s == permit_single.spender) {
+                return Err(PaymentVerificationError::RecipientMismatch.into());
+            }
         }
 
         let sig_deadline = UnixTimestamp::from_secs(permit_single.sig_deadline);
@@ -331,6 +338,7 @@ async fn assert_valid_payment<'a, P: Provider>(
         let payment = Permit2Payment {
             owner: permit2.owner,
             spender: permit_single.spender,
+            pay_to: requirements.pay_to,
             token: details.token,
             amount: details.amount,
             expiration: details.expiration,
@@ -1060,32 +1068,26 @@ pub async fn verify_payment_permit2<P: Provider>(
     let payer = payment.owner;
     let signature_bytes = payment.signature.clone();
     let permit_single = build_permit2_single_call(payment)?;
-    let transfer_amount = permit2_amount(payment.transfer_amount)?;
 
     let permit_call = contract.permit(payment.owner, permit_single, signature_bytes);
-    let transfer_call =
-        contract.transferFrom(payment.owner, payment.spender, transfer_amount, payment.token);
-    let aggregate3 = provider.multicall().add(permit_call).add(transfer_call);
+    let aggregate3 = provider.multicall().add(permit_call);
     let aggregate3_call = aggregate3.aggregate3();
 
     #[cfg(feature = "telemetry")]
-    let (permit_result, transfer_result) = aggregate3_call
+    let (permit_result,) = aggregate3_call
         .instrument(tracing::info_span!(
-            "call_permit2_permit_and_transfer",
+            "call_permit2_permit",
             owner = %payment.owner,
             spender = %payment.spender,
             token = %payment.token,
-            transfer_amount = %payment.transfer_amount,
             otel.kind = "client",
         ))
         .await?;
     #[cfg(not(feature = "telemetry"))]
-    let (permit_result, transfer_result) = aggregate3_call.await?;
+    let (permit_result,) = aggregate3_call.await?;
 
     permit_result
         .map_err(|e| PaymentVerificationError::InvalidSignature(e.to_string()))?;
-    transfer_result
-        .map_err(|e| PaymentVerificationError::TransactionSimulation(e.to_string()))?;
 
     Ok(payer)
 }
@@ -1286,8 +1288,14 @@ where
     Eip155ExactError: From<E>,
 {
     let _ = eip712_domain;
-    tracing::info!("[DEBUG] settle_payment_permit2 START: owner={}, spender={}, token={}, amount={}", 
-        payment.owner, payment.spender, payment.token, payment.amount);
+    tracing::info!(
+        "[DEBUG] settle_payment_permit2 START: owner={}, spender={}, pay_to={}, token={}, amount={}",
+        payment.owner,
+        payment.spender,
+        payment.pay_to,
+        payment.token,
+        payment.amount
+    );
     
     let signature_bytes = payment.signature.clone();
     let permit_single = build_permit2_single_call(payment)?;
@@ -1327,7 +1335,7 @@ where
 
     tracing::info!("[DEBUG] calling transferFrom() on Permit2 contract...");
     let transfer_tx =
-        contract.transferFrom(payment.owner, payment.spender, transfer_amount, payment.token);
+        contract.transferFrom(payment.owner, payment.pay_to, transfer_amount, payment.token);
     let transfer_tx_fut = Eip155MetaTransactionProvider::send_transaction(
         provider,
         MetaTransaction {
@@ -1341,7 +1349,7 @@ where
         .instrument(tracing::info_span!(
             "call_permit2_transferFrom",
             owner = %payment.owner,
-            to = %payment.spender,
+            to = %payment.pay_to,
             token = %payment.token,
             amount = %payment.transfer_amount,
             otel.kind = "client",

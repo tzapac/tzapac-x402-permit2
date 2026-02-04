@@ -83,6 +83,7 @@ where
             self.provider.chain(),
             payload,
             requirements,
+            Some(self.provider.signer_addresses()),
         )
         .await?;
 
