@@ -186,16 +186,6 @@ def _analyze_transfer(w3: Web3, tx_hash: str) -> RunResult:
             transfer_from, transfer_to, transfer_amount = decoded
             break
 
-    permit_tx = None
-    if block_number is not None:
-        permit_tx = None
-        if from_addr:
-            permit_tx = _find_permit_tx(w3, from_addr, block_number, lookback=200)
-        if not permit_tx and FACILITATOR_WALLET:
-            permit_tx = _find_permit_tx(w3, FACILITATOR_WALLET, block_number, lookback=200)
-        if not permit_tx:
-            permit_tx = _find_permit_tx(w3, None, block_number, lookback=200)
-
     return RunResult(
         transfer_tx=tx_hash,
         transfer_from=transfer_from,
