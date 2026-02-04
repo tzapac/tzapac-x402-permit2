@@ -1,0 +1,33 @@
+FROM --platform=$BUILDPLATFORM rust:trixie AS builder
+
+ENV PORT=9090
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config \
+    libssl-dev \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY . ./
+RUN cargo build --package x402-facilitator --features full --release --locked
+
+# --- Stage 2 ---
+FROM --platform=$BUILDPLATFORM debian:trixie-slim
+
+ENV PORT=9090
+ENV RUST_LOG=info
+ENV X402_CONFIG=/app/bbt_config.json
+
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=builder /app/target/release/x402-facilitator /usr/local/bin/x402-facilitator
+COPY --from=builder /app/config.json.example /app/bbt_config.json.example
+
+EXPOSE $PORT
+
+ENTRYPOINT ["x402-facilitator"]
+CMD ["--config", "/app/bbt_config.json"]
