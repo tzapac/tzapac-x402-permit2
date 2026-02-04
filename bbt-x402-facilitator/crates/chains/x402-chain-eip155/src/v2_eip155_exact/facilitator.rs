@@ -5,6 +5,7 @@
 //! payload structures with embedded requirements and CAIP-2 chain IDs.
 
 use alloy_provider::Provider;
+use std::str::FromStr;
 use alloy_sol_types::Eip712Domain;
 use std::collections::HashMap;
 use x402_types::chain::{ChainId, ChainProviderOps};
@@ -22,7 +23,7 @@ use crate::V2Eip155Exact;
 use crate::chain::{Eip155ChainReference, Eip155MetaTransactionProvider};
 use crate::v1_eip155_exact::ExactScheme;
 use crate::v1_eip155_exact::facilitator::{
-    Eip155ExactError, ExactEvmPayment, IEIP3009, IPermit2, Permit2Payment, Permit2Settlement,
+    Eip155ExactError, ExactEvmPayment, IEIP3009, IPermit2, Permit2Payment,
     assert_domain, assert_enough_balance, assert_enough_value, assert_permit2_domain,
     assert_permit2_time, assert_time, settle_payment, settle_payment_permit2,
     verify_payment, verify_payment_permit2,
@@ -64,6 +65,17 @@ impl<P> V2Eip155ExactFacilitator<P> {
     }
 }
 
+fn parse_signer_addresses(signers: Vec<String>) -> Result<Vec<alloy_primitives::Address>, Eip155ExactError> {
+    let mut parsed = Vec::with_capacity(signers.len());
+    for signer in signers {
+        let addr = alloy_primitives::Address::from_str(&signer).map_err(|_| {
+            PaymentVerificationError::InvalidFormat("Invalid signer address".to_string())
+        })?;
+        parsed.push(addr);
+    }
+    Ok(parsed)
+}
+
 #[async_trait::async_trait]
 impl<P> X402SchemeFacilitator for V2Eip155ExactFacilitator<P>
 where
@@ -78,12 +90,13 @@ where
         let request = types::VerifyRequest::from_proto(request.clone())?;
         let payload = &request.payment_payload;
         let requirements = &request.payment_requirements;
+        let allowed_spenders = parse_signer_addresses(self.provider.signer_addresses())?;
         let context = assert_valid_payment(
             self.provider.inner(),
             self.provider.chain(),
             payload,
             requirements,
-            Some(self.provider.signer_addresses()),
+            Some(allowed_spenders),
         )
         .await?;
 
@@ -109,18 +122,19 @@ where
         let request = types::SettleRequest::from_proto(request.clone())?;
         let payload = &request.payment_payload;
         let requirements = &request.payment_requirements;
+        let allowed_spenders = parse_signer_addresses(self.provider.signer_addresses())?;
         let context = assert_valid_payment(
             self.provider.inner(),
             self.provider.chain(),
             payload,
             requirements,
+            Some(allowed_spenders),
         )
         .await?;
 
-        let (payer, tx_hash, permit_tx_hash): (
+        let (payer, tx_hash): (
             alloy_primitives::Address,
             alloy_primitives::TxHash,
-            Option<alloy_primitives::TxHash>,
         ) = match context {
             PaymentContext::Eip3009 {
                 contract,
@@ -129,19 +143,17 @@ where
             } => (
                 payment.from,
                 settle_payment(&self.provider, &contract, &payment, &domain).await?,
-                None,
             ),
             PaymentContext::Permit2 {
                 contract,
                 payment,
                 domain,
             } => {
-                let settlement: Permit2Settlement =
+                let settlement =
                     settle_payment_permit2(&self.provider, &contract, &payment, &domain).await?;
                 (
                     payment.owner,
-                    settlement.transfer_tx,
-                    Some(settlement.permit_tx),
+                    settlement,
                 )
             }
         };
@@ -149,7 +161,6 @@ where
         Ok(v2::SettleResponse::Success {
             payer: payer.to_string(),
             transaction: tx_hash.to_string(),
-            permit_transaction: permit_tx_hash.map(|tx| tx.to_string()),
             network: payload.accepted.network.to_string(),
         }
         .into())
@@ -201,6 +212,7 @@ async fn assert_valid_payment<'a, P: Provider>(
     chain: &'a Eip155ChainReference,
     payload: &'a types::PaymentPayload,
     requirements: &'a types::PaymentRequirements,
+    allowed_spenders: Option<Vec<alloy_primitives::Address>>,
 ) -> Result<PaymentContext<'a, P>, Eip155ExactError> {
     let accepted = &payload.accepted;
     if accepted != requirements {
@@ -221,8 +233,10 @@ async fn assert_valid_payment<'a, P: Provider>(
         if details.token != asset_address {
             return Err(PaymentVerificationError::AssetMismatch.into());
         }
-        if permit_single.spender != accepted.pay_to {
-            return Err(PaymentVerificationError::RecipientMismatch.into());
+        if let Some(spenders) = allowed_spenders.as_ref() {
+            if !spenders.iter().any(|s| *s == permit_single.spender) {
+                return Err(PaymentVerificationError::RecipientMismatch.into());
+            }
         }
 
         let sig_deadline = UnixTimestamp::from_secs(permit_single.sig_deadline);
@@ -243,6 +257,7 @@ async fn assert_valid_payment<'a, P: Provider>(
         let payment = Permit2Payment {
             owner: permit2.owner,
             spender: permit_single.spender,
+            pay_to: accepted.pay_to.into(),
             token: details.token,
             amount: details.amount,
             expiration: details.expiration,

@@ -54,7 +54,6 @@ impl X402SchemeFacilitator for V2AptosExactFacilitator {
         Ok(v2::SettleResponse::Success {
             payer,
             transaction: format!("0x{}", hex::encode(tx_hash)),
-            permit_transaction: None,
             network: self.provider.chain_id().to_string(),
         }
         .into())

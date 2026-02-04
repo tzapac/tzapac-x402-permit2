@@ -19,6 +19,7 @@ use alloy_provider::{
 use alloy_sol_types::{Eip712Domain, SolCall, SolStruct, SolType, eip712_domain, sol};
 use alloy_transport::TransportError;
 use std::collections::HashMap;
+use std::str::FromStr;
 use x402_types::chain::{ChainId, ChainProviderOps};
 use x402_types::proto;
 use x402_types::proto::{PaymentVerificationError, v1};
@@ -85,6 +86,17 @@ impl<P> V1Eip155ExactFacilitator<P> {
     }
 }
 
+fn parse_signer_addresses(signers: Vec<String>) -> Result<Vec<Address>, Eip155ExactError> {
+    let mut parsed = Vec::with_capacity(signers.len());
+    for signer in signers {
+        let addr = Address::from_str(&signer).map_err(|_| {
+            PaymentVerificationError::InvalidFormat("Invalid signer address".to_string())
+        })?;
+        parsed.push(addr);
+    }
+    Ok(parsed)
+}
+
 #[async_trait::async_trait]
 impl<P> X402SchemeFacilitator for V1Eip155ExactFacilitator<P>
 where
@@ -99,12 +111,13 @@ where
         let request = types::VerifyRequest::from_proto(request.clone())?;
         let payload = &request.payment_payload;
         let requirements = &request.payment_requirements;
+        let allowed_spenders = parse_signer_addresses(self.provider.signer_addresses())?;
         let context = assert_valid_payment(
             self.provider.inner(),
             self.provider.chain(),
             payload,
             requirements,
-            Some(self.provider.signer_addresses()),
+            Some(allowed_spenders),
         )
         .await?;
 
@@ -131,16 +144,17 @@ where
         let request = types::SettleRequest::from_proto(request.clone())?;
         let payload = &request.payment_payload;
         let requirements = &request.payment_requirements;
+        let allowed_spenders = parse_signer_addresses(self.provider.signer_addresses())?;
         let context = assert_valid_payment(
             self.provider.inner(),
             self.provider.chain(),
             payload,
             requirements,
-            Some(self.provider.signer_addresses()),
+            Some(allowed_spenders),
         )
         .await?;
 
-        let (payer, tx_hash, permit_tx_hash) = match context {
+        let (payer, tx_hash) = match context {
             PaymentContext::Eip3009 {
                 contract,
                 payment,
@@ -148,7 +162,6 @@ where
             } => (
                 payment.from,
                 settle_payment(&self.provider, &contract, &payment, &domain).await?,
-                None,
             ),
             PaymentContext::Permit2 {
                 contract,
@@ -159,15 +172,13 @@ where
                     settle_payment_permit2(&self.provider, &contract, &payment, &domain).await?;
                 (
                     payment.owner,
-                    settlement.transfer_tx,
-                    Some(settlement.permit_tx),
+                    settlement,
                 )
             }
         };
         Ok(v1::SettleResponse::Success {
             payer: payer.to_string(),
             transaction: tx_hash.to_string(),
-            permit_transaction: permit_tx_hash.map(|tx| tx.to_string()),
             network: payload.network.clone(),
         }
         .into())
@@ -1272,17 +1283,12 @@ where
     }
 }
 
-pub struct Permit2Settlement {
-    pub permit_tx: TxHash,
-    pub transfer_tx: TxHash,
-}
-
 pub async fn settle_payment_permit2<P, E>(
     provider: &P,
     contract: &IPermit2::IPermit2Instance<&P::Inner>,
     payment: &Permit2Payment,
     eip712_domain: &Eip712Domain,
-) -> Result<Permit2Settlement, Eip155ExactError>
+) -> Result<TxHash, Eip155ExactError>
 where
     P: Eip155MetaTransactionProvider<Error = E>,
     Eip155ExactError: From<E>,
@@ -1361,10 +1367,7 @@ where
     tracing::info!("[DEBUG] transferFrom() completed, status={}", transfer_receipt.status());
     if transfer_receipt.status() {
         tracing::info!("[DEBUG] settle_payment_permit2 SUCCESS, tx={}", transfer_receipt.transaction_hash);
-        Ok(Permit2Settlement {
-            permit_tx: permit_receipt.transaction_hash,
-            transfer_tx: transfer_receipt.transaction_hash,
-        })
+        Ok(transfer_receipt.transaction_hash)
     } else {
         tracing::error!("[DEBUG] transferFrom() REVERTED!");
         Err(Eip155ExactError::TransactionReverted(
