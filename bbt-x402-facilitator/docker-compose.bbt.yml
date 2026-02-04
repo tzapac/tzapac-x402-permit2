@@ -7,6 +7,5 @@ services:
       - "9090:9090"
     environment:
       - RUST_LOG=info
-      - X402_CONFIG=/app/bbt_config.json
     volumes:
-      - /home/tzapac/bbt_config.json:/app/bbt_config.json:ro
+      - ${BBT_CONFIG_PATH:-./bbt_config.json}:/app/bbt_config.json:ro
