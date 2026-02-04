@@ -25,16 +25,11 @@ if ! runuser -u facilitator -- test -r "$CONFIG_PATH"; then
 fi
 
 if [ "$#" -eq 0 ]; then
-  set -- x402-facilitator --config "$CONFIG_PATH"
-else
-  if [ "$1" = "x402-facilitator" ]; then
-    shift
-    if ! printf "%s\n" "$@" | grep -q -- "--config"; then
-      set -- x402-facilitator --config "$CONFIG_PATH" "$@"
-    else
-      set -- x402-facilitator "$@"
-    fi
-  fi
+  set -- x402-facilitator
+fi
+
+if [ "$1" = "x402-facilitator" ]; then
+  set -- "$@" --config "$CONFIG_PATH"
 fi
 
 exec runuser -u facilitator -- "$@"
