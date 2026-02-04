@@ -18,7 +18,7 @@ FROM --platform=$TARGETPLATFORM debian:trixie-slim
 ENV PORT=9090
 ENV RUST_LOG=info
 
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && \
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates util-linux && \
     rm -rf /var/lib/apt/lists/*
 
 RUN useradd -r -u 10001 -m -d /home/facilitator facilitator
@@ -27,10 +27,11 @@ WORKDIR /app
 
 COPY --from=builder /app/target/release/x402-facilitator /usr/local/bin/x402-facilitator
 COPY --from=builder /app/config.json.example /app/bbt_config.json.example
+COPY docker-entrypoint.bbt.sh /usr/local/bin/docker-entrypoint.bbt.sh
+
+RUN chmod 755 /usr/local/bin/docker-entrypoint.bbt.sh
 
 EXPOSE $PORT
 
-USER facilitator
-
-ENTRYPOINT ["x402-facilitator"]
-CMD ["--config", "/app/bbt_config.json"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.bbt.sh"]
+CMD ["x402-facilitator", "--config", "/app/bbt_config.json"]

@@ -1079,26 +1079,32 @@ pub async fn verify_payment_permit2<P: Provider>(
     let payer = payment.owner;
     let signature_bytes = payment.signature.clone();
     let permit_single = build_permit2_single_call(payment)?;
+    let transfer_amount = permit2_amount(payment.transfer_amount)?;
 
     let permit_call = contract.permit(payment.owner, permit_single, signature_bytes);
-    let aggregate3 = provider.multicall().add(permit_call);
+    let transfer_call =
+        contract.transferFrom(payment.owner, payment.pay_to, transfer_amount, payment.token);
+    let aggregate3 = provider.multicall().add(permit_call).add(transfer_call);
     let aggregate3_call = aggregate3.aggregate3();
 
     #[cfg(feature = "telemetry")]
-    let (permit_result,) = aggregate3_call
+    let (permit_result, transfer_result) = aggregate3_call
         .instrument(tracing::info_span!(
-            "call_permit2_permit",
+            "call_permit2_verify",
             owner = %payment.owner,
             spender = %payment.spender,
             token = %payment.token,
+            amount = %payment.transfer_amount,
             otel.kind = "client",
         ))
         .await?;
     #[cfg(not(feature = "telemetry"))]
-    let (permit_result,) = aggregate3_call.await?;
+    let (permit_result, transfer_result) = aggregate3_call.await?;
 
     permit_result
         .map_err(|e| PaymentVerificationError::InvalidSignature(e.to_string()))?;
+    transfer_result
+        .map_err(|e| PaymentVerificationError::TransactionSimulation(e.to_string()))?;
 
     Ok(payer)
 }
