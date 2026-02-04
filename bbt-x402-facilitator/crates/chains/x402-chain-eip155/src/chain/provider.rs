@@ -118,6 +118,94 @@ impl Eip155ChainProvider {
             self.signer_addresses[next]
         }
     }
+
+    async fn send_transaction_with_from(
+        &self,
+        tx: MetaTransaction,
+        from_address: Address,
+    ) -> Result<TransactionReceipt, MetaTransactionSendError> {
+        if !self.signer_addresses.contains(&from_address) {
+            return Err(MetaTransactionSendError::Custom(
+                "Signer not configured for requested from address".to_string(),
+            ));
+        }
+        tracing::info!("[DEBUG] send_transaction START: from={}, to={}", from_address, tx.to);
+
+        let mut txr = TransactionRequest::default()
+            .with_to(tx.to)
+            .with_from(from_address)
+            .with_input(tx.calldata);
+
+        if !self.eip1559 {
+            tracing::info!("[DEBUG] fetching gas price (non-EIP1559)...");
+            let provider = &self.inner;
+            let gas_fut = provider.get_gas_price();
+            #[cfg(feature = "telemetry")]
+            let gas: u128 = gas_fut
+                .instrument(tracing::info_span!("get_gas_price"))
+                .await?;
+            #[cfg(not(feature = "telemetry"))]
+            let gas: u128 = gas_fut.await?;
+            tracing::info!("[DEBUG] gas price fetched: {}", gas);
+            txr.set_gas_price(gas);
+        }
+
+        if txr.gas.is_none() {
+            tracing::info!("[DEBUG] estimating gas...");
+            let block_id = if self.flashblocks {
+                BlockId::latest()
+            } else {
+                BlockId::pending()
+            };
+            let gas_limit = match self.inner.estimate_gas(txr.clone()).block(block_id).await {
+                Ok(limit) => {
+                    tracing::info!("[DEBUG] gas estimated: {}", limit);
+                    limit
+                }
+                Err(e) => {
+                    tracing::error!("[DEBUG] gas estimation FAILED: {:?}", e);
+                    return Err(MetaTransactionSendError::Transport(e));
+                }
+            };
+            txr.set_gas_limit(gas_limit)
+        }
+
+        tracing::info!("[DEBUG] sending transaction...");
+        let pending_tx = match self.inner.send_transaction(txr).await {
+            Ok(pending) => {
+                tracing::info!("[DEBUG] tx submitted, hash={}", pending.tx_hash());
+                pending
+            }
+            Err(e) => {
+                tracing::error!("[DEBUG] tx submission FAILED: {:?}", e);
+                self.nonce_manager.reset_nonce(from_address).await;
+                return Err(MetaTransactionSendError::Transport(e));
+            }
+        };
+
+        let timeout = std::time::Duration::from_secs(self.receipt_timeout_secs);
+        tracing::info!("[DEBUG] waiting for receipt (timeout={}s)...", self.receipt_timeout_secs);
+
+        let watcher = pending_tx
+            .with_required_confirmations(tx.confirmations)
+            .with_timeout(Some(timeout));
+
+        match watcher.get_receipt().await {
+            Ok(receipt) => {
+                tracing::info!(
+                    "[DEBUG] receipt received! status={}, block={:?}",
+                    receipt.status(),
+                    receipt.block_number
+                );
+                Ok(receipt)
+            }
+            Err(e) => {
+                tracing::error!("[DEBUG] receipt wait FAILED: {:?}", e);
+                self.nonce_manager.reset_nonce(from_address).await;
+                Err(MetaTransactionSendError::PendingTransaction(e))
+            }
+        }
+    }
 }
 
 /// Creates a new provider from configuration.
@@ -255,81 +343,15 @@ impl Eip155MetaTransactionProvider for Eip155ChainProvider {
         tx: MetaTransaction,
     ) -> Result<TransactionReceipt, Self::Error> {
         let from_address = self.next_signer_address();
-        tracing::info!("[DEBUG] send_transaction START: from={}, to={}", from_address, tx.to);
-        
-        let mut txr = TransactionRequest::default()
-            .with_to(tx.to)
-            .with_from(from_address)
-            .with_input(tx.calldata);
+        self.send_transaction_with_from(tx, from_address).await
+    }
 
-        if !self.eip1559 {
-            tracing::info!("[DEBUG] fetching gas price (non-EIP1559)...");
-            let provider = &self.inner;
-            let gas_fut = provider.get_gas_price();
-            #[cfg(feature = "telemetry")]
-            let gas: u128 = gas_fut
-                .instrument(tracing::info_span!("get_gas_price"))
-                .await?;
-            #[cfg(not(feature = "telemetry"))]
-            let gas: u128 = gas_fut.await?;
-            tracing::info!("[DEBUG] gas price fetched: {}", gas);
-            txr.set_gas_price(gas);
-        }
-
-        // Estimate gas if not provided
-        if txr.gas.is_none() {
-            tracing::info!("[DEBUG] estimating gas...");
-            let block_id = if self.flashblocks {
-                BlockId::latest()
-            } else {
-                BlockId::pending()
-            };
-            let gas_limit = match self.inner.estimate_gas(txr.clone()).block(block_id).await {
-                Ok(limit) => {
-                    tracing::info!("[DEBUG] gas estimated: {}", limit);
-                    limit
-                }
-                Err(e) => {
-                    tracing::error!("[DEBUG] gas estimation FAILED: {:?}", e);
-                    return Err(MetaTransactionSendError::Transport(e));
-                }
-            };
-            txr.set_gas_limit(gas_limit)
-        }
-
-        // Send transaction with error handling for nonce reset
-        tracing::info!("[DEBUG] sending transaction...");
-        let pending_tx = match self.inner.send_transaction(txr).await {
-            Ok(pending) => {
-                tracing::info!("[DEBUG] tx submitted, hash={}", pending.tx_hash());
-                pending
-            }
-            Err(e) => {
-                tracing::error!("[DEBUG] tx submission FAILED: {:?}", e);
-                self.nonce_manager.reset_nonce(from_address).await;
-                return Err(MetaTransactionSendError::Transport(e));
-            }
-        };
-
-        // Get receipt with timeout and error handling for nonce reset
-        let timeout = std::time::Duration::from_secs(self.receipt_timeout_secs);
-        tracing::info!("[DEBUG] waiting for receipt (timeout={}s)...", self.receipt_timeout_secs);
-
-        let watcher = pending_tx
-            .with_required_confirmations(tx.confirmations)
-            .with_timeout(Some(timeout));
-
-        match watcher.get_receipt().await {
-            Ok(receipt) => {
-                tracing::info!("[DEBUG] receipt received! status={}, block={:?}", receipt.status(), receipt.block_number);
-                Ok(receipt)
-            }
-            Err(e) => {
-                tracing::error!("[DEBUG] receipt wait FAILED: {:?}", e);
-                self.nonce_manager.reset_nonce(from_address).await;
-                Err(MetaTransactionSendError::PendingTransaction(e))
-            }
-        }
+    fn send_transaction_from(
+        &self,
+        tx: MetaTransaction,
+        from: Address,
+    ) -> impl Future<Output = Result<TransactionReceipt, Self::Error>> + Send {
+        async move { self.send_transaction_with_from(tx, from).await }
     }
 }
 
@@ -384,6 +406,13 @@ pub trait Eip155MetaTransactionProvider {
         &self,
         tx: MetaTransaction,
     ) -> impl Future<Output = Result<TransactionReceipt, Self::Error>> + Send;
+
+    /// Sends a meta-transaction from a specific signer address.
+    fn send_transaction_from(
+        &self,
+        tx: MetaTransaction,
+        from: Address,
+    ) -> impl Future<Output = Result<TransactionReceipt, Self::Error>> + Send;
 }
 
 impl<T: Eip155MetaTransactionProvider> Eip155MetaTransactionProvider for Arc<T> {
@@ -403,5 +432,13 @@ impl<T: Eip155MetaTransactionProvider> Eip155MetaTransactionProvider for Arc<T> 
         tx: MetaTransaction,
     ) -> impl Future<Output = Result<TransactionReceipt, Self::Error>> + Send {
         (**self).send_transaction(tx)
+    }
+
+    fn send_transaction_from(
+        &self,
+        tx: MetaTransaction,
+        from: Address,
+    ) -> impl Future<Output = Result<TransactionReceipt, Self::Error>> + Send {
+        (**self).send_transaction_from(tx, from)
     }
 }

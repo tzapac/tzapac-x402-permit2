@@ -16,6 +16,7 @@ use alloy_provider::bindings::IMulticall3;
 use alloy_provider::{
     MULTICALL3_ADDRESS, MulticallError, MulticallItem, PendingTransactionError, Provider,
 };
+use alloy_rpc_types_eth::TransactionRequest;
 use alloy_sol_types::{Eip712Domain, SolCall, SolStruct, SolType, eip712_domain, sol};
 use alloy_transport::TransportError;
 use std::collections::HashMap;
@@ -1079,31 +1080,50 @@ pub async fn verify_payment_permit2<P: Provider>(
     let payer = payment.owner;
     let signature_bytes = payment.signature.clone();
     let permit_single = build_permit2_single_call(payment)?;
-    let transfer_amount = permit2_amount(payment.transfer_amount)?;
 
     let permit_call = contract.permit(payment.owner, permit_single, signature_bytes);
-    let transfer_call =
-        contract.transferFrom(payment.owner, payment.pay_to, transfer_amount, payment.token);
-    let aggregate3 = provider.multicall().add(permit_call).add(transfer_call);
-    let aggregate3_call = aggregate3.aggregate3();
 
     #[cfg(feature = "telemetry")]
-    let (permit_result, transfer_result) = aggregate3_call
+    permit_call
+        .call()
         .instrument(tracing::info_span!(
-            "call_permit2_verify",
+            "call_permit2_permit",
             owner = %payment.owner,
             spender = %payment.spender,
             token = %payment.token,
             amount = %payment.transfer_amount,
             otel.kind = "client",
         ))
-        .await?;
-    #[cfg(not(feature = "telemetry"))]
-    let (permit_result, transfer_result) = aggregate3_call.await?;
-
-    permit_result
+        .await
         .map_err(|e| PaymentVerificationError::InvalidSignature(e.to_string()))?;
-    transfer_result
+    #[cfg(not(feature = "telemetry"))]
+    permit_call
+        .call()
+        .await
+        .map_err(|e| PaymentVerificationError::InvalidSignature(e.to_string()))?;
+
+    let erc20_contract = IEIP3009::new(payment.token, provider);
+    let allowance = erc20_contract
+        .allowance(payment.owner, PERMIT2_ADDRESS)
+        .call()
+        .await
+        .map_err(|e| PaymentVerificationError::TransactionSimulation(e.to_string()))?;
+    if allowance < payment.transfer_amount {
+        return Err(PaymentVerificationError::TransactionSimulation(
+            "Permit2 ERC20 allowance is insufficient".to_string(),
+        )
+        .into());
+    }
+
+    let token_transfer =
+        erc20_contract.transferFrom(payment.owner, payment.pay_to, payment.transfer_amount);
+    let txr = TransactionRequest::default()
+        .with_to(payment.token)
+        .with_from(PERMIT2_ADDRESS)
+        .with_input(token_transfer.calldata().clone());
+    provider
+        .call(txr)
+        .await
         .map_err(|e| PaymentVerificationError::TransactionSimulation(e.to_string()))?;
 
     Ok(payer)
@@ -1315,13 +1335,14 @@ where
 
     tracing::info!("[DEBUG] calling permit() on Permit2 contract...");
     let permit_tx = contract.permit(payment.owner, permit_single, signature_bytes);
-    let permit_tx_fut = Eip155MetaTransactionProvider::send_transaction(
+    let permit_tx_fut = Eip155MetaTransactionProvider::send_transaction_from(
         provider,
         MetaTransaction {
             to: permit_tx.target(),
             calldata: permit_tx.calldata().clone(),
             confirmations: 1,
         },
+        payment.spender,
     );
     #[cfg(feature = "telemetry")]
     let permit_receipt = permit_tx_fut
@@ -1348,13 +1369,14 @@ where
     tracing::info!("[DEBUG] calling transferFrom() on Permit2 contract...");
     let transfer_tx =
         contract.transferFrom(payment.owner, payment.pay_to, transfer_amount, payment.token);
-    let transfer_tx_fut = Eip155MetaTransactionProvider::send_transaction(
+    let transfer_tx_fut = Eip155MetaTransactionProvider::send_transaction_from(
         provider,
         MetaTransaction {
             to: transfer_tx.target(),
             calldata: transfer_tx.calldata().clone(),
             confirmations: 1,
         },
+        payment.spender,
     );
     #[cfg(feature = "telemetry")]
     let transfer_receipt = transfer_tx_fut

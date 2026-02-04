@@ -4,7 +4,7 @@ services:
     container_name: bbt-x402-facilitator
     restart: unless-stopped
     ports:
-      - "9090:9090"
+      - "${BBT_BIND_ADDR:-127.0.0.1}:9090:9090"
     environment:
       - RUST_LOG=info
     volumes:
