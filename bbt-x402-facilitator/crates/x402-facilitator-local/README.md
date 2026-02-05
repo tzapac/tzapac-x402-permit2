@@ -158,16 +158,16 @@ The local facilitator uses a scheme-based architecture:
     └────┬────┘
          │
     ┌────┴────┐
-    ▼         ▼
-┌───────┐ ┌───────┐
-│V2Eip  │ │V2Sol  │
-│155Exact│ │anaExact│
-└───┬───┘ └───┬───┘
-    │         │
-┌───▼───┐ ┌───▼───┐
-│Eip155 │
-│Provider│ │Provider│
-└───────┘ └───────┘
+    ▼
+┌──────────┐
+│V2Eip155  │
+│Exact     │
+└───┬──────┘
+    │
+┌───▼──────┐
+│Eip155    │
+│Provider  │
+└──────────┘
 ```
 
 ## Configuration
@@ -177,12 +177,12 @@ The facilitator requires configuration for chains and optionally for schemes:
 ```json
 {
   "chains": {
-    "eip155:8453": {
+    "eip155:42793": {
       "eip1559": true,
       "signers": ["$FACILITATOR_PRIVATE_KEY"],
       "rpc": [
         {
-          "http": "https://mainnet.base.org",
+          "http": "https://rpc.bubbletez.com",
           "rate_limit": 100
         }
       ]
@@ -191,7 +191,7 @@ The facilitator requires configuration for chains and optionally for schemes:
   "schemes": [
     {
       "scheme": "v2-eip155-exact",
-      "chains": ["eip155:8453"]
+      "chains": ["eip155:42793"]
     },
   ]
 }

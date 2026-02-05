@@ -5,21 +5,21 @@
 //! consists of two parts separated by a colon:
 //!
 //! - **Namespace**: The blockchain ecosystem (e.g., `eip155` for EVM)
-//! - **Reference**: The chain-specific identifier (e.g., `8453` for Base, `137` for Polygon)
+//! - **Reference**: The chain-specific identifier (e.g., `42793` for Etherlink)
 //!
 //! # Examples
 //!
 //! ```
 //! use x402_types::chain::ChainId;
 //!
-//! // Create a chain ID for Base mainnet
-//! let base = ChainId::new("eip155", "8453");
-//! assert_eq!(base.to_string(), "eip155:8453");
+//! // Create a chain ID for Etherlink mainnet
+//! let etherlink = ChainId::new("eip155", "42793");
+//! assert_eq!(etherlink.to_string(), "eip155:42793");
 //!
 //! // Parse from string
-//! let polygon: ChainId = "eip155:137".parse().unwrap();
-//! assert_eq!(polygon.namespace, "eip155");
-//! assert_eq!(polygon.reference, "137");
+//! let etherlink: ChainId = "eip155:42793".parse().unwrap();
+//! assert_eq!(etherlink.namespace, "eip155");
+//! assert_eq!(etherlink.reference, "42793");
 //! ```
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
@@ -39,22 +39,22 @@ use crate::networks;
 ///
 /// # Serialization
 ///
-/// Serializes to/from a colon-separated string: `"eip155:8453"`
+/// Serializes to/from a colon-separated string: `"eip155:42793"`
 ///
 /// # Example
 ///
 /// ```
 /// use x402_types::chain::ChainId;
 ///
-/// let chain = ChainId::new("eip155", "8453");
+/// let chain = ChainId::new("eip155", "42793");
 /// let json = serde_json::to_string(&chain).unwrap();
-/// assert_eq!(json, "\"eip155:8453\"");
+/// assert_eq!(json, "\"eip155:42793\"");
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ChainId {
     /// The blockchain namespace (e.g., `eip155` for EVM chains).
     pub namespace: String,
-    /// The chain-specific reference (e.g., `8453` for Base, `137` for Polygon).
+    /// The chain-specific reference (e.g., `42793` for Etherlink).
     pub reference: String,
 }
 
@@ -66,9 +66,9 @@ impl ChainId {
     /// ```
     /// use x402_types::chain::ChainId;
     ///
-    /// let base = ChainId::new("eip155", "8453");
-    /// assert_eq!(base.namespace, "eip155");
-    /// assert_eq!(base.reference, "8453");
+    /// let etherlink = ChainId::new("eip155", "42793");
+    /// assert_eq!(etherlink.namespace, "eip155");
+    /// assert_eq!(etherlink.reference, "42793");
     /// ```
     pub fn new<N: Into<String>, R: Into<String>>(namespace: N, reference: R) -> Self {
         Self {
@@ -97,8 +97,8 @@ impl ChainId {
     /// ```
     /// use x402_types::chain::ChainId;
     ///
-    /// let base = ChainId::from_network_name("base").unwrap();
-    /// assert_eq!(base.to_string(), "eip155:8453");
+    /// let etherlink = ChainId::from_network_name("etherlink").unwrap();
+    /// assert_eq!(etherlink.to_string(), "eip155:42793");
     ///
     /// assert!(ChainId::from_network_name("unknown").is_none());
     /// ```
@@ -115,8 +115,8 @@ impl ChainId {
     /// ```
     /// use x402_types::chain::ChainId;
     ///
-    /// let base = ChainId::new("eip155", "8453");
-    /// assert_eq!(base.as_network_name(), Some("base"));
+    /// let etherlink = ChainId::new("eip155", "42793");
+    /// assert_eq!(etherlink.as_network_name(), Some("etherlink"));
     ///
     /// let unknown = ChainId::new("eip155", "999999");
     /// assert!(unknown.as_network_name().is_none());
@@ -185,15 +185,15 @@ impl<'de> Deserialize<'de> for ChainId {
 /// Chain ID patterns allow flexible matching of blockchain networks:
 ///
 /// - **Wildcard**: Matches any chain within a namespace (e.g., `eip155:*` matches all EVM chains)
-/// - **Exact**: Matches a specific chain (e.g., `eip155:8453` matches only Base)
-/// - **Set**: Matches any chain from a set (e.g., `eip155:{1,8453,137}` matches Ethereum, Base, or Polygon)
+/// - **Exact**: Matches a specific chain (e.g., `eip155:42793` matches only Etherlink)
+/// - **Set**: Matches any chain from a set (e.g., `eip155:{1,42793}` matches Ethereum or Etherlink)
 ///
 /// # Serialization
 ///
 /// Patterns serialize to human-readable strings:
 /// - Wildcard: `"eip155:*"`
-/// - Exact: `"eip155:8453"`
-/// - Set: `"eip155:{1,8453,137}"`
+/// - Exact: `"eip155:42793"`
+/// - Set: `"eip155:{1,42793}"`
 ///
 /// # Example
 ///
@@ -202,13 +202,13 @@ impl<'de> Deserialize<'de> for ChainId {
 ///
 /// // Match all EVM chains
 /// let all_evm = ChainIdPattern::wildcard("eip155");
-/// assert!(all_evm.matches(&ChainId::new("eip155", "8453")));
-/// assert!(all_evm.matches(&ChainId::new("eip155", "137")));
+/// assert!(all_evm.matches(&ChainId::new("eip155", "42793")));
+/// assert!(all_evm.matches(&ChainId::new("eip155", "1")));
 ///
 /// // Match specific chain
-/// let base_only = ChainIdPattern::exact("eip155", "8453");
-/// assert!(base_only.matches(&ChainId::new("eip155", "8453")));
-/// assert!(!base_only.matches(&ChainId::new("eip155", "137")));
+/// let etherlink_only = ChainIdPattern::exact("eip155", "42793");
+/// assert!(etherlink_only.matches(&ChainId::new("eip155", "42793")));
+/// assert!(!etherlink_only.matches(&ChainId::new("eip155", "1")));
 /// ```
 #[derive(Debug, Clone)]
 pub enum ChainIdPattern {
@@ -243,7 +243,7 @@ impl ChainIdPattern {
     ///
     /// let pattern = ChainIdPattern::wildcard("eip155");
     /// assert!(pattern.matches(&ChainId::new("eip155", "1")));
-    /// assert!(pattern.matches(&ChainId::new("eip155", "8453")));
+    /// assert!(pattern.matches(&ChainId::new("eip155", "42793")));
     /// ```
     pub fn wildcard<S: Into<String>>(namespace: S) -> Self {
         Self::Wildcard {
@@ -258,9 +258,9 @@ impl ChainIdPattern {
     /// ```
     /// use x402_types::chain::{ChainId, ChainIdPattern};
     ///
-    /// let pattern = ChainIdPattern::exact("eip155", "8453");
-    /// assert!(pattern.matches(&ChainId::new("eip155", "8453")));
-    /// assert!(!pattern.matches(&ChainId::new("eip155", "137")));
+    /// let pattern = ChainIdPattern::exact("eip155", "42793");
+    /// assert!(pattern.matches(&ChainId::new("eip155", "42793")));
+    /// assert!(!pattern.matches(&ChainId::new("eip155", "1")));
     /// ```
     pub fn exact<N: Into<String>, R: Into<String>>(namespace: N, reference: R) -> Self {
         Self::Exact {
@@ -277,9 +277,9 @@ impl ChainIdPattern {
     /// use x402_types::chain::{ChainId, ChainIdPattern};
     /// use std::collections::HashSet;
     ///
-    /// let refs: HashSet<String> = ["1", "8453", "137"].iter().map(|s| s.to_string()).collect();
+    /// let refs: HashSet<String> = ["1", "42793"].iter().map(|s| s.to_string()).collect();
     /// let pattern = ChainIdPattern::set("eip155", refs);
-    /// assert!(pattern.matches(&ChainId::new("eip155", "8453")));
+    /// assert!(pattern.matches(&ChainId::new("eip155", "42793")));
     /// assert!(!pattern.matches(&ChainId::new("eip155", "42")));
     /// ```
     pub fn set<N: Into<String>>(namespace: N, references: HashSet<String>) -> Self {
@@ -441,8 +441,8 @@ mod tests {
 
     #[test]
     fn test_chain_id_roundtrip_eip155() {
-        let original = ChainId::new("eip155", "8453");
-        // let original = ChainId::eip155(8453);
+        let original = ChainId::new("eip155", "42793");
+        // let original = ChainId::eip155(42793);
         let serialized = serde_json::to_string(&original).unwrap();
         let deserialized: ChainId = serde_json::from_str(&serialized).unwrap();
         assert_eq!(original, deserialized);
@@ -465,7 +465,7 @@ mod tests {
     fn test_pattern_wildcard_matches() {
         let pattern = ChainIdPattern::wildcard("eip155");
         assert!(pattern.matches(&ChainId::new("eip155", "1")));
-        assert!(pattern.matches(&ChainId::new("eip155", "8453")));
+        assert!(pattern.matches(&ChainId::new("eip155", "42793")));
         assert!(pattern.matches(&ChainId::new("eip155", "137")));
     }
 
@@ -473,18 +473,18 @@ mod tests {
     fn test_pattern_exact_matches() {
         let pattern = ChainIdPattern::exact("eip155", "1");
         assert!(pattern.matches(&ChainId::new("eip155", "1")));
-        assert!(!pattern.matches(&ChainId::new("eip155", "8453")));
+        assert!(!pattern.matches(&ChainId::new("eip155", "42793")));
     }
 
     #[test]
     fn test_pattern_set_matches() {
-        let references: HashSet<String> = vec!["1", "8453", "137"]
+        let references: HashSet<String> = vec!["1", "42793", "137"]
             .into_iter()
             .map(String::from)
             .collect();
         let pattern = ChainIdPattern::set("eip155", references);
         assert!(pattern.matches(&ChainId::new("eip155", "1")));
-        assert!(pattern.matches(&ChainId::new("eip155", "8453")));
+        assert!(pattern.matches(&ChainId::new("eip155", "42793")));
         assert!(pattern.matches(&ChainId::new("eip155", "137")));
         assert!(!pattern.matches(&ChainId::new("eip155", "42")));
     }
@@ -501,38 +501,18 @@ mod tests {
 
     #[test]
     fn test_chain_id_from_network_name() {
-        let base = chain_id_by_network_name("base").unwrap();
-        assert_eq!(base.namespace, "eip155");
-        assert_eq!(base.reference, "8453");
-
-        let base_sepolia = chain_id_by_network_name("base-sepolia").unwrap();
-        assert_eq!(base_sepolia.namespace, "eip155");
-        assert_eq!(base_sepolia.reference, "84532");
-
-        let polygon = chain_id_by_network_name("polygon").unwrap();
-        assert_eq!(polygon.namespace, "eip155");
-        assert_eq!(polygon.reference, "137");
-
-        let celo = chain_id_by_network_name("celo").unwrap();
-        assert_eq!(celo.namespace, "eip155");
-        assert_eq!(celo.reference, "42220");
+        let etherlink = chain_id_by_network_name("etherlink").unwrap();
+        assert_eq!(etherlink.namespace, "eip155");
+        assert_eq!(etherlink.reference, "42793");
 
         assert!(chain_id_by_network_name("unknown").is_none());
     }
 
     #[test]
     fn test_network_name_by_chain_id() {
-        let chain_id = ChainId::new("eip155", "8453");
+        let chain_id = ChainId::new("eip155", "42793");
         let network_name = network_name_by_chain_id(&chain_id).unwrap();
-        assert_eq!(network_name, "base");
-
-        let celo_chain_id = ChainId::new("eip155", "42220");
-        let network_name = network_name_by_chain_id(&celo_chain_id).unwrap();
-        assert_eq!(network_name, "celo");
-
-        let celo_sepolia_chain_id = ChainId::new("eip155", "11142220");
-        let network_name = network_name_by_chain_id(&celo_sepolia_chain_id).unwrap();
-        assert_eq!(network_name, "celo-sepolia");
+        assert_eq!(network_name, "etherlink");
 
         let unknown_chain_id = ChainId::new("eip155", "999999");
         assert!(network_name_by_chain_id(&unknown_chain_id).is_none());
@@ -540,11 +520,8 @@ mod tests {
 
     #[test]
     fn test_chain_id_as_network_name() {
-        let chain_id = ChainId::new("eip155", "8453");
-        assert_eq!(chain_id.as_network_name(), Some("base"));
-
-        let celo_chain_id = ChainId::new("eip155", "42220");
-        assert_eq!(celo_chain_id.as_network_name(), Some("celo"));
+        let chain_id = ChainId::new("eip155", "42793");
+        assert_eq!(chain_id.as_network_name(), Some("etherlink"));
 
         let unknown_chain_id = ChainId::new("eip155", "999999");
         assert!(unknown_chain_id.as_network_name().is_none());

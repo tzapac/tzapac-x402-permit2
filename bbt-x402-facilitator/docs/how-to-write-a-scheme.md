@@ -479,17 +479,16 @@ let blueprints = SchemeBlueprints::new()
 {
   "chains": {
     "eip155:1": { ... },
-    "eip155:3": { ... },
-    "eip155:8453": { ... }
+    "eip155:42793": { ... }
   },
   "schemes": [
     {
       "id": "v1-eip155-exact",
-      "chains": "eip155:*"
+      "chains": "eip155:42793"
     },
     {
       "id": "v1-eip155-exact-custom",
-      "chains": "eip155:3",
+      "chains": "eip155:42793",
       "config": { "customOption": "value" }
     }
   ]
@@ -510,9 +509,9 @@ The `chains` field supports several patterns:
 
 | Pattern | Matches |
 |---------|---------|
-| `eip155:84532` | Exact chain ID |
+| `eip155:42793` | Exact chain ID |
 | `eip155:*` | All EVM chains |
-| `eip155:{1,8453}` | Specific chain references |
+| `eip155:{1,42793}` | Specific chain references |
 
 ## Contributing to Upstream x402-rs
 

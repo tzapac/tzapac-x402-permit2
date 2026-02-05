@@ -7,7 +7,7 @@ EIP-155 (EVM) chain support for the [x402](https://www.x402.org) payment protoco
 
 This crate provides implementations of the [x402](https://www.x402.org) payment protocol for EVM-compatible blockchains using the EIP-155 chain
 ID standard. It supports both V1 and V2 protocol versions with the "exact" payment scheme based on ERC-3009
-`transferWithAuthorization`.
+`transferWithAuthorization`, plus Permit2-based approvals.
 
 ## Features
 
@@ -42,16 +42,24 @@ The crate is organized into several modules:
 ### Server: Creating a Price Tag
 
 ```rust
-use x402_chain_eip155::{V1Eip155Exact, KnownNetworkEip155};
-use x402_types::networks::USDC;
+use alloy_primitives::address;
+use x402_chain_eip155::chain::{Eip155ChainReference, Eip155TokenDeployment, TokenDeploymentEip712};
+use x402_chain_eip155::V1Eip155Exact;
 
-// Get USDC deployment on Base
-let usdc = USDC::base();
+let bbt = Eip155TokenDeployment {
+    chain_reference: Eip155ChainReference::new(42793),
+    address: address!("0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"),
+    decimals: 18,
+    eip712: Some(TokenDeploymentEip712 {
+        name: "BBT".into(),
+        version: "1".into(),
+    }),
+};
 
-// Create a price tag for 1 USDC
+// Create a price tag for 0.01 BBT
 let price_tag = V1Eip155Exact::price_tag(
 "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
-usdc.amount(1_000_000u64),
+bbt.amount(10_000_000_000_000_000u64),
 );
 ```
 
@@ -86,21 +94,9 @@ let settle_response = facilitator.settle( & settle_request).await?;
 
 ## Supported Networks
 
-The crate includes built-in support for many EVM networks through the `KnownNetworkEip155` trait:
+The crate includes built-in support for Etherlink through the `KnownNetworkEip155` trait.
 
-- **Base** (mainnet and Sepolia testnet)
-- **Polygon** (mainnet and Amoy testnet)
-- **Avalanche** (C-Chain and Fuji testnet)
-- **Sei** (mainnet and testnet)
-- **XDC Network**
-- **XRPL EVM**
-- **Peaq**
-- **IoTeX**
-- **Celo** (mainnet and Sepolia testnet)
-
-Each network includes USDC token deployment information with proper EIP-712 domain parameters.
-
-## ERC-3009 and Signature Handling
+## ERC-3009 / Permit2 Signature Handling
 
 The facilitator intelligently dispatches to different `transferWithAuthorization` contract functions or other onchain functions based on the
 signature format:
@@ -119,7 +115,7 @@ the payment.
 
 ```json
 {
-  "eip155:8453": {
+  "eip155:42793": {
     "eip1559": true,
     "flashblocks": false,
     "receipt_timeout_secs": 30,
@@ -128,7 +124,7 @@ the payment.
     ],
     "rpc": [
       {
-        "http": "https://mainnet.base.org",
+        "http": "https://rpc.bubbletez.com",
         "rate_limit": 100
       }
     ]

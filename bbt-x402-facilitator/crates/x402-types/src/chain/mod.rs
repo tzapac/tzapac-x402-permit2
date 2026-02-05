@@ -7,7 +7,7 @@
 //!
 //! The module is organized around the concept of chain providers and chain identifiers:
 //!
-//! - [`ChainId`] - A CAIP-2 compliant chain identifier (e.g., `eip155:8453` for Base)
+//! - [`ChainId`] - A CAIP-2 compliant chain identifier (e.g., `eip155:42793` for Etherlink)
 //! - [`ChainIdPattern`] - Pattern matching for chain IDs (exact, wildcard, or set)
 //! - [`ChainRegistry`] - Registry of configured chain providers
 
@@ -48,7 +48,6 @@ pub trait ChainProviderOps {
     /// Returns the addresses of all configured signers for this chain.
     ///
     /// For EVM chains, these are Ethereum addresses (0x-prefixed hex).
-    /// For Solana, these are base58-encoded public keys.
     fn signer_addresses(&self) -> Vec<String>;
 
     /// Returns the CAIP-2 chain identifier for this provider.
@@ -83,7 +82,7 @@ impl<T: ChainProviderOps> ChainProviderOps for Arc<T> {
 /// let registry = ChainRegistry::from_config(config.chains()).await?;
 ///
 /// // Find provider for a specific chain
-/// let base_provider = registry.by_chain_id(ChainId::new("eip155", "8453"));
+/// let etherlink_provider = registry.by_chain_id(ChainId::new("eip155", "42793"));
 ///
 /// // Find provider matching a pattern
 /// let any_evm = registry.by_chain_id_pattern(&ChainIdPattern::wildcard("eip155"));
@@ -111,8 +110,8 @@ impl<P> ChainRegistry<P> {
     /// Returns all providers whose chain IDs match the given pattern.
     /// The pattern can be:
     /// - Wildcard: Matches any chain within a namespace (e.g., `eip155:*`)
-    /// - Exact: Matches a specific chain (e.g., `eip155:8453`)
-    /// - Set: Matches any chain from a set of references (e.g., `eip155:{1,8453,137}`)
+    /// - Exact: Matches a specific chain (e.g., `eip155:42793`)
+    /// - Set: Matches any chain from a set of references (e.g., `eip155:{1,42793}`)
     ///
     /// # Example
     ///
@@ -128,7 +127,7 @@ impl<P> ChainRegistry<P> {
     /// assert!(!evm_providers.is_empty());
     ///
     /// // Find providers for specific chains
-    /// let mainnet_chains = ChainIdPattern::set("eip155", ["1", "8453", "137"].into_iter().map(String::from).collect());
+    /// let mainnet_chains = ChainIdPattern::set("eip155", ["1", "42793"].into_iter().map(String::from).collect());
     /// let mainnet_providers = registry.by_chain_id_pattern(&mainnet_chains);
     /// ```
     pub fn by_chain_id_pattern(&self, pattern: &ChainIdPattern) -> Vec<&P> {
@@ -146,7 +145,7 @@ impl<P> ChainRegistry<P> {
 ///
 /// # Type Parameters
 ///
-/// - `TAmount` - The numeric type for the amount (e.g., `U256` for EVM, `u64` for Solana)
+/// - `TAmount` - The numeric type for the amount (e.g., `U256` for EVM)
 /// - `TToken` - The token deployment type containing chain and address information
 #[derive(Debug, Clone)]
 #[allow(dead_code)] // Public for consumption by downstream crates.

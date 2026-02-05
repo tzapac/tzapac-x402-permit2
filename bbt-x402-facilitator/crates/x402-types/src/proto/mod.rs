@@ -73,7 +73,7 @@ where
 /// {
 ///   "x402Version": 2,
 ///   "scheme": "exact",
-///   "network": "eip155:8453"
+///   "network": "eip155:42793"
 /// }
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -100,11 +100,11 @@ pub struct SupportedPaymentKind {
 /// ```json
 /// {
 ///   "kinds": [
-///     { "x402Version": 2, "scheme": "exact", "network": "eip155:8453" }
+///     { "x402Version": 2, "scheme": "exact", "network": "eip155:42793" }
 ///   ],
 ///   "extensions": [],
 ///   "signers": {
-///     "eip155:8453": ["0x1234..."]
+///     "eip155:42793": ["0x1234..."]
 ///   }
 /// }
 /// ```

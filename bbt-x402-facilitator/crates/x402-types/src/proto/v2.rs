@@ -1,7 +1,7 @@
 //! Protocol version 2 (V2) types for x402.
 //!
 //! This module defines the wire format types for the enhanced x402 protocol version.
-//! V2 uses CAIP-2 chain IDs (e.g., "eip155:8453") instead of network names, and
+//! V2 uses CAIP-2 chain IDs (e.g., "eip155:42793") instead of network names, and
 //! includes richer resource metadata.
 //!
 //! # Key Differences from V1
@@ -177,7 +177,7 @@ pub struct PaymentRequirements<
 > {
     /// The payment scheme (e.g., "exact").
     pub scheme: TScheme,
-    /// The CAIP-2 chain ID (e.g., "eip155:8453").
+    /// The CAIP-2 chain ID (e.g., "eip155:42793").
     pub network: ChainId,
     /// The payment amount in token units.
     pub amount: TAmount,
@@ -254,10 +254,10 @@ pub struct PaymentRequired {
 ///
 /// let requirements = PaymentRequirements {
 ///     scheme: "exact".to_string(),
-///     network: "eip155:8453".parse().unwrap(),
-///     amount: "1000000".to_string(),
+///     network: "eip155:42793".parse().unwrap(),
+///     amount: "10000000000000000".to_string(),
 ///     pay_to: "0x1234...".to_string(),
-///     asset: "0xUSDC...".to_string(),
+///     asset: "0x7EfE4bdd11237610bcFca478937658bE39F8dfd6".to_string(),
 ///     max_timeout_seconds: 300,
 ///     extra: None,
 /// };

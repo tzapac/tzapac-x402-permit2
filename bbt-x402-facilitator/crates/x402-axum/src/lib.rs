@@ -15,17 +15,27 @@
 //! use axum::response::IntoResponse;
 //! use http::StatusCode;
 //! use x402_axum::X402Middleware;
-//! use x402_chain_eip155::{KnownNetworkEip155, V1Eip155Exact};
-//! use x402_types::networks::USDC;
+//! use x402_chain_eip155::chain::{Eip155ChainReference, Eip155TokenDeployment, TokenDeploymentEip712};
+//! use x402_chain_eip155::V1Eip155Exact;
 //!
 //! let x402 = X402Middleware::new("https://facilitator.x402.rs");
+//!
+//! let bbt = Eip155TokenDeployment {
+//!     chain_reference: Eip155ChainReference::new(42793),
+//!     address: address!("0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"),
+//!     decimals: 18,
+//!     eip712: Some(TokenDeploymentEip712 {
+//!         name: "BBT".into(),
+//!         version: "1".into(),
+//!     }),
+//! };
 //!
 //! let app: Router = Router::new().route(
 //!     "/protected",
 //!     get(my_handler).layer(
 //!         x402.with_price_tag(V1Eip155Exact::price_tag(
 //!             address!("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"),
-//!             USDC::base_sepolia().parse("0.01").unwrap(),
+//!             bbt.parse("0.01").unwrap(),
 //!         ))
 //!     ),
 //! );
@@ -54,11 +64,20 @@
 //! use axum::http::StatusCode;
 //! use alloy_primitives::address;
 //! use x402_axum::X402Middleware;
-//! use x402_chain_eip155::KnownNetworkEip155;
+//! use x402_chain_eip155::chain::{Eip155ChainReference, Eip155TokenDeployment, TokenDeploymentEip712};
 //! use x402_chain_eip155::V1Eip155Exact;
-//! use x402_types::networks::USDC;
 //!
 //! let x402 = X402Middleware::new("https://facilitator.x402.rs");
+//!
+//! let bbt = Eip155TokenDeployment {
+//!     chain_reference: Eip155ChainReference::new(42793),
+//!     address: address!("0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"),
+//!     decimals: 18,
+//!     eip712: Some(TokenDeploymentEip712 {
+//!         name: "BBT".into(),
+//!         version: "1".into(),
+//!     }),
+//! };
 //!
 //! let app: Router = Router::new().route(
 //!     "/protected",
@@ -73,7 +92,7 @@
 //!
 //!             let amount = if is_premium { "0.005" } else { "0.01" };
 //!             async move {
-//!                 vec![V1Eip155Exact::price_tag(address!("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"), USDC::base_sepolia().parse(amount).unwrap())]
+//!                 vec![V1Eip155Exact::price_tag(address!("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"), bbt.parse(amount).unwrap())]
 //!             }
 //!         })
 //!     ),

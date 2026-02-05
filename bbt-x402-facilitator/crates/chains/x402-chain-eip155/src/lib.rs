@@ -35,16 +35,24 @@
 //! ## Server: Creating a Price Tag
 //!
 //! ```ignore
-//! use x402_chain_eip155::{V1Eip155Exact, KnownNetworkEip155};
-//! use x402_types::networks::USDC;
+//! use alloy_primitives::address;
+//! use x402_chain_eip155::chain::{Eip155ChainReference, Eip155TokenDeployment, TokenDeploymentEip712};
+//! use x402_chain_eip155::V1Eip155Exact;
 //!
-//! // Get USDC deployment on Base
-//! let usdc = USDC::base();
+//! let bbt = Eip155TokenDeployment {
+//!     chain_reference: Eip155ChainReference::new(42793),
+//!     address: address!("0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"),
+//!     decimals: 18,
+//!     eip712: Some(TokenDeploymentEip712 {
+//!         name: "BBT".into(),
+//!         version: "1".into(),
+//!     }),
+//! };
 //!
-//! // Create a price tag for 1 USDC
+//! // Create a price tag for 0.01 BBT
 //! let price_tag = V1Eip155Exact::price_tag(
 //!     "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
-//!     usdc.amount(1_000_000u64),
+//!     bbt.amount(10_000_000_000_000_000u64),
 //! );
 //! ```
 //!

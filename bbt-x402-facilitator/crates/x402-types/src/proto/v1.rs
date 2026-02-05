@@ -1,7 +1,7 @@
 //! Protocol version 1 (V1) types for x402.
 //!
 //! This module defines the wire format types for the original x402 protocol version.
-//! V1 uses network names (e.g., "base-sepolia") instead of CAIP-2 chain IDs.
+//! V1 uses network names (e.g., "etherlink") instead of CAIP-2 chain IDs.
 //!
 //! # Key Types
 //!
@@ -339,7 +339,7 @@ pub struct PaymentPayload<TScheme = String, TPayload = Box<serde_json::value::Ra
     pub x402_version: X402Version1,
     /// The payment scheme (e.g., "exact").
     pub scheme: TScheme,
-    /// The network name (e.g., "base-sepolia").
+    /// The network name (e.g., "etherlink").
     pub network: String,
     /// The scheme-specific signed payload.
     pub payload: TPayload,
@@ -366,7 +366,7 @@ pub struct PaymentRequirements<
 > {
     /// The payment scheme (e.g., "exact").
     pub scheme: TScheme,
-    /// The network name (e.g., "base-sepolia").
+    /// The network name (e.g., "etherlink").
     pub network: String,
     /// The maximum amount required for payment.
     pub max_amount_required: TAmount,
@@ -454,9 +454,9 @@ pub struct PaymentRequired {
 /// let price = PriceTag {
 ///     scheme: "exact".to_string(),
 ///     pay_to: "0x1234...".to_string(),
-///     asset: "0xUSDC...".to_string(),
-///     network: "base".to_string(),
-///     amount: "1000000".to_string(), // 1 USDC
+///     asset: "0x7EfE4bdd11237610bcFca478937658bE39F8dfd6".to_string(),
+///     network: "etherlink".to_string(),
+///     amount: "10000000000000000".to_string(), // 0.01 BBT
 ///     max_timeout_seconds: 300,
 ///     extra: None,
 ///     enricher: None,

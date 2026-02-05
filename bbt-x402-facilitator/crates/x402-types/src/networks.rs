@@ -41,7 +41,7 @@
 //! CAIP-2 is a standard for identifying blockchain networks in a chain-agnostic way. A CAIP-2
 //! chain ID consists of two parts separated by a colon:
 //! - **Namespace**: The blockchain ecosystem (e.g., "eip155" for EVM)
-//! - **Reference**: The chain-specific identifier (e.g., "8453" for Base, "137" for Polygon)
+//! - **Reference**: The chain-specific identifier (e.g., "42793" for Etherlink)
 //!
 //! For more information, see: https://chainagnostic.org/CAIPs/caip-2
 //!
@@ -59,13 +59,7 @@
 //! The module provides namespace-specific traits for better organization and flexibility:
 //!
 //! ## KnownNetworkEip155
-//! Provides convenient static methods for all EVM networks (eip155 namespace):
-//! - Base, Base Sepolia
-//! - Polygon, Polygon Amoy
-//! - Avalanche, Avalanche Fuji
-//! - Sei, Sei Testnet
-//! - XDC, XRPL EVM, Peaq, IoTeX
-//! - Celo, Celo Sepolia
+//! Provides convenient static methods for Etherlink (eip155 namespace).
 //!
 //! # Supported Networks
 //!
@@ -78,18 +72,18 @@
 //! use x402_types::networks::chain_id_by_network_name;
 //!
 //! // Using lookup functions
-//! let polygon = chain_id_by_network_name("polygon").unwrap();
-//! assert_eq!(polygon.namespace, "eip155");
-//! assert_eq!(polygon.reference, "137");
+//! let etherlink = chain_id_by_network_name("etherlink").unwrap();
+//! assert_eq!(etherlink.namespace, "eip155");
+//! assert_eq!(etherlink.reference, "42793");
 //!
 //! // Using ChainId::from_network_name
-//! let base = ChainId::from_network_name("base").unwrap();
-//! assert_eq!(base.namespace, "eip155");
-//! assert_eq!(base.reference, "8453");
+//! let etherlink = ChainId::from_network_name("etherlink").unwrap();
+//! assert_eq!(etherlink.namespace, "eip155");
+//! assert_eq!(etherlink.reference, "42793");
 //!
 //! // Reverse lookup
-//! let chain_id = ChainId::new("eip155", "8453");
-//! assert_eq!(chain_id.as_network_name(), Some("base"));
+//! let chain_id = ChainId::new("eip155", "42793");
+//! assert_eq!(chain_id.as_network_name(), Some("etherlink"));
 //! ```
 
 use std::collections::HashMap;
@@ -100,11 +94,11 @@ use crate::chain::ChainId;
 /// A known network definition with its chain ID and human-readable name.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NetworkInfo {
-    /// Human-readable network name (e.g., "base-sepolia")
+    /// Human-readable network name (e.g., "etherlink")
     pub name: &'static str,
     /// CAIP-2 namespace (e.g., "eip155")
     pub namespace: &'static str,
-    /// Chain reference (e.g., "84532" for Base Sepolia, "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp" for Solana mainnet)
+    /// Chain reference (e.g., "42793" for Etherlink)
     pub reference: &'static str,
 }
 
@@ -118,9 +112,8 @@ impl NetworkInfo {
 /// A static array of well-known blockchain networks.
 ///
 /// This array contains a registry of well-known blockchain networks for improved
-/// developer experience and x402 protocol v1 compatibility, organized by ecosystem
-/// (EVM networks first, then Solana networks). Each entry includes the network's
-/// human-readable name, CAIP-2 namespace, and chain reference.
+/// developer experience and x402 protocol v1 compatibility. Each entry includes
+/// the network's human-readable name, CAIP-2 namespace, and chain reference.
 ///
 /// # x402 v1 Protocol Relevance
 ///
@@ -139,91 +132,16 @@ impl NetworkInfo {
 /// - Providing human-readable network names via [`ChainId::as_network_name()`](crate::chain::ChainId::as_network_name)
 /// - Serving as a reference for commonly used blockchain networks
 pub static KNOWN_NETWORKS: &[NetworkInfo] = &[
-    // EVM Networks
-    // Base
     NetworkInfo {
-        name: "base",
+        name: "etherlink",
         namespace: "eip155",
-        reference: "8453",
-    },
-    NetworkInfo {
-        name: "base-sepolia",
-        namespace: "eip155",
-        reference: "84532",
-    },
-    // Polygon
-    NetworkInfo {
-        name: "polygon",
-        namespace: "eip155",
-        reference: "137",
-    },
-    NetworkInfo {
-        name: "polygon-amoy",
-        namespace: "eip155",
-        reference: "80002",
-    },
-    // Avalanche
-    NetworkInfo {
-        name: "avalanche",
-        namespace: "eip155",
-        reference: "43114",
-    },
-    NetworkInfo {
-        name: "avalanche-fuji",
-        namespace: "eip155",
-        reference: "43113",
-    },
-    // Sei
-    NetworkInfo {
-        name: "sei",
-        namespace: "eip155",
-        reference: "1329",
-    },
-    NetworkInfo {
-        name: "sei-testnet",
-        namespace: "eip155",
-        reference: "1328",
-    },
-    // XDC
-    NetworkInfo {
-        name: "xdc",
-        namespace: "eip155",
-        reference: "50",
-    },
-    // XRPL EVM
-    NetworkInfo {
-        name: "xrpl-evm",
-        namespace: "eip155",
-        reference: "1440000",
-    },
-    // Peaq
-    NetworkInfo {
-        name: "peaq",
-        namespace: "eip155",
-        reference: "3338",
-    },
-    // IoTeX
-    NetworkInfo {
-        name: "iotex",
-        namespace: "eip155",
-        reference: "4689",
-    },
-    // Celo Networks
-    NetworkInfo {
-        name: "celo",
-        namespace: "eip155",
-        reference: "42220",
-    },
-    NetworkInfo {
-        name: "celo-sepolia",
-        namespace: "eip155",
-        reference: "11142220",
+        reference: "42793",
     },
 ];
 
 /// Lazy-initialized hashmap for network name to ChainId lookups.
 ///
-/// Maps human-readable network names (e.g., "base", "polygon") to their
+/// Maps human-readable network names (e.g., "etherlink") to their
 /// corresponding [`ChainId`] instances. This hashmap is populated once on first access
 /// from the [`KNOWN_NETWORKS`] array.
 ///
@@ -243,9 +161,9 @@ pub static KNOWN_NETWORKS: &[NetworkInfo] = &[
 /// ```
 /// use x402_types::networks::chain_id_by_network_name;
 ///
-/// let base = chain_id_by_network_name("base").unwrap();
-/// assert_eq!(base.namespace, "eip155");
-/// assert_eq!(base.reference, "8453");
+/// let etherlink = chain_id_by_network_name("etherlink").unwrap();
+/// assert_eq!(etherlink.namespace, "eip155");
+/// assert_eq!(etherlink.reference, "42793");
 /// ```
 pub static NAME_TO_CHAIN_ID: LazyLock<HashMap<&'static str, ChainId>> = LazyLock::new(|| {
     KNOWN_NETWORKS
@@ -277,9 +195,9 @@ pub static NAME_TO_CHAIN_ID: LazyLock<HashMap<&'static str, ChainId>> = LazyLock
 /// use x402_types::chain::ChainId;
 /// use x402_types::networks::network_name_by_chain_id;
 ///
-/// let chain_id = ChainId::new("eip155", "137");
+/// let chain_id = ChainId::new("eip155", "42793");
 /// let name = network_name_by_chain_id(&chain_id).unwrap();
-/// assert_eq!(name, "polygon");
+/// assert_eq!(name, "etherlink");
 /// ```
 pub static CHAIN_ID_TO_NAME: LazyLock<HashMap<ChainId, &'static str>> = LazyLock::new(|| {
     KNOWN_NETWORKS
@@ -307,7 +225,7 @@ pub static CHAIN_ID_TO_NAME: LazyLock<HashMap<ChainId, &'static str>> = LazyLock
 ///
 /// # Arguments
 ///
-/// * `name` - The human-readable network name (e.g., "base", "polygon-amoy")
+/// * `name` - The human-readable network name (e.g., "etherlink")
 ///
 /// # Returns
 ///
@@ -319,9 +237,9 @@ pub static CHAIN_ID_TO_NAME: LazyLock<HashMap<ChainId, &'static str>> = LazyLock
 /// ```
 /// use x402_types::networks::chain_id_by_network_name;
 ///
-/// let base = chain_id_by_network_name("base").unwrap();
-/// assert_eq!(base.namespace, "eip155");
-/// assert_eq!(base.reference, "8453");
+/// let etherlink = chain_id_by_network_name("etherlink").unwrap();
+/// assert_eq!(etherlink.namespace, "eip155");
+/// assert_eq!(etherlink.reference, "42793");
 ///
 /// assert!(chain_id_by_network_name("unknown-network").is_none());
 /// ```
@@ -361,9 +279,9 @@ pub fn chain_id_by_network_name(name: &str) -> Option<&ChainId> {
 /// use x402_types::chain::ChainId;
 /// use x402_types::networks::network_name_by_chain_id;
 ///
-/// let chain_id = ChainId::new("eip155", "8453");
+/// let chain_id = ChainId::new("eip155", "42793");
 /// let name = network_name_by_chain_id(&chain_id).unwrap();
-/// assert_eq!(name, "base");
+/// assert_eq!(name, "etherlink");
 ///
 /// let unknown = ChainId::new("eip155", "999999");
 /// assert!(network_name_by_chain_id(&unknown).is_none());
@@ -374,26 +292,8 @@ pub fn network_name_by_chain_id(chain_id: &ChainId) -> Option<&'static str> {
 
 /// Marker struct for USDC token deployment implementations.
 ///
-/// This struct is used as a type parameter for chain-specific traits (e.g., `KnownNetworkEip155`,
-/// `KnownNetworkSolana`) to provide per-network USDC token deployment information.
-///
-/// # Usage
-///
-/// Chain-specific crates implement traits for this marker struct to provide USDC token
-/// deployments on different networks. For example:
-///
-/// - `x402-chain-eip155` implements `KnownNetworkEip155<Eip155TokenDeployment>` for `USDC`
-///
-/// # Example
-///
-/// ```ignore
-/// use x402_chain_eip155::{KnownNetworkEip155, Eip155TokenDeployment};
-/// use x402_types::networks::USDC;
-///
-/// // Get USDC deployment on Base mainnet
-/// let usdc_base: Eip155TokenDeployment = USDC::base();
-/// assert_eq!(usdc_base.chain_reference.value(), 8453);
-/// ```
+/// This struct is used as a type parameter for chain-specific traits to provide
+/// per-network USDC token deployment information.
 #[allow(dead_code, clippy::upper_case_acronyms)] // Public for consumption by downstream crates.
 pub struct USDC;
 
@@ -403,38 +303,18 @@ mod tests {
 
     #[test]
     fn test_chain_id_from_network_name() {
-        let base = chain_id_by_network_name("base").unwrap();
-        assert_eq!(base.namespace, "eip155");
-        assert_eq!(base.reference, "8453");
-
-        let base_sepolia = chain_id_by_network_name("base-sepolia").unwrap();
-        assert_eq!(base_sepolia.namespace, "eip155");
-        assert_eq!(base_sepolia.reference, "84532");
-
-        let polygon = chain_id_by_network_name("polygon").unwrap();
-        assert_eq!(polygon.namespace, "eip155");
-        assert_eq!(polygon.reference, "137");
-
-        let celo = chain_id_by_network_name("celo").unwrap();
-        assert_eq!(celo.namespace, "eip155");
-        assert_eq!(celo.reference, "42220");
+        let etherlink = chain_id_by_network_name("etherlink").unwrap();
+        assert_eq!(etherlink.namespace, "eip155");
+        assert_eq!(etherlink.reference, "42793");
 
         assert!(chain_id_by_network_name("unknown").is_none());
     }
 
     #[test]
     fn test_network_name_by_chain_id() {
-        let chain_id = ChainId::new("eip155", "8453");
-        let network_name = network_name_by_chain_id(&chain_id).unwrap();
-        assert_eq!(network_name, "base");
-
-        let celo_chain_id = ChainId::new("eip155", "42220");
-        let network_name = network_name_by_chain_id(&celo_chain_id).unwrap();
-        assert_eq!(network_name, "celo");
-
-        let celo_sepolia_chain_id = ChainId::new("eip155", "11142220");
-        let network_name = network_name_by_chain_id(&celo_sepolia_chain_id).unwrap();
-        assert_eq!(network_name, "celo-sepolia");
+        let etherlink_chain_id = ChainId::new("eip155", "42793");
+        let network_name = network_name_by_chain_id(&etherlink_chain_id).unwrap();
+        assert_eq!(network_name, "etherlink");
 
         let unknown_chain_id = ChainId::new("eip155", "999999");
         assert!(network_name_by_chain_id(&unknown_chain_id).is_none());
@@ -442,11 +322,8 @@ mod tests {
 
     #[test]
     fn test_chain_id_as_network_name() {
-        let chain_id = ChainId::new("eip155", "8453");
-        assert_eq!(chain_id.as_network_name(), Some("base"));
-
-        let celo_chain_id = ChainId::new("eip155", "42220");
-        assert_eq!(celo_chain_id.as_network_name(), Some("celo"));
+        let chain_id = ChainId::new("eip155", "42793");
+        assert_eq!(chain_id.as_network_name(), Some("etherlink"));
 
         let unknown_chain_id = ChainId::new("eip155", "999999");
         assert!(unknown_chain_id.as_network_name().is_none());

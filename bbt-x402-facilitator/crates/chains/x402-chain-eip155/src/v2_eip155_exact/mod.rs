@@ -6,7 +6,7 @@
 //!
 //! # Differences from V1
 //!
-//! - Uses CAIP-2 chain IDs (e.g., `eip155:8453`) instead of network names
+//! - Uses CAIP-2 chain IDs (e.g., `eip155:42793`) instead of network names
 //! - Payment requirements are embedded in the payload for verification
 //! - Cleaner separation between accepted requirements and authorization
 //!
@@ -21,14 +21,22 @@
 //! # Usage
 //!
 //! ```ignore
+//! use alloy_primitives::address;
+//! use x402_chain_eip155::chain::{Eip155ChainReference, Eip155TokenDeployment, TokenDeploymentEip712};
 //! use x402_chain_eip155::v2_eip155_exact::V2Eip155Exact;
-//! use x402_chain_eip155::networks::{KnownNetworkEip155, USDC};
 //!
-//! // Create a price tag for 1 USDC on Base
-//! let usdc = USDC::base();
+//! let bbt = Eip155TokenDeployment {
+//!     chain_reference: Eip155ChainReference::new(42793),
+//!     address: address!("0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"),
+//!     decimals: 18,
+//!     eip712: Some(TokenDeploymentEip712 {
+//!         name: "BBT".into(),
+//!         version: "1".into(),
+//!     }),
+//! };
 //! let price = V2Eip155Exact::price_tag(
 //!     "0x1234...",  // pay_to address
-//!     usdc.amount(1_000_000u64.into()),  // 1 USDC
+//!     bbt.amount(10_000_000_000_000_000u64.into()),  // 0.01 BBT
 //! );
 //! ```
 

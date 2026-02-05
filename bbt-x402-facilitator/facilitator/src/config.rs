@@ -19,12 +19,8 @@
 //! ```json
 //! {
 //!   "chains": {
-//!     "eip155:84532": {
-//!       "rpc_url": "https://sepolia.base.org",
-//!       "signer_private_key": "0x..."
-//!     },
-//!     "eip155:84532": {
-//!       "rpc_url": "https://sepolia.base.org",
+//!     "eip155:42793": {
+//!       "rpc_url": "https://rpc.bubbletez.com",
 //!       "signer_private_key": "0x..."
 //!     }
 //!   }

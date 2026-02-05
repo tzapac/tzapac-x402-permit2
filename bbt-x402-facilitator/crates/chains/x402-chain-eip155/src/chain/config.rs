@@ -18,7 +18,7 @@ use crate::chain::Eip155ChainReference;
 /// use x402_chain_eip155::chain::{Eip155ChainConfig, Eip155ChainReference};
 ///
 /// let config = Eip155ChainConfig {
-///     chain_reference: Eip155ChainReference::new(8453), // Base
+///     chain_reference: Eip155ChainReference::new(42793), // Etherlink
 ///     inner: config_inner,
 /// };
 /// ```

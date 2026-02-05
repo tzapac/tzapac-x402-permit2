@@ -144,13 +144,13 @@ Create a `config.json` file:
   "port": 9090,
   "host": "0.0.0.0",
   "chains": {
-    "eip155:8453": {
+    "eip155:42793": {
       "eip1559": true,
       "flashblocks": true,
       "signers": ["$FACILITATOR_PRIVATE_KEY"],
       "rpc": [
         {
-          "http": "https://mainnet.base.org",
+          "http": "https://rpc.bubbletez.com",
           "rate_limit": 100
         }
       ]
@@ -159,11 +159,11 @@ Create a `config.json` file:
   "schemes": [
     {
       "id": "v1-eip155-exact",
-      "chains": "eip155:*"
+      "chains": "eip155:42793"
     },
     {
       "id": "v2-eip155-exact",
-      "chains": "eip155:*"
+      "chains": "eip155:42793"
     }
   ]
 }

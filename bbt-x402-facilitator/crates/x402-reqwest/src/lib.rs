@@ -40,8 +40,6 @@
 //!
 //! - **[`V1Eip155ExactClient`]** - EIP-155 chains, x402 V1 protocol, "exact" payment scheme
 //! - **[`V2Eip155ExactClient`]** - EIP-155 chains, x402 V2 protocol, "exact" payment scheme
-//! - **[`V1SolanaExactClient`]** - Solana chains, x402 V1 protocol, "exact" payment scheme
-//! - **[`V2SolanaExactClient`]** - Solana chains, x402 V2 protocol, "exact" payment scheme
 //!
 //! See [`X402Client::register`] for more details on registering scheme clients.
 //!

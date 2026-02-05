@@ -2,8 +2,8 @@
   "port": 9090,
   "host": "0.0.0.0",
   "chains": {
-    "eip155:84532": {
-      "_comment": "Base Sepolia",
+    "eip155:42793": {
+      "_comment": "Etherlink",
       "eip1559": true,
       "flashblocks": true,
       "signers": [
@@ -11,7 +11,7 @@
       ],
       "rpc": [
         {
-          "http": "https://rpc.com/eip155/84532",
+          "http": "https://rpc.bubbletez.com",
           "rate_limit": 50
         }
       ]
@@ -20,11 +20,11 @@
   "schemes": [
       {
         "id": "v1-eip155-exact",
-        "chains": "eip155:*"
+        "chains": "eip155:42793"
       },
       {
         "id": "v2-eip155-exact",
-        "chains": "eip155:*"
+        "chains": "eip155:42793"
       }
     ]
 }

@@ -10,7 +10,7 @@ This example shows how to:
 - Use **dynamic pricing** to adjust prices based on request parameters.
 - Implement **conditional free access** by returning an empty price tags vector.
 - Enable structured logging and distributed tracing using `tracing` and OpenTelemetry to observe what's happening inside the middleware.
-- Support **multiple chains** (EVM and Solana) and **multiple schemes** (v1 and v2 protocols).
+- Support **multiple schemes** (v1 and v2 protocols).
 
 ## What’s Included
 
@@ -18,7 +18,7 @@ This example shows how to:
   - Defines multiple protected routes with different pricing strategies.
 - **x402 middleware usage**
   - Demonstrates both **static pricing** and **dynamic pricing** approaches.
-  - Shows **multi-chain support** with EVM (Base Sepolia) and Solana payment options.
+  - Shows **EVM support** with Etherlink payment options.
   - Includes **conditional free access** by returning empty price tags.
   - Adds human-readable metadata via `.with_description(...)` and `.with_mime_type(...)`.
 - **Tracing setup**
@@ -42,8 +42,8 @@ cargo run
 
 The server will start on http://localhost:3000 and exposes multiple protected routes:
 
-- `GET /static-price-v1` - Static pricing with v1 protocol (EVM + Solana)
-- `GET /static-price-v2` - Static pricing with v2 protocol (EVM + Solana)
+- `GET /static-price-v1` - Static pricing with v1 protocol (Etherlink)
+- `GET /static-price-v2` - Static pricing with v2 protocol (Etherlink)
 - `GET /dynamic-price-v2` - Dynamic pricing "exact" scheme with v2 protocol (adjusts based on `discount` query param)
 - `GET /conditional-free-v2` - Conditional free access (bypasses payment with `free` query param)
 
@@ -56,10 +56,10 @@ The example includes endpoints demonstrating dynamic pricing:
 
 **Dynamic price with discount:**
 ```bash
-# Full price (100 units of USDC on both EVM and Solana)
+# Full price (100 units of BBT on Etherlink)
 curl http://localhost:3000/dynamic-price-v2
 
-# Discounted price (50 units of USDC on both EVM and Solana)
+# Discounted price (50 units of BBT on Etherlink)
 curl http://localhost:3000/dynamic-price-v2?discount
 ```
 
@@ -79,7 +79,7 @@ This demonstrates the flexibility, allowing for complex pricing strategies inclu
 **Example (Request with payment):**
 
 If you use an x402-compatible client like [`x402-fetch`](https://www.npmjs.com/package/x402-fetch),
-it will automatically perform payment (e.g., 0.01 USDC on Base Sepolia or 100 USDC on Solana) before fetching any of the protected routes, and receive the protected response.
+it will automatically perform payment (e.g., 0.01 BBT on Etherlink) before fetching any of the protected routes, and receive the protected response.
 
 <details>
 <summary>Example JS code to access a paid endpoint</summary>
@@ -87,7 +87,7 @@ it will automatically perform payment (e.g., 0.01 USDC on Base Sepolia or 100 US
 ```typescript
 import { createWalletClient, http } from "viem";  // https://viem.sh/
 import { privateKeyToAccount } from "viem/accounts";
-import { baseSepolia } from "viem/chains";
+import { etherlink } from "viem/chains";
 import { wrapFetchWithPayment } from "x402-fetch"; // https://www.npmjs.com/package/x402-fetch
 
 // Create a wallet client
@@ -95,7 +95,7 @@ const account = privateKeyToAccount("0xYourPrivateKey");
 const client = createWalletClient({
   account,
   transport: http(),
-  chain: baseSepolia,
+  chain: etherlink,
 });
 
 // Wrap the fetch function with payment handling

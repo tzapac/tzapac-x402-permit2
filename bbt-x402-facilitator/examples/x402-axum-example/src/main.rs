@@ -7,8 +7,10 @@ use dotenvy::dotenv;
 use std::env;
 use tracing::instrument;
 use x402_axum::X402Middleware;
-use x402_chain_eip155::{KnownNetworkEip155, V1Eip155Exact, V2Eip155Exact};
-use x402_types::networks::USDC;
+use x402_chain_eip155::{
+    V1Eip155Exact, V2Eip155Exact,
+    chain::{Eip155ChainReference, Eip155TokenDeployment, TokenDeploymentEip712},
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -20,13 +22,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let x402 = X402Middleware::try_from(facilitator_url)?;
 
+    let bbt = Eip155TokenDeployment {
+        chain_reference: Eip155ChainReference::new(42793),
+        address: address!("0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"),
+        decimals: 18,
+        eip712: Some(TokenDeploymentEip712 {
+            name: "BBT".into(),
+            version: "1".into(),
+        }),
+    };
+
     let app = Router::new()
         .route(
             "/static-price-v1",
             get(my_handler).layer(
                 x402.with_price_tag(V1Eip155Exact::price_tag(
                     address!("0xBAc675C310721717Cd4A37F6cbeA1F081b1C2a07"),
-                    USDC::base_sepolia().parse("0.01")?,
+                    bbt.parse("0.01")?,
                 )),
             ),
         )
@@ -35,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             get(my_handler).layer(
                 x402.with_price_tag(V2Eip155Exact::price_tag(
                     address!("0xBAc675C310721717Cd4A37F6cbeA1F081b1C2a07"),
-                    USDC::base_sepolia().amount(10u64),
+                    bbt.amount(10u64),
                 )),
             ),
         )
@@ -51,10 +63,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 async move {
                     vec![
-                        // V2 EIP155 (Base Sepolia) price tag
+                        // V2 EIP155 (Etherlink) price tag
                         V2Eip155Exact::price_tag(
                             address!("0xBAc675C310721717Cd4A37F6cbeA1F081b1C2a07"),
-                            USDC::base_sepolia().amount(amount),
+                            bbt.amount(amount),
                         ),
                     ]
                 }
@@ -83,7 +95,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         vec![
                             V2Eip155Exact::price_tag(
                                 address!("0xBAc675C310721717Cd4A37F6cbeA1F081b1C2a07"),
-                                USDC::base_sepolia().amount(100u64),
+                                bbt.amount(100u64),
                             ),
                         ]
                     }

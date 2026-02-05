@@ -2,7 +2,7 @@
 //!
 //! This module provides the [`UnixTimestamp`] type used throughout the x402 protocol
 //! to represent time-bounded payment authorizations. Timestamps are used in ERC-3009
-//! `transferWithAuthorization` messages and Solana payment instructions to specify
+//! `transferWithAuthorization` messages and Permit2 authorizations to specify
 //! when a payment authorization becomes valid and when it expires.
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};

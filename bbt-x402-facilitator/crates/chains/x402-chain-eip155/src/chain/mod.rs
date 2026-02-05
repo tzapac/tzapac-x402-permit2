@@ -6,7 +6,7 @@
 //!
 //! # Key Types
 //!
-//! - [`Eip155ChainReference`] - A numeric chain ID for EVM networks (e.g., `8453` for Base)
+//! - [`Eip155ChainReference`] - A numeric chain ID for EVM networks (e.g., `42793` for Etherlink)
 //! - [`Eip155ChainProvider`] - Provider for interacting with EVM chains
 //! - [`Eip155TokenDeployment`] - Token deployment information including address and decimals
 //! - [`MetaTransaction`] - Parameters for sending meta-transactions
@@ -25,16 +25,22 @@
 //! # Example
 //!
 //! ```ignore
-//! use x402_rs::chain::eip155::{Eip155ChainReference, Eip155TokenDeployment};
-//! use x402_rs::networks::{KnownNetworkEip155, USDC};
+//! use x402_chain_eip155::chain::{Eip155ChainReference, Eip155TokenDeployment, TokenDeploymentEip712};
+//! use alloy_primitives::{address, U256};
 //!
-//! // Get USDC deployment on Base
-//! let usdc = USDC::base();
-//! assert_eq!(usdc.decimals, 6);
+//! let bbt = Eip155TokenDeployment {
+//!     chain_reference: Eip155ChainReference::new(42793),
+//!     address: address!("0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"),
+//!     decimals: 18,
+//!     eip712: Some(TokenDeploymentEip712 {
+//!         name: "BBT".into(),
+//!         version: "1".into(),
+//!     }),
+//! };
 //!
-//! // Parse a human-readable amount
-//! let amount = usdc.parse("10.50").unwrap();
-//! // amount.amount is now 10_500_000 (10.50 * 10^6)
+//! let amount = bbt.parse("0.01").unwrap();
+//! // amount.amount is now 10_000_000_000_000_000 (0.01 * 10^18)
+//! assert_eq!(amount.amount, U256::from(10_000_000_000_000_000u64));
 //! ```
 
 pub mod types;

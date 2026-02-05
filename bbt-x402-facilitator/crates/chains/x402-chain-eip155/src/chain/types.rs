@@ -246,7 +246,7 @@ pub const EIP155_NAMESPACE: &str = "eip155";
 /// A numeric chain ID for EVM-compatible networks.
 ///
 /// This type wraps the numeric chain ID used by EVM networks (e.g., `1` for Ethereum mainnet,
-/// `8453` for Base). It can be converted to/from a [`ChainId`] for use with the x402 protocol.
+/// `42793` for Etherlink). It can be converted to/from a [`ChainId`] for use with the x402 protocol.
 ///
 /// # Example
 ///
@@ -254,9 +254,9 @@ pub const EIP155_NAMESPACE: &str = "eip155";
 /// use x402_chain_eip155::chain::Eip155ChainReference;
 /// use x402_types::chain::ChainId;
 ///
-/// let base = Eip155ChainReference::new(8453);
-/// let chain_id: ChainId = base.into();
-/// assert_eq!(chain_id.to_string(), "eip155:8453");
+/// let etherlink = Eip155ChainReference::new(42793);
+/// let chain_id: ChainId = etherlink.into();
+/// assert_eq!(chain_id.to_string(), "eip155:42793");
 /// ```
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct Eip155ChainReference(u64);
@@ -350,15 +350,21 @@ impl Display for Eip155ChainReference {
 /// # Example
 ///
 /// ```ignore
-/// use x402_rs::networks::{KnownNetworkEip155, USDC};
+/// use x402_chain_eip155::chain::{Eip155ChainReference, Eip155TokenDeployment, TokenDeploymentEip712};
+/// use alloy_primitives::{address, U256};
 ///
-/// // Get USDC deployment on Base
-/// let usdc = USDC::base();
-/// assert_eq!(usdc.decimals, 6);
+/// let bbt = Eip155TokenDeployment {
+///     chain_reference: Eip155ChainReference::new(42793),
+///     address: address!("0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"),
+///     decimals: 18,
+///     eip712: Some(TokenDeploymentEip712 {
+///         name: "BBT".into(),
+///         version: "1".into(),
+///     }),
+/// };
 ///
-/// // Parse a human-readable amount to token units
-/// let amount = usdc.parse("10.50").unwrap();
-/// assert_eq!(amount.amount, U256::from(10_500_000u64));
+/// let amount = bbt.parse("0.01").unwrap();
+/// assert_eq!(amount.amount, U256::from(10_000_000_000_000_000u64));
 /// ```
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[allow(dead_code)] // Public for consumption by downstream crates.
@@ -403,12 +409,21 @@ impl Eip155TokenDeployment {
     /// # Example
     ///
     /// ```ignore
-    /// use x402_rs::networks::{KnownNetworkEip155, USDC};
+    /// use x402_chain_eip155::chain::{Eip155ChainReference, Eip155TokenDeployment, TokenDeploymentEip712};
+    /// use alloy_primitives::{address, U256};
     ///
-    /// let usdc = USDC::base();
-    /// let amount = usdc.parse("10.50").unwrap();
-    /// // 10.50 USDC = 10,500,000 units (6 decimals)
-    /// assert_eq!(amount.amount, U256::from(10_500_000u64));
+    /// let bbt = Eip155TokenDeployment {
+    ///     chain_reference: Eip155ChainReference::new(42793),
+    ///     address: address!("0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"),
+    ///     decimals: 18,
+    ///     eip712: Some(TokenDeploymentEip712 {
+    ///         name: "BBT".into(),
+    ///         version: "1".into(),
+    ///     }),
+    /// };
+    ///
+    /// let amount = bbt.parse("0.01").unwrap();
+    /// assert_eq!(amount.amount, U256::from(10_000_000_000_000_000u64));
     /// ```
     pub fn parse<V>(
         &self,
@@ -541,7 +556,7 @@ mod tests {
 
     #[test]
     fn test_parse_very_large_amount_with_high_decimals() {
-        // EIP155 uses U256, so we can handle much larger amounts than Solana
+        // EIP155 uses U256, so we can handle much larger amounts than smaller integer types
         let deployment = create_test_deployment(18); // 18 decimals like ETH
         let result = deployment.parse("999999999"); // 9 digits, 0 decimals
         assert!(result.is_ok());

@@ -323,7 +323,7 @@ pub struct SchemeConfig {
     pub enabled: bool,
     /// The scheme id (e.g., "v1-eip155-exact").
     pub id: String,
-    /// The chain pattern this scheme applies to (e.g., "eip155:84532", "eip155:*", "eip155:{1,8453}").
+    /// The chain pattern this scheme applies to (e.g., "eip155:42793", "eip155:*", "eip155:{1,42793}").
     pub chains: ChainIdPattern,
     /// Scheme-specific configuration (optional).
     #[serde(default, skip_serializing_if = "Option::is_none")]

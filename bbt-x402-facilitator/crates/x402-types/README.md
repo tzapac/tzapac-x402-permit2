@@ -64,12 +64,12 @@ The crate supports two protocol versions:
 use x402_types::chain::ChainId;
 
 // Parse a CAIP-2 chain ID
-let chain_id: ChainId = "eip155:8453".parse().unwrap();
+let chain_id: ChainId = "eip155:42793".parse().unwrap();
 assert_eq!(chain_id.namespace(), "eip155");
-assert_eq!(chain_id.reference(), "8453");
+assert_eq!(chain_id.reference(), "42793");
 
 // Convert from network name (V1 compatibility)
-let chain_id = ChainId::from_network_name("base").unwrap();
+let chain_id = ChainId::from_network_name("etherlink").unwrap();
 ```
 
 ### Payment Requirements (V2)
@@ -80,7 +80,7 @@ use x402_types::proto::v2::{PaymentRequirements, PriceTag};
 // Payment requirements returned in 402 response
 let requirements = PaymentRequirements {
     scheme: "exact".to_string(),
-    chain_id: "eip155:8453".parse().unwrap(),
+    chain_id: "eip155:42793".parse().unwrap(),
     pay_to: "0x...".to_string(),
     max_amount_required: "1000000".to_string(), // in smallest units
     resource: "https://api.example.com/premium".to_string(),
@@ -121,7 +121,7 @@ let valid_before = valid_after + std::time::Duration::from_secs(3600);
 
 | Crate                                                                | Description                                    |
 |----------------------------------------------------------------------|------------------------------------------------|
-| [`x402-chain-eip155`](https://crates.io/x402-chain-eip155)           | EVM chain support (Ethereum, Base, etc.)       |
+| [`x402-chain-eip155`](https://crates.io/x402-chain-eip155)           | EVM chain support (Etherlink)       |
 | [`x402-axum`](https://crates.io/x402-axum)                           | Axum middleware for payment-gated endpoints    |
 | [`x402-reqwest`](https://crates.io/x402-reqwest)                     | Reqwest client with automatic payment handling |
 | [`x402-facilitator-local`](https://crates.io/x402-facilitator-local) | Local facilitator implementation               |

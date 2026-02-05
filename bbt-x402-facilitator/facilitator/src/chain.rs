@@ -3,13 +3,13 @@
 //! This module provides abstractions for interacting with different blockchain networks
 //! in the x402 protocol. It supports multiple blockchain families:
 //!
-//! - **EIP-155 (EVM)**: Ethereum and EVM-compatible chains like Base, Polygon, Avalanche
+//! - **EIP-155 (EVM)**: Etherlink
 //!
 //! # Architecture
 //!
 //! The module is organized around the concept of chain providers and chain identifiers:
 //!
-//! - [`ChainId`] - A CAIP-2 compliant chain identifier (e.g., `eip155:8453` for Base)
+//! - [`ChainId`] - A CAIP-2 compliant chain identifier (e.g., `eip155:42793` for Etherlink)
 //! - [`ChainProvider`] - Enum wrapping chain-specific providers
 //! - [`ChainRegistry`] - Registry of configured chain providers
 //!
@@ -19,15 +19,15 @@
 //! use x402_types::chain::{ChainId, ChainIdPattern};
 //!
 //! // Create a specific chain ID
-//! let base = ChainId::new("eip155", "8453");
+//! let etherlink = ChainId::new("eip155", "42793");
 //!
 //! // Create a pattern that matches all EVM chains
 //! let all_evm = ChainIdPattern::wildcard("eip155");
-//! assert!(all_evm.matches(&base));
+//! assert!(all_evm.matches(&etherlink));
 //!
 //! // Create a pattern for specific chains
-//! let mainnet_chains = ChainIdPattern::set("eip155", ["1", "8453", "137"].into_iter().map(String::from).collect());
-//! assert!(mainnet_chains.matches(&base));
+//! let mainnet_chains = ChainIdPattern::set("eip155", ["42793"].into_iter().map(String::from).collect());
+//! assert!(mainnet_chains.matches(&etherlink));
 //! ```
 
 use std::collections::HashMap;
@@ -48,7 +48,7 @@ use crate::config::{ChainConfig, ChainsConfig};
 ///
 /// # Variants
 ///
-/// - `Eip155` - Provider for EVM-compatible chains (Ethereum, Base, Polygon, etc.)
+/// - `Eip155` - Provider for EVM-compatible chains (Etherlink)
 #[derive(Debug, Clone)]
 pub enum ChainProvider {
     /// EVM chain provider for EIP-155 compatible networks.

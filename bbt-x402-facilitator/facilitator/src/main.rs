@@ -23,9 +23,7 @@
 //!
 //! # Supported Blockchains
 //!
-//! - **EIP-155 (EVM)**: Ethereum, Base, Polygon, and other EVM-compatible chains
-//! - **Solana**: Mainnet, Devnet, and custom clusters
-//! - **Aptos**: Mainnet and testnet
+//! - **EIP-155 (EVM)**: Etherlink
 //!
 //! # Architecture
 //!

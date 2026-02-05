@@ -15,7 +15,7 @@ If no valid payment is provided, a `402 Payment Required` response is returned w
 
 - Built for [Axum](https://github.com/tokio-rs/axum)
 - Full Protocol v2 Support - Complete implementation of x402 protocol v2
-- Multi-chain Support - EVM (EIP-155), Solana, and Aptos chains
+- Etherlink Support - EVM/EIP-155 on Etherlink
 - Multi-scheme Architecture - Support for various payment schemes
 - Fluent builder API for configuring payment requirements
 - Configurable settlement timing (before or after request execution)
@@ -46,17 +46,27 @@ use axum::{Router, routing::get};
 use axum::response::IntoResponse;
 use http::StatusCode;
 use x402_axum::X402Middleware;
-use x402_chain_eip155::{KnownNetworkEip155, V1Eip155Exact};
-use x402_types::networks::USDC;
+use x402_chain_eip155::chain::{Eip155ChainReference, Eip155TokenDeployment, TokenDeploymentEip712};
+use x402_chain_eip155::V1Eip155Exact;
 
 let x402 = X402Middleware::new("https://facilitator.x402.rs");
+
+let bbt = Eip155TokenDeployment {
+    chain_reference: Eip155ChainReference::new(42793),
+    address: address!("0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"),
+    decimals: 18,
+    eip712: Some(TokenDeploymentEip712 {
+        name: "BBT".into(),
+        version: "1".into(),
+    }),
+};
 
 let app: Router = Router::new().route(
     "/protected",
     get(my_handler).layer(
         x402.with_price_tag(V1Eip155Exact::price_tag(
             address!("0xBAc675C310721717Cd4A37F6cbeA1F081b1C2a07"),
-            USDC::base_sepolia().parse("0.01").unwrap(),
+            bbt.parse("0.01").unwrap(),
         ))
     ),
 );
@@ -91,10 +101,19 @@ use alloy_primitives::address;
 use axum::Router;
 use axum::routing::get;
 use x402_axum::X402Middleware;
-use x402_chain_eip155::{KnownNetworkEip155, V2Eip155Exact};
-use x402_types::networks::USDC;
+use x402_chain_eip155::chain::{Eip155ChainReference, Eip155TokenDeployment, TokenDeploymentEip712};
+use x402_chain_eip155::V2Eip155Exact;
 
 let x402 = X402Middleware::new("https://facilitator.x402.rs");
+let bbt = Eip155TokenDeployment {
+    chain_reference: Eip155ChainReference::new(42793),
+    address: address!("0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"),
+    decimals: 18,
+    eip712: Some(TokenDeploymentEip712 {
+        name: "BBT".into(),
+        version: "1".into(),
+    }),
+};
 
 let app = Router::new().route(
     "/api/data",
@@ -106,7 +125,7 @@ let app = Router::new().route(
         async move {
             vec![V2Eip155Exact::price_tag(
                 address!("0xBAc675C310721717Cd4A37F6cbeA1F081b1C2a07"),
-                USDC::base_sepolia().amount(amount),
+                bbt.amount(amount),
             )]
         }
     })),
@@ -126,10 +145,19 @@ use alloy_primitives::address;
 use axum::Router;
 use axum::routing::get;
 use x402_axum::X402Middleware;
-use x402_chain_eip155::{KnownNetworkEip155, V2Eip155Exact};
-use x402_types::networks::USDC;
+use x402_chain_eip155::chain::{Eip155ChainReference, Eip155TokenDeployment, TokenDeploymentEip712};
+use x402_chain_eip155::V2Eip155Exact;
 
 let x402 = X402Middleware::new("https://facilitator.x402.rs");
+let bbt = Eip155TokenDeployment {
+    chain_reference: Eip155ChainReference::new(42793),
+    address: address!("0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"),
+    decimals: 18,
+    eip712: Some(TokenDeploymentEip712 {
+        name: "BBT".into(),
+        version: "1".into(),
+    }),
+};
 
 let app = Router::new().route(
     "/api/data",
@@ -145,7 +173,7 @@ let app = Router::new().route(
                 // Normal pricing - payment required
                 vec![V2Eip155Exact::price_tag(
                     address!("0xBAc675C310721717Cd4A37F6cbeA1F081b1C2a07"),
-                    USDC::base_sepolia().amount(100),
+                    bbt.amount(100),
                 )]
             }
         }
@@ -172,10 +200,19 @@ use alloy_primitives::address;
 use axum::Router;
 use axum::routing::get;
 use x402_axum::X402Middleware;
-use x402_chain_eip155::{KnownNetworkEip155, V1Eip155Exact};
-use x402_types::networks::USDC;
+use x402_chain_eip155::chain::{Eip155ChainReference, Eip155TokenDeployment, TokenDeploymentEip712};
+use x402_chain_eip155::V1Eip155Exact;
 
 let x402 = X402Middleware::new("https://facilitator.x402.rs");
+let bbt = Eip155TokenDeployment {
+    chain_reference: Eip155ChainReference::new(42793),
+    address: address!("0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"),
+    decimals: 18,
+    eip712: Some(TokenDeploymentEip712 {
+        name: "BBT".into(),
+        version: "1".into(),
+    }),
+};
 
 // Accept EVM payments
 let app = Router::new().route(
@@ -183,7 +220,7 @@ let app = Router::new().route(
     get(handler).layer(
         x402.with_price_tag(V1Eip155Exact::price_tag(
             address!("0xBAc675C310721717Cd4A37F6cbeA1F081b1C2a07"),
-            USDC::base_sepolia().parse("0.01").unwrap(),
+            bbt.parse("0.01").unwrap(),
         ))
     ),
 );
@@ -262,15 +299,25 @@ use alloy_primitives::address;
 use axum::Router;
 use axum::routing::get;
 use url::Url;
+use x402_chain_eip155::chain::{Eip155ChainReference, Eip155TokenDeployment, TokenDeploymentEip712};
 use x402_chain_eip155::V1Eip155Exact;
-use x402_types::networks::USDC;
+
+let bbt = Eip155TokenDeployment {
+    chain_reference: Eip155ChainReference::new(42793),
+    address: address!("0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"),
+    decimals: 18,
+    eip712: Some(TokenDeploymentEip712 {
+        name: "BBT".into(),
+        version: "1".into(),
+    }),
+};
 
 let app = Router::new().route(
     "/premium-content",
     get(handler).layer(
         x402.with_price_tag(V1Eip155Exact::price_tag(
             address!("0xBAc675C310721717Cd4A37F6cbeA1F081b1C2a07"),
-            USDC::base_sepolia().parse("0.01").unwrap(),
+            bbt.parse("0.01").unwrap(),
         )).with_resource(Url::parse("https://api.example.com/premium-content").unwrap())
     ),
 );

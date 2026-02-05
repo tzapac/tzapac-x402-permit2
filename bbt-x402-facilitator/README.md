@@ -6,7 +6,7 @@
 
 > A comprehensive Rust toolkit for the [x402 protocol](https://www.x402.org), enabling blockchain payments directly through HTTP using the native `402 Payment Required` status code.
 
-x402-rs is a modular, production-ready implementation of the x402 protocol with support for multiple blockchains (EVM, Solana, Aptos, ..) and protocol versions (V1 and V2).
+x402-rs is a modular, production-ready implementation of the x402 protocol with Etherlink (EVM/EIP-155) support and protocol versions (V1 and V2).
 
 ### Core Crates
 
@@ -21,7 +21,7 @@ x402-rs is a modular, production-ready implementation of the x402 protocol with 
 
 | Crate                                                        | Badges                                                                                                                                                                                                         | Description                                               |
 |--------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------|
-| **[`x402-chain-eip155`](./crates/chains/x402-chain-eip155)** | [![Crates.io](https://img.shields.io/crates/v/x402-chain-eip155.svg)](https://crates.io/crates/x402-chain-eip155) [![Docs.rs](https://docs.rs/x402-chain-eip155/badge.svg)](https://docs.rs/x402-chain-eip155) | EVM/EIP-155 chain support (Ethereum, Base, Polygon, etc.) |
+| **[`x402-chain-eip155`](./crates/chains/x402-chain-eip155)** | [![Crates.io](https://img.shields.io/crates/v/x402-chain-eip155.svg)](https://crates.io/crates/x402-chain-eip155) [![Docs.rs](https://docs.rs/x402-chain-eip155/badge.svg)](https://docs.rs/x402-chain-eip155) | EVM/EIP-155 chain support (Etherlink). |
 
 ### Deployment
 
@@ -51,16 +51,26 @@ use alloy_primitives::address;
 use axum::{Router, routing::get};
 use x402_axum::X402Middleware;
 use x402_chain_eip155::V2Eip155Exact;
-use x402_types::networks::USDC;
+use x402_chain_eip155::chain::{Eip155ChainReference, Eip155TokenDeployment, TokenDeploymentEip712};
 
 let x402 = X402Middleware::new("http://facilitator.example.com");
+
+let bbt = Eip155TokenDeployment {
+    chain_reference: Eip155ChainReference::new(42793),
+    address: address!("0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"),
+    decimals: 18,
+    eip712: Some(TokenDeploymentEip712 {
+        name: "BBT".into(),
+        version: "1".into(),
+    }),
+};
 
 let app = Router::new().route(
     "/paid-content",
     get(handler).layer(
         x402.with_price_tag(V2Eip155Exact::price_tag(
             address!("0xYourAddress"),
-            USDC::base_sepolia().amount(10u64),
+            bbt.amount(10u64),
         ))
     ),
 );
@@ -116,15 +126,14 @@ For full facilitator configuration and deployment details, see the [`x402-facili
 
 | Milestone                           | Description                                                                                              |   Status   |
 |:------------------------------------|:---------------------------------------------------------------------------------------------------------|:----------:|
-| Facilitator for Base USDC           | Payment verification and settlement service, enabling real-time pay-per-use transactions for Base chain. | ✅ Complete |
+| Facilitator for Etherlink (BBT)     | Payment verification and settlement service, enabling real-time pay-per-use transactions for Etherlink.  | ✅ Complete |
 | Metrics and Tracing                 | Expose OpenTelemetry metrics and structured tracing for observability, monitoring, and debugging         | ✅ Complete |
 | Server Middleware                   | Provide ready-to-use integration for Rust web frameworks such as axum and tower.                         | ✅ Complete |
 | Client Library                      | Provide a lightweight Rust library for initiating and managing x402 payment flows from Rust clients.     | ✅ Complete |
-| Solana Support                      | Support Solana chain.                                                                                    | ✅ Complete |
 | Protocol v2 Support                 | Support x402 protocol version 2 with improved payload structure.                                         | ✅ Complete |
-| Multiple chains and multiple tokens | Support various tokens and EVM compatible chains.                                                        | ✅ Complete |
-| Axum Middleware v2 Support          | Full x402 protocol v2 support in x402-axum with multi-chain, multi-scheme architecture.                  | ✅ Complete |
-| Reqwest Client v2 Support           | Full x402 protocol v2 support in x402-reqwest with multi-chain, multi-scheme architecture.               | ✅ Complete |
+| Etherlink-only build                | Limit to Etherlink (EVM/EIP-155) for focused deployment.                                                  | ✅ Complete |
+| Axum Middleware v2 Support          | Full x402 protocol v2 support in x402-axum.                                                               | ✅ Complete |
+| Reqwest Client v2 Support           | Full x402 protocol v2 support in x402-reqwest.                                                            | ✅ Complete |
 | Build your own facilitator hooks    | Pre/post hooks for analytics, access control, and auditability.                                          | 🔜 Planned |
 | Bazaar Extension                    | Marketplace integration for discovering and purchasing x402-protected resources.                         | 🔜 Planned |
 | Gasless Approval Flow               | Support for Permit2 and ERC20 approvals to enable gasless payment authorization.                         | 🔜 Planned |

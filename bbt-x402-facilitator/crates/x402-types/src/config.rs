@@ -22,7 +22,7 @@
 //!   "host": "0.0.0.0",
 //!   "chains": { /* chain-specific configuration */ },
 //!   "schemes": [
-//!     { "scheme": "v2-eip155-exact", "chains": ["eip155:8453"] }
+//!     { "scheme": "v2-eip155-exact", "chains": ["eip155:42793"] }
 //!   ]
 //! }
 //! ```
@@ -269,7 +269,7 @@ impl<TChainsConfig> Config<TChainsConfig> {
 
     /// Get the chains configuration map.
     ///
-    /// Keys are CAIP-2 chain identifiers (e.g., "eip155:84532").
+    /// Keys are CAIP-2 chain identifiers (e.g., "eip155:42793").
     pub fn chains(&self) -> &TChainsConfig {
         &self.chains
     }

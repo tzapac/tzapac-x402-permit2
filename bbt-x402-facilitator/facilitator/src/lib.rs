@@ -4,14 +4,14 @@
 //!
 //! A production-ready HTTP server implementing the [x402](https://www.x402.org) payment protocol.
 //!
-//! This crate provides a complete, runnable facilitator that supports multiple blockchain
-//! networks (EVM/EIP-155, Solana, Aptos) and can verify and settle payments on-chain.
+//! This crate provides a complete, runnable facilitator that supports Etherlink
+//! (EVM/EIP-155) and can verify and settle payments on-chain.
 //!
 //! # Modules
 //!
 //! | Module | Description |
 //! |--------|-------------|
-//! | [`chain`] | Blockchain provider abstractions for EVM, Solana, and Aptos |
+//! | [`chain`] | Blockchain provider abstractions for EVM/EIP-155 |
 //! | [`config`] | Configuration types and loading |
 //! | [`run`] | Main server initialization and runtime |
 //! | [`schemes`] | Scheme builder implementations for supported payment schemes |

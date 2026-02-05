@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Trimmed the workspace to Etherlink-only support and updated documentation/examples accordingly.
+
 ## [1.0.0] - 2025-02-02
 
 ### Changed
@@ -15,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - New `x402-types` crate: Core protocol types, facilitator traits, and utilities.
-- New `x402-chain-eip155` crate: EVM/EIP-155 chain support (Ethereum, Base, Polygon, etc.) with feature flags for `client`, `server`, and `facilitator`.
+- New `x402-chain-eip155` crate: EVM/EIP-155 chain support (Etherlink) with feature flags for `client`, `server`, and `facilitator`.
 - New `x402-facilitator-local` crate: Local facilitator implementation for payment verification and settlement.
 - New `facilitator` binary crate: Production-ready facilitator server (not published to crates.io).
 - New documentation: `docs/build-your-own-facilitator.md` guide.
@@ -35,10 +41,6 @@ x402-rs = { version = "0.12", features = ["eip155"] }
 x402-types = "1.0"
 x402-chain-eip155 = { version = "1.0", features = ["client"] }
 ```
-
-## [0.12.6] - 2025-01-26
-
-- Added Aptos chain support.
 
 ## [0.12.5] - 2025-01-21
 

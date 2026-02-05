@@ -2,19 +2,19 @@
 
 A production-ready x402 facilitator server binary.
 
-This crate provides a complete, runnable HTTP server that implements the [x402](https://www.x402.org) payment protocol. It supports EVM/EIP-155 networks and can verify and settle payments on-chain.
+This crate provides a complete, runnable HTTP server that implements the [x402](https://www.x402.org) payment protocol. It supports Etherlink (EVM/EIP-155) and can verify and settle payments on-chain.
 
 The crate can also be used as a library to build custom facilitator implementations.
 
 ## Features
 
-- **Multi-chain Support**: EVM (EIP-155) blockchains
+- **Etherlink Support**: EVM/EIP-155 on Etherlink
 - **Multiple Payment Schemes**: V1 and V2 protocol implementations
 - **OpenTelemetry Integration**: Optional distributed tracing and metrics (`telemetry` feature)
 - **Graceful Shutdown**: Clean shutdown on SIGTERM/SIGINT signals
 - **CORS Support**: Cross-origin requests enabled for web clients
 - **Flexible Configuration**: JSON-based configuration with environment variable overrides
-- **Modular Chain Support**: Enable only the blockchain networks you need via feature flags
+- **Focused Chain Support**: Etherlink-only build to keep the binary minimal
 
 ## Installation
 
@@ -49,10 +49,10 @@ cargo run --package x402-facilitator
 # With telemetry
 cargo run --package x402-facilitator --features telemetry
 
-# With specific chains only
+# With EIP-155 only
 cargo run --package x402-facilitator --features chain-eip155
 
-# With the full feature (all chains + telemetry)
+# With the full feature (EIP-155 + telemetry)
 cargo run --package x402-facilitator --features full
 
 # Specify custom config file
@@ -68,12 +68,12 @@ Create a `config.json` file:
   "port": 9090,
   "host": "0.0.0.0",
   "chains": {
-    "eip155:8453": {
+    "eip155:42793": {
       "eip1559": true,
       "signers": ["$FACILITATOR_PRIVATE_KEY"],
       "rpc": [
         {
-          "http": "https://mainnet.base.org",
+          "http": "https://rpc.bubbletez.com",
           "rate_limit": 100
         }
       ]
@@ -82,7 +82,7 @@ Create a `config.json` file:
   "schemes": [
     {
       "scheme": "v2-eip155-exact",
-      "chains": ["eip155:8453"]
+      "chains": ["eip155:42793"]
     }
   ]
 }
@@ -117,7 +117,7 @@ The facilitator is built on top of the `x402-facilitator-local` crate and uses:
 - **Axum**: HTTP server framework
 - **Tokio**: Async runtime
 - **x402-types**: Core protocol types and configuration (via `x402_types::config`)
-- **x402-chain-\\\\*\\\**: Chain-specific implementations
+- **x402-chain-eip155**: Etherlink chain implementation
 
 ```text
 ┌─────────────┐
@@ -148,7 +148,7 @@ The facilitator is built on top of the `x402-facilitator-local` crate and uses:
 | Feature        | Description                                   |
 |----------------|-----------------------------------------------|
 | `telemetry`    | Enable OpenTelemetry tracing and metrics      |
-| `chain-eip155` | Enable EVM/EIP-155 chain support              |
+| `chain-eip155` | Enable Etherlink EVM/EIP-155 support          |
 | `full`         | Enable all features: telemetry + EIP-155      |
 
 

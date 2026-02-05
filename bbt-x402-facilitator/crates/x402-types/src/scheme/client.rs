@@ -136,9 +136,9 @@ impl PaymentSelector for FirstMatch {
 /// use x402_types::scheme::client::PreferChain;
 /// use x402_types::chain::ChainIdPattern;
 ///
-/// // Prefer Base, then any EVM chain, then anything else
+/// // Prefer Etherlink, then any EVM chain, then anything else
 /// let selector = PreferChain::new(vec![
-///     "eip155:8453".parse().unwrap(),  // Base mainnet
+///     "eip155:42793".parse().unwrap(),  // Etherlink
 ///     "eip155:*".parse().unwrap(),     // Any EVM chain
 /// ]);
 /// ```

@@ -756,8 +756,18 @@ type BoxedDynamicPriceCallback<TPriceTag> = dyn for<'a> Fn(
 /// ```ignore
 /// use alloy_primitives::address;
 /// use x402_axum::paygate::DynamicPriceTags;
+/// use x402_chain_eip155::chain::{Eip155ChainReference, Eip155TokenDeployment, TokenDeploymentEip712};
 /// use x402_chain_eip155::V1Eip155Exact;
-/// use x402_types::networks::USDC;
+///
+/// let bbt = Eip155TokenDeployment {
+///     chain_reference: Eip155ChainReference::new(42793),
+///     address: address!("0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"),
+///     decimals: 18,
+///     eip712: Some(TokenDeploymentEip712 {
+///         name: "BBT".into(),
+///         version: "1".into(),
+///     }),
+/// };
 ///
 /// // Users write a simple async closure - no Box::pin needed!
 /// let source = DynamicPriceTags::new(|headers, uri, _base_url| async move {
@@ -770,7 +780,7 @@ type BoxedDynamicPriceCallback<TPriceTag> = dyn for<'a> Fn(
 ///     let amount = if is_premium { "0.005" } else { "0.01" };
 ///     vec![V1Eip155Exact::price_tag(
 ///         address!("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"),
-///         USDC::base_sepolia().parse(amount).unwrap()
+///         bbt.parse(amount).unwrap()
 ///     )]
 /// });
 /// ```
@@ -803,13 +813,23 @@ impl<TPriceTag> DynamicPriceTags<TPriceTag> {
     ///
     /// ```ignore
     /// use alloy_primitives::address;
+    /// use x402_chain_eip155::chain::{Eip155ChainReference, Eip155TokenDeployment, TokenDeploymentEip712};
     /// use x402_chain_eip155::V1Eip155Exact;
-    /// use x402_types::networks::USDC;
+    ///
+    /// let bbt = Eip155TokenDeployment {
+    ///     chain_reference: Eip155ChainReference::new(42793),
+    ///     address: address!("0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"),
+    ///     decimals: 18,
+    ///     eip712: Some(TokenDeploymentEip712 {
+    ///         name: "BBT".into(),
+    ///         version: "1".into(),
+    ///     }),
+    /// };
     ///
     /// DynamicPriceTags::new(|_headers, _uri, _base_url| async move {
     ///     vec![V1Eip155Exact::price_tag(
     ///         address!("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"),
-    ///         USDC::base_sepolia().parse("0.01").unwrap()
+    ///         bbt.parse("0.01").unwrap()
     ///     )]
     /// })
     /// ```
