@@ -2,7 +2,7 @@
 //!
 //! This module provides chain-specific configuration types that extend the base
 //! [`x402_types::config::Config`] with support for multiple blockchain families
-//! (EVM, Solana, Aptos).
+//! (EVM, Solana).
 //!
 //! The core configuration loading logic, environment variable resolution, and CLI
 //! argument parsing are provided by [`x402_types::config`]. This module adds:
@@ -35,10 +35,6 @@ use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 use x402_types::chain::ChainId;
 
-#[cfg(feature = "chain-aptos")]
-use x402_chain_aptos::chain as aptos;
-#[cfg(feature = "chain-aptos")]
-use x402_chain_aptos::chain::config::{AptosChainConfig, AptosChainConfigInner};
 #[cfg(feature = "chain-eip155")]
 use x402_chain_eip155::chain as eip155;
 #[cfg(feature = "chain-eip155")]
@@ -57,8 +53,8 @@ pub type Config = x402_types::config::Config<ChainsConfig>;
 /// Configuration for a specific chain.
 ///
 /// This enum represents chain-specific configuration that varies by chain family
-/// (EVM vs Solana vs Aptos). The chain family is determined by the CAIP-2 prefix of the
-/// chain identifier key (e.g., "eip155:" for EVM, "solana:" for Solana, "aptos:" for Aptos).
+/// (EVM vs Solana). The chain family is determined by the CAIP-2 prefix of the
+/// chain identifier key (e.g., "eip155:" for EVM, "solana:" for Solana).
 #[derive(Debug, Clone)]
 pub enum ChainConfig {
     /// EVM chain configuration (for chains with "eip155:" prefix).
@@ -67,9 +63,6 @@ pub enum ChainConfig {
     /// Solana chain configuration (for chains with "solana:" prefix).
     #[cfg(feature = "chain-solana")]
     Solana(Box<SolanaChainConfig>),
-    /// Aptos chain configuration (for chains with "aptos:" prefix).
-    #[cfg(feature = "chain-aptos")]
-    Aptos(Box<AptosChainConfig>),
 }
 
 /// Configuration for chains.
@@ -107,12 +100,6 @@ impl Serialize for ChainsConfig {
                 }
                 #[cfg(feature = "chain-solana")]
                 ChainConfig::Solana(config) => {
-                    let chain_id = config.chain_id();
-                    let inner = &config.inner;
-                    map.serialize_entry(&chain_id, inner)?;
-                }
-                #[cfg(feature = "chain-aptos")]
-                ChainConfig::Aptos(config) => {
                     let chain_id = config.chain_id();
                     let inner = &config.inner;
                     map.serialize_entry(&chain_id, inner)?;
@@ -174,17 +161,6 @@ impl<'de> Deserialize<'de> for ChainsConfig {
                                 inner,
                             };
                             ChainConfig::Solana(Box::new(config))
-                        }
-                        #[cfg(feature = "chain-aptos")]
-                        aptos::APTOS_NAMESPACE => {
-                            let inner: AptosChainConfigInner = access.next_value()?;
-                            let config = AptosChainConfig {
-                                chain_reference: chain_id
-                                    .try_into()
-                                    .map_err(|e| serde::de::Error::custom(format!("{}", e)))?,
-                                inner,
-                            };
-                            ChainConfig::Aptos(Box::new(config))
                         }
                         _ => {
                             return Err(serde::de::Error::custom(format!(

@@ -123,7 +123,6 @@ let valid_before = valid_after + std::time::Duration::from_secs(3600);
 |----------------------------------------------------------------------|------------------------------------------------|
 | [`x402-chain-eip155`](https://crates.io/x402-chain-eip155)           | EVM chain support (Ethereum, Base, etc.)       |
 | [`x402-chain-solana`](https://crates.io/x402-chain-solana)           | Solana blockchain support                      |
-| [`x402-chain-aptos`](https://crates.io/x402-chain-aptos)             | Aptos blockchain support                       |
 | [`x402-axum`](https://crates.io/x402-axum)                           | Axum middleware for payment-gated endpoints    |
 | [`x402-reqwest`](https://crates.io/x402-reqwest)                     | Reqwest client with automatic payment handling |
 | [`x402-facilitator-local`](https://crates.io/x402-facilitator-local) | Local facilitator implementation               |

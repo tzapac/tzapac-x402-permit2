@@ -11,7 +11,7 @@ This crate provides a self-hosted facilitator that validates x402 payment payloa
 
 - **Local Facilitator**: [`FacilitatorLocal`] implementation that delegates to scheme handlers
 - **HTTP Handlers**: Axum-based endpoints for `/verify`, `/settle`, `/supported`, and `/health`
-- **Multi-chain Support**: Works with any chain implementation (EIP-155, Solana, Aptos)
+- **Multi-chain Support**: Works with any chain implementation (EIP-155, Solana)
 - **Scheme Registry**: Pluggable architecture for supporting multiple payment schemes
 - **Graceful Shutdown**: Signal handling for clean server shutdown
 - **OpenTelemetry**: Optional tracing and metrics support (`telemetry` feature)
@@ -40,7 +40,6 @@ use x402_types::chain::ChainRegistry;
 use x402_types::scheme::{SchemeBlueprints, SchemeRegistry};
 use x402_chain_eip155::{V1Eip155Exact, V2Eip155Exact};
 use x402_chain_solana::{V1SolanaExact, V2SolanaExact};
-use x402_chain_aptos::V2AptosExact;
 use std::sync::Arc;
 use axum::Router;
 
@@ -55,7 +54,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .and_register(V2Eip155Exact)
         .and_register(V1SolanaExact)
         .and_register(V2SolanaExact)
-        .and_register(V2AptosExact);
     
     // Build the scheme registry
     let scheme_registry = SchemeRegistry::build(
@@ -148,7 +146,7 @@ The [`handlers`] module provides the following endpoints:
 The local facilitator uses a scheme-based architecture:
 
 1. **Chain Registry**: Manages blockchain providers and connections
-2. **Scheme Blueprints**: Defines available payment schemes (V1/V2, EIP-155/Solana/Aptos)
+2. **Scheme Blueprints**: Defines available payment schemes (V1/V2, EIP-155/Solana)
 3. **Scheme Registry**: Combines chains and schemes into executable handlers
 4. **FacilitatorLocal**: Routes requests to the appropriate scheme handler
 
@@ -239,7 +237,6 @@ When using the `telemetry` feature:
 | [`x402-types`](https://crates.io/crates/x402-types)               | Core types and facilitator trait               |
 | [`x402-chain-eip155`](https://crates.io/crates/x402-chain-eip155) | EIP-155 (EVM) chain support                    |
 | [`x402-chain-solana`](https://crates.io/crates/x402-chain-solana) | Solana chain support                           |
-| [`x402-chain-aptos`](https://crates.io/crates/x402-chain-aptos)   | Aptos chain support                            |
 | [`x402-axum`](https://crates.io/crates/x402-axum)                 | Axum middleware for payment-gated endpoints    |
 | [`x402-reqwest`](https://crates.io/crates/x402-reqwest)           | Reqwest client with automatic payment handling |
 

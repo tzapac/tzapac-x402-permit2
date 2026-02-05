@@ -37,15 +37,6 @@ Add to your `Cargo.toml`:
 x402-facilitator = { git = "https://github.com/x402-rs/x402-rs" }
 ```
 
-**Note**: If you enable the `chain-aptos` feature, you must also include the required patches in your `Cargo.toml`:
-
-```toml
-[patch.crates-io]
-merlin = { git = "https://github.com/aptos-labs/merlin" }
-
-[patch."https://github.com/aptos-labs/aptos-core"]
-aptos-runtimes = { path = "https://github.com/x402-rs/x402-rs/patches/aptos-runtimes" }
-```
 
 ## Usage
 
@@ -62,7 +53,7 @@ cargo run --package x402-facilitator --features telemetry
 cargo run --package x402-facilitator --features chain-eip155,chain-solana
 
 # With all chains including Aptos (requires patches)
-cargo run --package x402-facilitator --features chain-eip155,chain-solana,chain-aptos
+cargo run --package x402-facilitator --features chain-eip155,chain-solana
 
 # With the full feature (all chains + telemetry)
 cargo run --package x402-facilitator --features full
@@ -174,10 +165,8 @@ The facilitator is built on top of the `x402-facilitator-local` crate and uses:
 | `telemetry`    | Enable OpenTelemetry tracing and metrics      |
 | `chain-eip155` | Enable EVM/EIP-155 chain support              |
 | `chain-solana` | Enable Solana chain support                   |
-| `chain-aptos`  | Enable Aptos chain support (requires patches) |
 | `full`         | Enable all features: telemetry + all chains   |
 
-**Note**: The `chain-aptos` feature requires additional patches due to its dependencies on Aptos core libraries. See the [Installation](#installation) section for details.
 
 ## License
 

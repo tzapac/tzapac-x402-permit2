@@ -18,7 +18,6 @@
 //!
 //! - **EVM chains** (`x402-chain-eip155`): `v1-eip155-exact`, `v2-eip155-exact`
 //! - **Solana** (`x402-chain-solana`): `v1-solana-exact`, `v2-solana-exact`
-//! - **Aptos** (`x402-chain-aptos`): `v2-aptos-exact`
 //!
 //! # Implementing a Custom Scheme
 //!

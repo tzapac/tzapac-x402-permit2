@@ -54,9 +54,7 @@ crates/
 │   └── src/
 │       ├── v1_eip155_exact/
 │       └── v2_eip155_exact/
-└── x402-chain-aptos/     # Aptos-specific implementations
     └── src/
-        └── v2_aptos_exact/
 ```
 
 Each scheme directory contains:

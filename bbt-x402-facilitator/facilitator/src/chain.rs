@@ -5,7 +5,6 @@
 //!
 //! - **EIP-155 (EVM)**: Ethereum and EVM-compatible chains like Base, Polygon, Avalanche
 //! - **Solana**: The Solana blockchain
-//! - **Aptos**: The Aptos blockchain
 //!
 //! # Architecture
 //!
@@ -34,13 +33,10 @@
 
 use std::collections::HashMap;
 #[cfg(any(
-    feature = "chain-aptos",
     feature = "chain-eip155",
     feature = "chain-solana"
 ))]
 use std::sync::Arc;
-#[cfg(feature = "chain-aptos")]
-use x402_chain_aptos::chain as aptos;
 #[cfg(feature = "chain-eip155")]
 use x402_chain_eip155::chain as eip155;
 #[cfg(feature = "chain-solana")]
@@ -49,7 +45,7 @@ use x402_types::chain::{ChainId, ChainProviderOps, ChainRegistry, FromConfig};
 
 use crate::config::{ChainConfig, ChainsConfig};
 
-/// A blockchain provider that can interact with EVM, Solana, or Aptos chains.
+/// A blockchain provider that can interact with EVM or Solana chains.
 ///
 /// This enum wraps chain-specific providers and provides a unified interface
 /// for the facilitator to interact with different blockchain networks.
@@ -58,7 +54,6 @@ use crate::config::{ChainConfig, ChainsConfig};
 ///
 /// - `Eip155` - Provider for EVM-compatible chains (Ethereum, Base, Polygon, etc.)
 /// - `Solana` - Provider for the Solana blockchain
-/// - `Aptos` - Provider for the Aptos blockchain
 #[derive(Debug, Clone)]
 pub enum ChainProvider {
     /// EVM chain provider for EIP-155 compatible networks.
@@ -67,15 +62,12 @@ pub enum ChainProvider {
     /// Solana chain provider.
     #[cfg(feature = "chain-solana")]
     Solana(Arc<solana::SolanaChainProvider>),
-    /// Aptos chain provider.
-    #[cfg(feature = "chain-aptos")]
-    Aptos(Arc<aptos::AptosChainProvider>),
 }
 
 /// Creates a new chain provider from configuration.
 ///
 /// This factory method inspects the configuration type and creates the appropriate
-/// chain-specific provider (EVM, Solana, or Aptos).
+/// chain-specific provider (EVM or Solana).
 ///
 /// # Errors
 ///
@@ -98,11 +90,6 @@ impl FromConfig<ChainConfig> for ChainProvider {
                 let provider = solana::SolanaChainProvider::from_config(config).await?;
                 ChainProvider::Solana(Arc::new(provider))
             }
-            #[cfg(feature = "chain-aptos")]
-            ChainConfig::Aptos(config) => {
-                let provider = aptos::AptosChainProvider::from_config(config).await?;
-                ChainProvider::Aptos(Arc::new(provider))
-            }
             #[allow(unreachable_patterns)] // For when no chain features enabled
             _ => unreachable!("ChainConfig variant not enabled in this build"),
         };
@@ -118,8 +105,6 @@ impl ChainProviderOps for ChainProvider {
             ChainProvider::Eip155(provider) => provider.signer_addresses(),
             #[cfg(feature = "chain-solana")]
             ChainProvider::Solana(provider) => provider.signer_addresses(),
-            #[cfg(feature = "chain-aptos")]
-            ChainProvider::Aptos(provider) => provider.signer_addresses(),
             #[allow(unreachable_patterns)] // For when no chain features enabled
             _ => unreachable!("ChainProvider variant not enabled in this build"),
         }
@@ -131,8 +116,6 @@ impl ChainProviderOps for ChainProvider {
             ChainProvider::Eip155(provider) => provider.chain_id(),
             #[cfg(feature = "chain-solana")]
             ChainProvider::Solana(provider) => provider.chain_id(),
-            #[cfg(feature = "chain-aptos")]
-            ChainProvider::Aptos(provider) => provider.chain_id(),
             #[allow(unreachable_patterns)] // For when no chain features enabled
             _ => unreachable!("ChainProvider variant not enabled in this build"),
         }

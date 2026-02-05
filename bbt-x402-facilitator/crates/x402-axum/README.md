@@ -363,7 +363,6 @@ You can connect these to OpenTelemetry exporters like Jaeger, Tempo, or Otel Col
 - [x402-reqwest](https://crates.io/crates/x402-reqwest): Reqwest middleware for paying x402 requests.
 - [x402-chain-eip155](https://crates.io/crates/x402-chain-eip155): EVM/EIP-155 chain support for x402.
 - [x402-chain-solana](https://crates.io/crates/x402-chain-solana): Solana chain support for x402.
-- [x402-chain-aptos](https://crates.io/crates/x402-chain-aptos): Aptos chain support for x402.
 
 ## License
 

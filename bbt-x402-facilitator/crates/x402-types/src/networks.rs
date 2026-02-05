@@ -403,7 +403,6 @@ pub fn network_name_by_chain_id(chain_id: &ChainId) -> Option<&'static str> {
 ///
 /// - `x402-chain-eip155` implements `KnownNetworkEip155<Eip155TokenDeployment>` for `USDC`
 /// - `x402-chain-solana` implements `KnownNetworkSolana<SolanaTokenDeployment>` for `USDC`
-/// - `x402-chain-aptos` implements `KnownNetworkAptos<AptosTokenDeployment>` for `USDC`
 ///
 /// # Example
 ///

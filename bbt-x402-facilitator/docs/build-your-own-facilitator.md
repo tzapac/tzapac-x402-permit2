@@ -248,7 +248,6 @@ x402-facilitator = { git = "https://github.com/x402-rs/x402-rs", default-feature
 Available features:
 - `chain-eip155` — Enable EIP-155 (EVM) chain support
 - `chain-solana` — Enable Solana chain support
-- `chain-aptos` — Enable Aptos chain support
 - `telemetry` — Enable OpenTelemetry tracing
 
 Then in your `main.rs`, simply call the `run` function:
