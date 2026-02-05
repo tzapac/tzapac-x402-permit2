@@ -32,6 +32,7 @@ CHAIN_ID = 42793
 TRANSFER_EVENT_SIG = Web3.keccak(text="Transfer(address,address,uint256)").hex()
 
 TX_RE = re.compile(r"0x[a-fA-F0-9]{64}")
+AMOUNT_RE = re.compile(r"Amount:\s+(\d+)\s+wei")
 
 
 @dataclass
@@ -207,6 +208,14 @@ def _extract_transfer_tx(output: str) -> Optional[str]:
     return hashes[-1] if hashes else None
 
 
+def _extract_expected_amount(output: str) -> Optional[int]:
+    for line in output.splitlines():
+        match = AMOUNT_RE.search(line)
+        if match:
+            return int(match.group(1))
+    return None
+
+
 async def main() -> int:
     if not PRIVATE_KEY:
         print("ERROR: PRIVATE_KEY missing in .env")
@@ -263,13 +272,36 @@ async def main() -> int:
     print(f"Transfer status: {result.status}")
     print(f"Block: {result.block_number}")
 
+    expected_from = Web3.to_checksum_address(account.address)
+    expected_to = Web3.to_checksum_address(SERVER_WALLET)
+    expected_amount = _extract_expected_amount(output)
+
     if result.transfer_from and result.transfer_to and result.transfer_amount is not None:
         print("Transfer event:")
         print(f"  from: {result.transfer_from}")
         print(f"  to:   {result.transfer_to}")
         print(f"  amount: {result.transfer_amount}")
+
+        mismatch = False
+        if result.transfer_from.lower() != expected_from.lower():
+            print(f"ERROR: transfer sender mismatch (expected {expected_from})")
+            mismatch = True
+        if result.transfer_to.lower() != expected_to.lower():
+            print(f"ERROR: transfer recipient mismatch (expected {expected_to})")
+            mismatch = True
+        if expected_amount is not None and result.transfer_amount != expected_amount:
+            print(f"ERROR: transfer amount mismatch (expected {expected_amount})")
+            mismatch = True
+
+        if mismatch:
+            if server_started and server_proc:
+                _stop_process(server_proc)
+            return 1
     else:
         print("Transfer event: not found in receipt logs")
+        if server_started and server_proc:
+            _stop_process(server_proc)
+        return 1
 
     _print_header("DONE")
     if server_started and server_proc:

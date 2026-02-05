@@ -34,4 +34,4 @@ RUN chmod 755 /usr/local/bin/docker-entrypoint.bbt.sh
 EXPOSE $PORT
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.bbt.sh"]
-CMD ["x402-facilitator", "--config", "/app/bbt_config.json"]
+CMD ["x402-facilitator"]

@@ -125,7 +125,7 @@ where
     async fn sign_payment(&self) -> Result<String, X402Error> {
         let params = Eip3009SigningParams {
             chain_id: self.chain_reference.inner(),
-            asset_address: self.requirements.asset.0,
+            asset_address: self.requirements.asset.address(),
             pay_to: self.requirements.pay_to.into(),
             amount: self.requirements.amount.into(),
             max_timeout_seconds: self.requirements.max_timeout_seconds,

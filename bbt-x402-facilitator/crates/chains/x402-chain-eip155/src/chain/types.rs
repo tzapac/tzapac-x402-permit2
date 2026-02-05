@@ -80,6 +80,95 @@ impl PartialEq<ChecksummedAddress> for Address {
     }
 }
 
+/// An ERC-20 asset identifier for EIP-155 chains.
+///
+/// Accepts either a raw checksummed address ("0x...") or a CAIP-19
+/// identifier in the form "eip155:<chain_id>/erc20:<address>".
+#[derive(Clone, Debug, Eq)]
+pub struct Eip155Asset {
+    address: Address,
+    chain_id: Option<ChainId>,
+}
+
+impl Eip155Asset {
+    pub fn address(&self) -> Address {
+        self.address
+    }
+
+    pub fn chain_id(&self) -> Option<&ChainId> {
+        self.chain_id.as_ref()
+    }
+}
+
+impl FromStr for Eip155Asset {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some((chain_part, asset_part)) = s.split_once("/erc20:") {
+            let chain_id = ChainId::from_str(chain_part)
+                .map_err(|_| "invalid CAIP-19 chain id".to_string())?;
+            let address = Address::from_str(asset_part)
+                .map_err(|_| "invalid CAIP-19 asset address".to_string())?;
+            return Ok(Self {
+                address,
+                chain_id: Some(chain_id),
+            });
+        }
+
+        let address = Address::from_str(s).map_err(|_| "invalid asset address".to_string())?;
+        Ok(Self {
+            address,
+            chain_id: None,
+        })
+    }
+}
+
+impl Display for Eip155Asset {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.address.to_checksum(None))
+    }
+}
+
+impl Serialize for Eip155Asset {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.address.to_checksum(None))
+    }
+}
+
+impl<'de> Deserialize<'de> for Eip155Asset {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        s.parse().map_err(serde::de::Error::custom)
+    }
+}
+
+impl PartialEq for Eip155Asset {
+    fn eq(&self, other: &Self) -> bool {
+        self.address == other.address
+    }
+}
+
+impl From<Eip155Asset> for Address {
+    fn from(value: Eip155Asset) -> Self {
+        value.address
+    }
+}
+
+impl From<Address> for Eip155Asset {
+    fn from(address: Address) -> Self {
+        Self {
+            address,
+            chain_id: None,
+        }
+    }
+}
+
 /// A token amount represented as a U256, serialized as a decimal string.
 ///
 /// This wrapper ensures token amounts are serialized as decimal strings

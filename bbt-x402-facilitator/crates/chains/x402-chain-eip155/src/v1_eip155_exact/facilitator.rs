@@ -17,6 +17,7 @@ use alloy_provider::{
     MULTICALL3_ADDRESS, MulticallError, MulticallItem, PendingTransactionError, Provider,
 };
 use alloy_rpc_types_eth::TransactionRequest;
+use alloy_network::TransactionBuilder;
 use alloy_sol_types::{Eip712Domain, SolCall, SolStruct, SolType, eip712_domain, sol};
 use alloy_transport::TransportError;
 use std::collections::HashMap;
@@ -1084,18 +1085,21 @@ pub async fn verify_payment_permit2<P: Provider>(
     let permit_call = contract.permit(payment.owner, permit_single, signature_bytes);
 
     #[cfg(feature = "telemetry")]
-    permit_call
-        .call()
-        .instrument(tracing::info_span!(
+    {
+        let span = tracing::info_span!(
             "call_permit2_permit",
             owner = %payment.owner,
             spender = %payment.spender,
             token = %payment.token,
             amount = %payment.transfer_amount,
             otel.kind = "client",
-        ))
-        .await
-        .map_err(|e| PaymentVerificationError::InvalidSignature(e.to_string()))?;
+        );
+        let _guard = span.enter();
+        permit_call
+            .call()
+            .await
+            .map_err(|e| PaymentVerificationError::InvalidSignature(e.to_string()))?;
+    }
     #[cfg(not(feature = "telemetry"))]
     permit_call
         .call()

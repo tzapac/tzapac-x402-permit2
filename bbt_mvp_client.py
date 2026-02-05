@@ -157,10 +157,9 @@ async def main():
 
     token_address = Web3.to_checksum_address(asset.split("erc20:")[-1])
 
-    # With current facilitator code, spender must == payTo
-    # This is a limitation we work around by using payTo as spender
-    spender = pay_to
-    print(f"Permit2 spender (must == payTo for this facilitator): {spender}")
+    facilitator_wallet = os.getenv("FACILITATOR_WALLET")
+    spender = Web3.to_checksum_address(facilitator_wallet) if facilitator_wallet else pay_to
+    print(f"Permit2 spender: {spender}")
 
     now = int(time.time())
     sig_deadline = now + 3600

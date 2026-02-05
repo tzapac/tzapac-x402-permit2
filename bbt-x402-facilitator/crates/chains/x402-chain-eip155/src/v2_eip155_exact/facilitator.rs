@@ -225,10 +225,20 @@ async fn assert_valid_payment<'a, P: Provider>(
     if payload_chain_id != &chain_id {
         return Err(PaymentVerificationError::ChainIdMismatch.into());
     }
+    if let Some(asset_chain_id) = accepted.asset.chain_id() {
+        if asset_chain_id != &chain_id {
+            return Err(PaymentVerificationError::ChainIdMismatch.into());
+        }
+    }
+    if let Some(asset_chain_id) = requirements.asset.chain_id() {
+        if asset_chain_id != &chain_id {
+            return Err(PaymentVerificationError::ChainIdMismatch.into());
+        }
+    }
     if let Some(permit2) = payload.permit2.as_ref() {
         let permit_single = &permit2.permit_single;
         let details = &permit_single.details;
-        let asset_address: alloy_primitives::Address = accepted.asset.into();
+        let asset_address: alloy_primitives::Address = accepted.asset.address();
 
         if details.token != asset_address {
             return Err(PaymentVerificationError::AssetMismatch.into());
@@ -257,7 +267,7 @@ async fn assert_valid_payment<'a, P: Provider>(
         let payment = Permit2Payment {
             owner: permit2.owner,
             spender: permit_single.spender,
-            pay_to: accepted.pay_to.into(),
+            pay_to: accepted.pay_to.address(),
             token: details.token,
             amount: details.amount,
             expiration: details.expiration,
@@ -276,16 +286,16 @@ async fn assert_valid_payment<'a, P: Provider>(
         let authorization = payload.authorization.as_ref().ok_or_else(|| {
             PaymentVerificationError::InvalidFormat("Missing authorization".to_string())
         })?;
-        if authorization.to != accepted.pay_to {
+        if authorization.to != accepted.pay_to.address() {
             return Err(PaymentVerificationError::RecipientMismatch.into());
         }
         let valid_after = authorization.valid_after;
         let valid_before = authorization.valid_before;
         assert_time(valid_after, valid_before)?;
-        let asset_address = accepted.asset;
-        let contract = IEIP3009::new(asset_address.into(), provider);
+        let asset_address = accepted.asset.address();
+        let contract = IEIP3009::new(asset_address, provider);
 
-        let domain = assert_domain(chain, &contract, &asset_address.into(), &accepted.extra).await?;
+        let domain = assert_domain(chain, &contract, &asset_address, &accepted.extra).await?;
 
         let amount_required = accepted.amount;
         assert_enough_balance(&contract, &authorization.from, amount_required.into()).await?;

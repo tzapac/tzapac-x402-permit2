@@ -3,7 +3,7 @@
 //! This module re-exports types from V1 and defines V2-specific wire format
 //! types for ERC-3009 based payments on EVM chains.
 
-use crate::chain::{ChecksummedAddress, TokenAmount};
+use crate::chain::{Eip155Asset, TokenAmount};
 use x402_types::proto::v2;
 
 /// Re-export the "exact" scheme identifier from V1 (same for both versions).
@@ -26,4 +26,4 @@ pub type PaymentPayload = v2::PaymentPayload<PaymentRequirements, ExactEvmPayloa
 /// V2 uses CAIP-2 chain IDs and embeds requirements directly in the payload,
 /// unlike V1 which uses network names and separate requirement objects.
 pub type PaymentRequirements =
-    v2::PaymentRequirements<ExactScheme, TokenAmount, ChecksummedAddress, PaymentRequirementsExtra>;
+    v2::PaymentRequirements<ExactScheme, TokenAmount, Eip155Asset, PaymentRequirementsExtra>;
