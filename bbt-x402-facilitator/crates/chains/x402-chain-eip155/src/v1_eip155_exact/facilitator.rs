@@ -42,10 +42,6 @@ use crate::chain::{
 use crate::v1_eip155_exact::{
     ExactScheme, PaymentRequirementsExtra, TransferWithAuthorization, types,
 };
-use crate::v1_eip155_exact::types::{
-    PermitDetails as PermitDetailsEip712,
-    PermitSingle as PermitSingleEip712,
-};
 
 /// Signature verifier for EIP-6492, EIP-1271, EOA, universally deployed on the supported EVM chains
 /// If absent on a target chain, verification will fail; you should deploy the validator there.
@@ -470,22 +466,6 @@ fn permit2_u48(value: u64, field: &str) -> Result<U48, PaymentVerificationError>
     Ok(U48::from(value))
 }
 
-fn build_permit2_single_eip712(
-    payment: &Permit2Payment,
-) -> Result<PermitSingleEip712, PaymentVerificationError> {
-    let details = PermitDetailsEip712 {
-        token: payment.token,
-        amount: permit2_amount(payment.amount)?,
-        expiration: permit2_u48(payment.expiration, "expiration")?,
-        nonce: permit2_u48(payment.nonce, "nonce")?,
-    };
-    Ok(PermitSingleEip712 {
-        details,
-        spender: payment.spender,
-        sigDeadline: U256::from(payment.sig_deadline),
-    })
-}
-
 fn build_permit2_single_call(
     payment: &Permit2Payment,
 ) -> Result<IPermit2::PermitSingle, PaymentVerificationError> {
@@ -500,14 +480,6 @@ fn build_permit2_single_call(
         spender: payment.spender,
         sigDeadline: U256::from(payment.sig_deadline),
     })
-}
-
-fn permit2_signature_bytes(signature: &StructuredSignature) -> Bytes {
-    match signature {
-        StructuredSignature::EIP6492 { original, .. } => original.clone(),
-        StructuredSignature::EIP1271(bytes) => bytes.clone(),
-        StructuredSignature::EOA(signature) => Bytes::from(signature.as_bytes().to_vec()),
-    }
 }
 
 /// Constructs the correct EIP-712 domain for signature verification.
@@ -672,24 +644,6 @@ impl SignedMessage {
         Ok(signed_message)
     }
 
-    pub fn extract_permit2(
-        payment: &Permit2Payment,
-        domain: &Eip712Domain,
-    ) -> Result<Self, Eip155ExactError> {
-        let permit_single = build_permit2_single_eip712(payment)?;
-        let eip712_hash = permit_single.eip712_signing_hash(domain);
-        let structured_signature: StructuredSignature = StructuredSignature::try_from_bytes(
-            payment.signature.clone(),
-            payment.owner,
-            &eip712_hash,
-        )?;
-        let signed_message = Self {
-            address: payment.owner,
-            hash: eip712_hash,
-            signature: structured_signature,
-        };
-        Ok(signed_message)
-    }
 }
 
 /// A structured representation of an Ethereum signature.
