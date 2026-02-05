@@ -4,12 +4,10 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::routing::get;
 use dotenvy::dotenv;
-use solana_pubkey::pubkey;
 use std::env;
 use tracing::instrument;
 use x402_axum::X402Middleware;
 use x402_chain_eip155::{KnownNetworkEip155, V1Eip155Exact, V2Eip155Exact};
-use x402_chain_solana::{KnownNetworkSolana, V1SolanaExact, V2SolanaExact};
 use x402_types::networks::USDC;
 
 #[tokio::main]
@@ -29,10 +27,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 x402.with_price_tag(V1Eip155Exact::price_tag(
                     address!("0xBAc675C310721717Cd4A37F6cbeA1F081b1C2a07"),
                     USDC::base_sepolia().parse("0.01")?,
-                ))
-                .with_price_tag(V1SolanaExact::price_tag(
-                    pubkey!("EGBQqKn968sVv5cQh5Cr72pSTHfxsuzq7o7asqYB5uEV"),
-                    USDC::solana().amount(100),
                 )),
             ),
         )
@@ -42,10 +36,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 x402.with_price_tag(V2Eip155Exact::price_tag(
                     address!("0xBAc675C310721717Cd4A37F6cbeA1F081b1C2a07"),
                     USDC::base_sepolia().amount(10u64),
-                ))
-                .with_price_tag(V2SolanaExact::price_tag(
-                    pubkey!("EGBQqKn968sVv5cQh5Cr72pSTHfxsuzq7o7asqYB5uEV"),
-                    USDC::solana().amount(100),
                 )),
             ),
         )
@@ -65,11 +55,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         V2Eip155Exact::price_tag(
                             address!("0xBAc675C310721717Cd4A37F6cbeA1F081b1C2a07"),
                             USDC::base_sepolia().amount(amount),
-                        ),
-                        // V2 Solana price tag
-                        V2SolanaExact::price_tag(
-                            pubkey!("EGBQqKn968sVv5cQh5Cr72pSTHfxsuzq7o7asqYB5uEV"),
-                            USDC::solana().amount(amount),
                         ),
                     ]
                 }
@@ -99,10 +84,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             V2Eip155Exact::price_tag(
                                 address!("0xBAc675C310721717Cd4A37F6cbeA1F081b1C2a07"),
                                 USDC::base_sepolia().amount(100u64),
-                            ),
-                            V2SolanaExact::price_tag(
-                                pubkey!("EGBQqKn968sVv5cQh5Cr72pSTHfxsuzq7o7asqYB5uEV"),
-                                USDC::solana().amount(100),
                             ),
                         ]
                     }

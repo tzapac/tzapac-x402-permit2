@@ -16,7 +16,7 @@ All in all: **automatically pay for resources using the x402 protocol**.
 ## Features
 
 - Pluggable reqwest middleware using [reqwest-middleware](https://crates.io/crates/reqwest-middleware)
-- Multi-chain support (EVM via EIP-155, Solana)
+- Multi-chain support (EVM via EIP-155)
 - Full V1 and V2 protocol support with automatic detection and handling
 - Multi-scheme architecture supporting various payment schemes
 - Customizable payment selection logic
@@ -74,27 +74,16 @@ Register scheme clients for each chain/network you want to support:
 ```rust,no_run
 use x402_reqwest::{ReqwestWithPayments, ReqwestWithPaymentsBuild, X402Client};
 use x402_chain_eip155::{V1Eip155ExactClient, V2Eip155ExactClient};
-use x402_chain_solana::{V1SolanaExactClient, V2SolanaExactClient};
 use alloy_signer_local::PrivateKeySigner;
-use solana_client::nonblocking::rpc_client::RpcClient;
-use solana_keypair::Keypair;
 use std::sync::Arc;
 use reqwest::Client;
 
 let evm_signer: Arc<PrivateKeySigner> = Arc::new("0x...".parse().unwrap());
-let solana_keypair = Arc::new(Keypair::from_base58_string("..."));
-let solana_rpc_client = Arc::new(RpcClient::new("https://api.devnet.solana.com"));
 
 let x402_client = X402Client::new()
     // Register EVM schemes (V1 and V2)
     .register(V1Eip155ExactClient::new(evm_signer.clone()))
-    .register(V2Eip155ExactClient::new(evm_signer))
-    // Register Solana schemes (V1 and V2)
-    .register(V1SolanaExactClient::new(
-        solana_keypair.clone(),
-        solana_rpc_client.clone(),
-    ))
-    .register(V2SolanaExactClient::new(solana_keypair, solana_rpc_client));
+    .register(V2Eip155ExactClient::new(evm_signer));
 
 let http_client = Client::new()
     .with_payments(x402_client)
@@ -168,7 +157,6 @@ This integrates with any `tracing`-compatible subscriber. For OpenTelemetry expo
 - [x402-types](https://crates.io/crates/x402-types): Core x402 types, facilitator traits, helpers.
 - [x402-axum](https://crates.io/crates/x402-axum): Axum middleware for accepting x402 payments.
 - [x402-chain-eip155](https://crates.io/crates/x402-chain-eip155): EIP-155 chain support for x402.
-- [x402-chain-solana](https://crates.io/crates/x402-chain-solana): Solana chain support for x402.
 
 ## License
 

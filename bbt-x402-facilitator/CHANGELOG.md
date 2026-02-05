@@ -16,7 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New `x402-types` crate: Core protocol types, facilitator traits, and utilities.
 - New `x402-chain-eip155` crate: EVM/EIP-155 chain support (Ethereum, Base, Polygon, etc.) with feature flags for `client`, `server`, and `facilitator`.
-- New `x402-chain-solana` crate: Solana blockchain support with feature flags for `client`, `server`, and `facilitator`.
 - New `x402-facilitator-local` crate: Local facilitator implementation for payment verification and settlement.
 - New `facilitator` binary crate: Production-ready facilitator server (not published to crates.io).
 - New documentation: `docs/build-your-own-facilitator.md` guide.
@@ -27,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Before (v0.12.x):**
 ```toml
 [dependencies]
-x402-rs = { version = "0.12", features = ["eip155", "solana"] }
+x402-rs = { version = "0.12", features = ["eip155"] }
 ```
 
 **After (v1.0.0):**
@@ -35,7 +34,6 @@ x402-rs = { version = "0.12", features = ["eip155", "solana"] }
 [dependencies]
 x402-types = "1.0"
 x402-chain-eip155 = { version = "1.0", features = ["client"] }
-x402-chain-solana = { version = "1.0", features = ["client"] }
 ```
 
 ## [0.12.6] - 2025-01-26

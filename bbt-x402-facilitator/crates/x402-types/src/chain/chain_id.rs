@@ -4,7 +4,7 @@
 //! for identifying blockchain networks in a chain-agnostic way. A CAIP-2 chain ID
 //! consists of two parts separated by a colon:
 //!
-//! - **Namespace**: The blockchain ecosystem (e.g., `eip155` for EVM, `solana` for Solana)
+//! - **Namespace**: The blockchain ecosystem (e.g., `eip155` for EVM)
 //! - **Reference**: The chain-specific identifier (e.g., `8453` for Base, `137` for Polygon)
 //!
 //! # Examples
@@ -34,7 +34,7 @@ use crate::networks;
 /// Chain IDs uniquely identify blockchain networks across different ecosystems.
 /// The format is `namespace:reference` where:
 ///
-/// - `namespace` identifies the blockchain family (e.g., `eip155`, `solana`)
+/// - `namespace` identifies the blockchain family (e.g., `eip155`)
 /// - `reference` identifies the specific chain within that family
 ///
 /// # Serialization
@@ -52,7 +52,7 @@ use crate::networks;
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ChainId {
-    /// The blockchain namespace (e.g., `eip155` for EVM chains, `solana` for Solana).
+    /// The blockchain namespace (e.g., `eip155` for EVM chains).
     pub namespace: String,
     /// The chain-specific reference (e.g., `8453` for Base, `137` for Polygon).
     pub reference: String,
@@ -204,7 +204,6 @@ impl<'de> Deserialize<'de> for ChainId {
 /// let all_evm = ChainIdPattern::wildcard("eip155");
 /// assert!(all_evm.matches(&ChainId::new("eip155", "8453")));
 /// assert!(all_evm.matches(&ChainId::new("eip155", "137")));
-/// assert!(!all_evm.matches(&ChainId::new("solana", "mainnet")));
 ///
 /// // Match specific chain
 /// let base_only = ChainIdPattern::exact("eip155", "8453");
@@ -215,7 +214,7 @@ impl<'de> Deserialize<'de> for ChainId {
 pub enum ChainIdPattern {
     /// Matches any chain within the specified namespace.
     Wildcard {
-        /// The namespace to match (e.g., `eip155`, `solana`).
+        /// The namespace to match (e.g., `eip155`).
         namespace: String,
     },
     /// Matches exactly one specific chain.
@@ -431,12 +430,6 @@ mod tests {
         assert_eq!(serialized, "\"eip155:1\"");
     }
 
-    #[test]
-    fn test_chain_id_serialize_solana() {
-        let chain_id = ChainId::new("solana", "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp");
-        let serialized = serde_json::to_string(&chain_id).unwrap();
-        assert_eq!(serialized, "\"solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp\"");
-    }
 
     #[test]
     fn test_chain_id_deserialize_eip155() {
@@ -445,13 +438,6 @@ mod tests {
         assert_eq!(chain_id.reference, "1");
     }
 
-    #[test]
-    fn test_chain_id_deserialize_solana() {
-        let chain_id: ChainId =
-            serde_json::from_str("\"solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp\"").unwrap();
-        assert_eq!(chain_id.namespace, "solana");
-        assert_eq!(chain_id.reference, "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp");
-    }
 
     #[test]
     fn test_chain_id_roundtrip_eip155() {
@@ -462,13 +448,6 @@ mod tests {
         assert_eq!(original, deserialized);
     }
 
-    #[test]
-    fn test_chain_id_roundtrip_solana() {
-        let original = ChainId::new("solana", "devnet");
-        let serialized = serde_json::to_string(&original).unwrap();
-        let deserialized: ChainId = serde_json::from_str(&serialized).unwrap();
-        assert_eq!(original, deserialized);
-    }
 
     #[test]
     fn test_chain_id_deserialize_invalid_format() {
@@ -488,7 +467,6 @@ mod tests {
         assert!(pattern.matches(&ChainId::new("eip155", "1")));
         assert!(pattern.matches(&ChainId::new("eip155", "8453")));
         assert!(pattern.matches(&ChainId::new("eip155", "137")));
-        assert!(!pattern.matches(&ChainId::new("solana", "mainnet")));
     }
 
     #[test]
@@ -496,7 +474,6 @@ mod tests {
         let pattern = ChainIdPattern::exact("eip155", "1");
         assert!(pattern.matches(&ChainId::new("eip155", "1")));
         assert!(!pattern.matches(&ChainId::new("eip155", "8453")));
-        assert!(!pattern.matches(&ChainId::new("solana", "1")));
     }
 
     #[test]
@@ -510,16 +487,12 @@ mod tests {
         assert!(pattern.matches(&ChainId::new("eip155", "8453")));
         assert!(pattern.matches(&ChainId::new("eip155", "137")));
         assert!(!pattern.matches(&ChainId::new("eip155", "42")));
-        assert!(!pattern.matches(&ChainId::new("solana", "1")));
     }
 
     #[test]
     fn test_pattern_namespace() {
         let wildcard = ChainIdPattern::wildcard("eip155");
         assert_eq!(wildcard.namespace(), "eip155");
-
-        let exact = ChainIdPattern::exact("solana", "mainnet");
-        assert_eq!(exact.namespace(), "solana");
 
         let references: HashSet<String> = vec!["1"].into_iter().map(String::from).collect();
         let set = ChainIdPattern::set("eip155", references);
@@ -544,10 +517,6 @@ mod tests {
         assert_eq!(celo.namespace, "eip155");
         assert_eq!(celo.reference, "42220");
 
-        let solana = chain_id_by_network_name("solana").unwrap();
-        assert_eq!(solana.namespace, "solana");
-        assert_eq!(solana.reference, "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp");
-
         assert!(chain_id_by_network_name("unknown").is_none());
     }
 
@@ -565,10 +534,6 @@ mod tests {
         let network_name = network_name_by_chain_id(&celo_sepolia_chain_id).unwrap();
         assert_eq!(network_name, "celo-sepolia");
 
-        let solana_chain_id = ChainId::new("solana", "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp");
-        let network_name = network_name_by_chain_id(&solana_chain_id).unwrap();
-        assert_eq!(network_name, "solana");
-
         let unknown_chain_id = ChainId::new("eip155", "999999");
         assert!(network_name_by_chain_id(&unknown_chain_id).is_none());
     }
@@ -580,9 +545,6 @@ mod tests {
 
         let celo_chain_id = ChainId::new("eip155", "42220");
         assert_eq!(celo_chain_id.as_network_name(), Some("celo"));
-
-        let solana_chain_id = ChainId::new("solana", "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp");
-        assert_eq!(solana_chain_id.as_network_name(), Some("solana"));
 
         let unknown_chain_id = ChainId::new("eip155", "999999");
         assert!(unknown_chain_id.as_network_name().is_none());

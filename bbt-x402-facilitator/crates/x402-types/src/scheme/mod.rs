@@ -17,7 +17,6 @@
 //! Scheme implementations are provided by chain-specific crates:
 //!
 //! - **EVM chains** (`x402-chain-eip155`): `v1-eip155-exact`, `v2-eip155-exact`
-//! - **Solana** (`x402-chain-solana`): `v1-solana-exact`, `v2-solana-exact`
 //!
 //! # Implementing a Custom Scheme
 //!
@@ -91,7 +90,7 @@ pub trait X402SchemeId {
     fn x402_version(&self) -> u8 {
         2
     }
-    /// Returns the chain namespace (e.g., "eip155", "solana").
+    /// Returns the chain namespace (e.g., "eip155").
     fn namespace(&self) -> &str;
     /// Returns the scheme name (e.g., "exact").
     fn scheme(&self) -> &str;

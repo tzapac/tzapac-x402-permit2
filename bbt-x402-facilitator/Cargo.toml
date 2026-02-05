@@ -6,7 +6,6 @@ members = [
   "crates/x402-reqwest",
   "crates/x402-facilitator-local",
   "crates/chains/x402-chain-eip155",
-  "crates/chains/x402-chain-solana",
   "facilitator",
   "examples/x402-axum-example",
   "examples/x402-reqwest-example",
@@ -26,7 +25,6 @@ categories = ["cryptography::cryptocurrencies", "finance", "network-programming"
 [workspace.dependencies]
 x402-axum = { version = "1.0", path = "crates/x402-axum" }
 x402-chain-eip155 = { version = "1.0", path = "crates/chains/x402-chain-eip155" }
-x402-chain-solana = { version = "1.0", path = "crates/chains/x402-chain-solana" }
 x402-facilitator-local = { version = "1.0", path = "crates/x402-facilitator-local" }
 x402-reqwest = { version = "1.0", path = "crates/x402-reqwest" }
 x402-types = { version = "1.0", path = "crates/x402-types" }

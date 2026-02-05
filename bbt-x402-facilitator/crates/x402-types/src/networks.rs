@@ -30,8 +30,8 @@
 //! - **ChainId Methods**: The [`ChainId::from_network_name()`](crate::chain::ChainId::from_network_name)
 //!   and [`ChainId::as_network_name()`](crate::chain::ChainId::as_network_name) methods use this
 //!   module for convenient network name lookups
-//! - **Chain-Specific Traits**: Chain-specific crates (e.g., `x402-chain-eip155`, `x402-chain-solana`)
-//!   implement namespace-specific traits like [`KnownNetworkEip155`] and [`KnownNetworkSolana`]
+//! - **Chain-Specific Traits**: Chain-specific crates (e.g., `x402-chain-eip155`)
+//!   implement namespace-specific traits like [`KnownNetworkEip155`]
 //!   for type-safe network access
 //! - **Token Deployments**: The [`USDC`] marker struct is used by chain-specific crates to provide
 //!   per-network token deployment information (e.g., USDC addresses on different chains)
@@ -40,7 +40,7 @@
 //!
 //! CAIP-2 is a standard for identifying blockchain networks in a chain-agnostic way. A CAIP-2
 //! chain ID consists of two parts separated by a colon:
-//! - **Namespace**: The blockchain ecosystem (e.g., "eip155" for EVM, "solana" for Solana)
+//! - **Namespace**: The blockchain ecosystem (e.g., "eip155" for EVM)
 //! - **Reference**: The chain-specific identifier (e.g., "8453" for Base, "137" for Polygon)
 //!
 //! For more information, see: https://chainagnostic.org/CAIPs/caip-2
@@ -49,7 +49,6 @@
 //!
 //! - [`NetworkInfo`]: A struct representing a known network with its name, namespace, and reference
 //! - [`KnownNetworkEip155`]: Trait for convenient access to EVM networks (eip155 namespace)
-//! - [`KnownNetworkSolana`]: Trait for convenient access to Solana networks
 //! - [`KNOWN_NETWORKS`]: A static array of all well-known networks
 //! - [`chain_id_by_network_name`]: Lookup function to get ChainId by network name
 //! - [`network_name_by_chain_id`]: Reverse lookup function to get network name by ChainId
@@ -57,7 +56,7 @@
 //!
 //! # Namespace-Specific Traits
 //!
-//! The module provides two namespace-specific traits for better organization and flexibility:
+//! The module provides namespace-specific traits for better organization and flexibility:
 //!
 //! ## KnownNetworkEip155
 //! Provides convenient static methods for all EVM networks (eip155 namespace):
@@ -68,16 +67,9 @@
 //! - XDC, XRPL EVM, Peaq, IoTeX
 //! - Celo, Celo Sepolia
 //!
-//! ## KnownNetworkSolana
-//! Provides convenient static methods for Solana networks:
-//! - Solana mainnet
-//! - Solana devnet
-//!
 //! # Supported Networks
 //!
-//! The module supports 16 blockchain networks across two namespaces:
-//! - **EVM Networks (14)**: All networks in the eip155 namespace
-//! - **Solana Networks (2)**: Solana mainnet and devnet
+//! The module supports EVM networks in the eip155 namespace.
 //!
 //! # Examples
 //!
@@ -96,8 +88,8 @@
 //! assert_eq!(base.reference, "8453");
 //!
 //! // Reverse lookup
-//! let chain_id = ChainId::new("solana", "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp");
-//! assert_eq!(chain_id.as_network_name(), Some("solana"));
+//! let chain_id = ChainId::new("eip155", "8453");
+//! assert_eq!(chain_id.as_network_name(), Some("base"));
 //! ```
 
 use std::collections::HashMap;
@@ -108,9 +100,9 @@ use crate::chain::ChainId;
 /// A known network definition with its chain ID and human-readable name.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NetworkInfo {
-    /// Human-readable network name (e.g., "base-sepolia", "solana")
+    /// Human-readable network name (e.g., "base-sepolia")
     pub name: &'static str,
-    /// CAIP-2 namespace (e.g., "eip155", "solana")
+    /// CAIP-2 namespace (e.g., "eip155")
     pub namespace: &'static str,
     /// Chain reference (e.g., "84532" for Base Sepolia, "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp" for Solana mainnet)
     pub reference: &'static str,
@@ -227,22 +219,11 @@ pub static KNOWN_NETWORKS: &[NetworkInfo] = &[
         namespace: "eip155",
         reference: "11142220",
     },
-    // Solana Networks
-    NetworkInfo {
-        name: "solana",
-        namespace: "solana",
-        reference: "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-    },
-    NetworkInfo {
-        name: "solana-devnet",
-        namespace: "solana",
-        reference: "EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
-    },
 ];
 
 /// Lazy-initialized hashmap for network name to ChainId lookups.
 ///
-/// Maps human-readable network names (e.g., "base", "polygon", "solana") to their
+/// Maps human-readable network names (e.g., "base", "polygon") to their
 /// corresponding [`ChainId`] instances. This hashmap is populated once on first access
 /// from the [`KNOWN_NETWORKS`] array.
 ///
@@ -326,7 +307,7 @@ pub static CHAIN_ID_TO_NAME: LazyLock<HashMap<ChainId, &'static str>> = LazyLock
 ///
 /// # Arguments
 ///
-/// * `name` - The human-readable network name (e.g., "base", "polygon-amoy", "solana")
+/// * `name` - The human-readable network name (e.g., "base", "polygon-amoy")
 ///
 /// # Returns
 ///
@@ -402,7 +383,6 @@ pub fn network_name_by_chain_id(chain_id: &ChainId) -> Option<&'static str> {
 /// deployments on different networks. For example:
 ///
 /// - `x402-chain-eip155` implements `KnownNetworkEip155<Eip155TokenDeployment>` for `USDC`
-/// - `x402-chain-solana` implements `KnownNetworkSolana<SolanaTokenDeployment>` for `USDC`
 ///
 /// # Example
 ///
@@ -439,10 +419,6 @@ mod tests {
         assert_eq!(celo.namespace, "eip155");
         assert_eq!(celo.reference, "42220");
 
-        let solana = chain_id_by_network_name("solana").unwrap();
-        assert_eq!(solana.namespace, "solana");
-        assert_eq!(solana.reference, "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp");
-
         assert!(chain_id_by_network_name("unknown").is_none());
     }
 
@@ -460,10 +436,6 @@ mod tests {
         let network_name = network_name_by_chain_id(&celo_sepolia_chain_id).unwrap();
         assert_eq!(network_name, "celo-sepolia");
 
-        let solana_chain_id = ChainId::new("solana", "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp");
-        let network_name = network_name_by_chain_id(&solana_chain_id).unwrap();
-        assert_eq!(network_name, "solana");
-
         let unknown_chain_id = ChainId::new("eip155", "999999");
         assert!(network_name_by_chain_id(&unknown_chain_id).is_none());
     }
@@ -475,9 +447,6 @@ mod tests {
 
         let celo_chain_id = ChainId::new("eip155", "42220");
         assert_eq!(celo_chain_id.as_network_name(), Some("celo"));
-
-        let solana_chain_id = ChainId::new("solana", "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp");
-        assert_eq!(solana_chain_id.as_network_name(), Some("solana"));
 
         let unknown_chain_id = ChainId::new("eip155", "999999");
         assert!(unknown_chain_id.as_network_name().is_none());

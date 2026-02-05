@@ -269,7 +269,7 @@ impl<TChainsConfig> Config<TChainsConfig> {
 
     /// Get the chains configuration map.
     ///
-    /// Keys are CAIP-2 chain identifiers (e.g., "eip155:84532", "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp").
+    /// Keys are CAIP-2 chain identifiers (e.g., "eip155:84532").
     pub fn chains(&self) -> &TChainsConfig {
         &self.chains
     }

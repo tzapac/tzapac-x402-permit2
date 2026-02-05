@@ -22,7 +22,6 @@ x402-rs is a modular, production-ready implementation of the x402 protocol with 
 | Crate                                                        | Badges                                                                                                                                                                                                         | Description                                               |
 |--------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------|
 | **[`x402-chain-eip155`](./crates/chains/x402-chain-eip155)** | [![Crates.io](https://img.shields.io/crates/v/x402-chain-eip155.svg)](https://crates.io/crates/x402-chain-eip155) [![Docs.rs](https://docs.rs/x402-chain-eip155/badge.svg)](https://docs.rs/x402-chain-eip155) | EVM/EIP-155 chain support (Ethereum, Base, Polygon, etc.) |
-| **[`x402-chain-solana`](./crates/chains/x402-chain-solana)** | [![Crates.io](https://img.shields.io/crates/v/x402-chain-solana.svg)](https://crates.io/crates/x402-chain-solana) [![Docs.rs](https://docs.rs/x402-chain-solana/badge.svg)](https://docs.rs/x402-chain-solana) | Solana blockchain support                                 |
 
 ### Deployment
 

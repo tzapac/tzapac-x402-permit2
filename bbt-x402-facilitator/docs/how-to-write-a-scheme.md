@@ -11,7 +11,7 @@ A **scheme** defines how a payment is verified and settled on a specific blockch
 - **Settlement logic** — How to execute the payment on-chain
 - **Supported chains** — Which blockchain networks the scheme works with
 
-For example, the `exact` scheme implements ERC-3009 `transferWithAuthorization` for EVM chains and SPL token transfers for Solana. You might create a new scheme for subscription payments, escrow flows, or alternative token standards.
+For example, the `exact` scheme implements ERC-3009 `transferWithAuthorization` for EVM chains. You might create a new scheme for subscription payments, escrow flows, or alternative token standards.
 
 ## Overview
 
@@ -46,10 +46,6 @@ Schemes are organized in chain-specific crates under `crates/chains/`:
 crates/
 ├── x402-types/           # Core types and traits
 │   └── src/scheme/       # X402SchemeId, X402SchemeFacilitator, etc.
-├── x402-chain-solana/    # Solana-specific implementations
-│   └── src/
-│       ├── v1_solana_exact/
-│       └── v2_solana_exact/
 ├── x402-chain-eip155/    # EVM-specific implementations
 │   └── src/
 │       ├── v1_eip155_exact/
@@ -70,9 +66,9 @@ Scheme IDs follow the pattern: `v{version}-{namespace}-{scheme}`
 
 | ID | Struct Name | Directory |
 |------|-------------|-----------|
-| `v2-solana-exact` | `V2SolanaExact` | `v2_solana_exact/` |
 | `v1-eip155-exact` | `V1Eip155Exact` | `v1_eip155_exact/` |
-| `v2-solana-myscheme` | `V2SolanaMyscheme` | `v2_solana_myscheme/` |
+| `v2-eip155-exact` | `V2Eip155Exact` | `v2_eip155_exact/` |
+| `v2-eip155-myscheme` | `V2Eip155Myscheme` | `v2_eip155_myscheme/` |
 
 This makes it easy to map between IDs, chain namespaces, scheme names, and code.
 
@@ -89,7 +85,7 @@ pub trait X402SchemeId {
         2
     }
     
-    /// The chain namespace (e.g., "eip155", "solana")
+    /// The chain namespace (e.g., "eip155")
     fn namespace(&self) -> &str;
     
     /// The scheme name (e.g., "exact", "myscheme")
@@ -127,8 +123,8 @@ pub trait X402SchemeFacilitatorBuilder<P> {
 }
 ```
 
-- The type parameter `P` represents the chain provider type (e.g., `&ChainProvider`, `Arc<SolanaChainProvider>`)
-- The `build` method receives a chain provider—implementations typically use a chain-specific trait like `SolanaChainProviderLike` to access provider methods
+- The type parameter `P` represents the chain provider type (e.g., `&ChainProvider`, `Arc<Eip155ChainProvider>`)
+- The `build` method receives a chain provider—implementations typically use a chain-specific trait like `Eip155ChainProviderLike` to access provider methods
 - The optional `config` allows scheme-specific configuration (parse however you wish, see "Configure in JSON" section)
 
 ### X402SchemeBlueprint
@@ -191,7 +187,7 @@ This allows the same scheme blueprint to create different handlers for different
 Use proto generics. For v2 schemes:
 
 ```rust
-// In crates/chains/x402-chain-solana/src/v2_solana_myscheme/types.rs
+// In crates/chains/x402-chain-eip155/src/v2_eip155_myscheme/types.rs
 use x402_types::proto::v2;
 
 pub type PaymentRequirements = v2::PaymentRequirements<MyScheme, MyAmountType, MyAddressType, MyExtra>;
@@ -203,16 +199,16 @@ pub type SettleRequest = VerifyRequest;
 ### Step 2: Implement X402SchemeId
 
 ```rust
-// In crates/chains/x402-chain-solana/src/v2_solana_myscheme/mod.rs
+// In crates/chains/x402-chain-eip155/src/v2_eip155_myscheme/mod.rs
 use x402_types::scheme::X402SchemeId;
 
-pub struct V2SolanaMyscheme;
+pub struct V2Eip155Myscheme;
 
-impl X402SchemeId for V2SolanaMyscheme {
+impl X402SchemeId for V2Eip155Myscheme {
     // x402_version() defaults to 2, no need to override
 
     fn namespace(&self) -> &str {
-        "solana"
+        "eip155"
     }
 
     fn scheme(&self) -> &str {
@@ -226,28 +222,26 @@ impl X402SchemeId for V2SolanaMyscheme {
 In the chain-specific crate, implement the builder for the chain-specific provider type:
 
 ```rust
-// In crates/chains/x402-chain-solana/src/v2_solana_myscheme/facilitator.rs
-use crate::chain::provider::SolanaChainProviderLike;
+// In crates/chains/x402-chain-eip155/src/v2_eip155_myscheme/facilitator.rs
+use crate::chain::provider::Eip155ChainProvider;
+use std::sync::Arc;
 use x402_types::chain::ChainProviderOps;
 use x402_types::scheme::X402SchemeFacilitator;
 
-impl<P> X402SchemeFacilitatorBuilder<P> for V2SolanaMyscheme
-where
-    P: SolanaChainProviderLike + ChainProviderOps + Send + Sync + 'static,
-{
+impl X402SchemeFacilitatorBuilder<Eip155ChainProvider> for V2Eip155Myscheme {
     fn build(
         &self,
-        provider: P,
+        provider: Eip155ChainProvider,
         config: Option<serde_json::Value>,
     ) -> Result<Box<dyn X402SchemeFacilitator>, Box<dyn Error>>
     {
         // Optionally parse config here
         let config = config
-            .map(serde_json::from_value::<V2SolanaMyschemeFacilitatorConfig>)
+            .map(serde_json::from_value::<V2Eip155MyschemeFacilitatorConfig>)
             .transpose()?
             .unwrap_or_default();
 
-        Ok(Box::new(V2SolanaMyschemeFacilitator::new(provider, config)))
+        Ok(Box::new(V2Eip155MyschemeFacilitator::new(provider, config)))
     }
 }
 ```
@@ -256,22 +250,22 @@ Then, in the facilitator crate, implement the adapter for the generic `ChainProv
 
 ```rust
 // In facilitator/src/schemes.rs
-#[cfg(feature = "chain-solana")]
-use x402_chain_solana::V2SolanaMyscheme;
+#[cfg(feature = "chain-eip155")]
+use x402_chain_eip155::V2Eip155Myscheme;
 
-#[cfg(feature = "chain-solana")]
-impl X402SchemeFacilitatorBuilder<&ChainProvider> for V2SolanaMyscheme {
+#[cfg(feature = "chain-eip155")]
+impl X402SchemeFacilitatorBuilder<&ChainProvider> for V2Eip155Myscheme {
     fn build(
         &self,
         provider: &ChainProvider,
         config: Option<serde_json::Value>,
     ) -> Result<Box<dyn X402SchemeFacilitator>, Box<dyn std::error::Error>> {
-        let solana_provider = if let ChainProvider::Solana(provider) = provider {
+        let eip155_provider = if let ChainProvider::Eip155(provider) = provider {
             Arc::clone(provider)
         } else {
-            return Err("V2SolanaMyscheme::build: provider must be a SolanaChainProvider".into());
+            return Err("V2Eip155Myscheme::build: provider must be an Eip155ChainProvider".into());
         };
-        self.build(solana_provider, config)
+        self.build(eip155_provider, config)
     }
 }
 ```
@@ -279,8 +273,8 @@ impl X402SchemeFacilitatorBuilder<&ChainProvider> for V2SolanaMyscheme {
 ### Step 4: Implement Facilitator
 
 ```rust
-// In crates/chains/x402-chain-solana/src/v2_solana_myscheme/facilitator.rs
-use crate::chain::provider::SolanaChainProviderLike;
+// In crates/chains/x402-chain-eip155/src/v2_eip155_myscheme/facilitator.rs
+use crate::chain::provider::Eip155ChainProvider;
 use x402_types::chain::ChainProviderOps;
 use x402_types::proto;
 use x402_types::proto::v2;
@@ -288,14 +282,14 @@ use x402_types::scheme::{
     X402SchemeFacilitator, X402SchemeFacilitatorError,
 };
 
-/// Configuration for V2 Solana Myscheme facilitator
+/// Configuration for V2 EIP-155 Myscheme facilitator
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
-pub struct V2SolanaMyschemeFacilitatorConfig {
+pub struct V2Eip155MyschemeFacilitatorConfig {
     // Add your scheme-specific configuration fields here
 }
 
-impl Default for V2SolanaMyschemeFacilitatorConfig {
+impl Default for V2Eip155MyschemeFacilitatorConfig {
     fn default() -> Self {
         Self {
             // Set default values for your configuration
@@ -303,22 +297,19 @@ impl Default for V2SolanaMyschemeFacilitatorConfig {
     }
 }
 
-pub struct V2SolanaMyschemeFacilitator<P> {
-    provider: P,
-    config: V2SolanaMyschemeFacilitatorConfig,
+pub struct V2Eip155MyschemeFacilitator {
+    provider: Arc<Eip155ChainProvider>,
+    config: V2Eip155MyschemeFacilitatorConfig,
 }
 
-impl<P> V2SolanaMyschemeFacilitator<P> {
-    pub fn new(provider: P, config: V2SolanaMyschemeFacilitatorConfig) -> Self {
+impl V2Eip155MyschemeFacilitator {
+    pub fn new(provider: Arc<Eip155ChainProvider>, config: V2Eip155MyschemeFacilitatorConfig) -> Self {
         Self { provider, config }
     }
 }
 
 #[async_trait::async_trait]
-impl<P> X402SchemeFacilitator for V2SolanaMyschemeFacilitator<P>
-where
-    P: SolanaChainProviderLike + ChainProviderOps + Send + Sync,
-{
+impl X402SchemeFacilitator for V2Eip155MyschemeFacilitator {
     async fn verify(&self, request: &proto::VerifyRequest)
         -> Result<proto::VerifyResponse, X402SchemeFacilitatorError>
     {
@@ -362,11 +353,11 @@ For custom facilitators, register dynamically in the facilitator crate:
 
 ```rust,ignore
 // In facilitator/src/schemes.rs
-#[cfg(feature = "chain-solana")]
-use x402_chain_solana::V2SolanaMyscheme;
+#[cfg(feature = "chain-eip155")]
+use x402_chain_eip155::V2Eip155Myscheme;
 
 // Then in your initialization code:
-let blueprints = SchemeBlueprints::new().and_register(V2SolanaMyscheme);
+let blueprints = SchemeBlueprints::new().and_register(V2Eip155Myscheme);
 ```
 
 ### Step 6: Configure in JSON
@@ -376,8 +367,8 @@ let blueprints = SchemeBlueprints::new().and_register(V2SolanaMyscheme);
   "schemes": [
     {
       "enabled": true,
-      "id": "v2-solana-myscheme",
-      "chains": "solana:*",
+      "id": "v2-eip155-myscheme",
+      "chains": "eip155:*",
       "config": { "yourOption": "value" }
     }
   ]
@@ -521,7 +512,6 @@ The `chains` field supports several patterns:
 |---------|---------|
 | `eip155:84532` | Exact chain ID |
 | `eip155:*` | All EVM chains |
-| `solana:*` | All Solana chains |
 | `eip155:{1,8453}` | Specific chain references |
 
 ## Contributing to Upstream x402-rs
@@ -531,28 +521,28 @@ If you want your scheme included in the default x402-rs distribution:
 1. Create module structure under `crates/chains/x402-chain-{namespace}/src/v{version}_{namespace}_{scheme}/`
 2. Add module declaration in the chain crate's `lib.rs`:
     ```rust
-    pub mod v2_solana_myscheme;
+    pub mod v2_eip155_myscheme;
     ```
 3. Add the scheme to the chain crate's `Cargo.toml` features if needed
 4. Register in the facilitator crate's `schemes.rs`:
     ```rust,ignore
-    #[cfg(feature = "chain-solana")]
-    use x402_chain_solana::V2SolanaMyscheme;
+    #[cfg(feature = "chain-eip155")]
+    use x402_chain_eip155::V2Eip155Myscheme;
 
     // Then in your initialization code:
-    let blueprints = SchemeBlueprints::new().and_register(V2SolanaMyscheme);
+    let blueprints = SchemeBlueprints::new().and_register(V2Eip155Myscheme);
     ```
 
 ## Checklist for creating a new scheme
 
 - [ ] Create module structure under `crates/chains/x402-chain-{namespace}/src/v{version}_{namespace}_{scheme}/`
-- [ ] Declare a struct for your new scheme, for example, `V2SolanaMyscheme`
-- [ ] Declare a struct for the scheme facilitator, for example, `V2SolanaMyschemeFacilitator<P>`
-- [ ] Implement `X402SchemeId` for `V2SolanaMyscheme` with correct `x402_version()`, `namespace()`, and `scheme()`
+- [ ] Declare a struct for your new scheme, for example, `V2Eip155Myscheme`
+- [ ] Declare a struct for the scheme facilitator, for example, `V2Eip155MyschemeFacilitator`
+- [ ] Implement `X402SchemeId` for `V2Eip155Myscheme` with correct `x402_version()`, `namespace()`, and `scheme()`
 - [ ] Optionally override `id()` for custom scheme variants
-- [ ] Implement `X402SchemeFacilitatorBuilder<P>` for `V2SolanaMyscheme` with `build()` method in the chain crate
-- [ ] Implement `X402SchemeFacilitatorBuilder<&ChainProvider>` for `V2SolanaMyscheme` in the facilitator crate
-- [ ] Implement `X402SchemeFacilitator` (verify/settle/supported) for `V2SolanaMyschemeFacilitator<P>`
+- [ ] Implement `X402SchemeFacilitatorBuilder<P>` for `V2Eip155Myscheme` with `build()` method in the chain crate
+- [ ] Implement `X402SchemeFacilitatorBuilder<&ChainProvider>` for `V2Eip155Myscheme` in the facilitator crate
+- [ ] Implement `X402SchemeFacilitator` (verify/settle/supported) for `V2Eip155MyschemeFacilitator`
 - [ ] Define concrete types for the scheme using proto v2 generics
 - [ ] Add module declaration in the chain crate's `lib.rs`
 - [ ] Register in `SchemeBlueprints` in the facilitator crate

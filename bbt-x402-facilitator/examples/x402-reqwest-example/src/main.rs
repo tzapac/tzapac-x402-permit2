@@ -1,12 +1,9 @@
 use alloy_signer_local::PrivateKeySigner;
 use dotenvy::dotenv;
 use reqwest::Client;
-use solana_client::nonblocking::rpc_client::RpcClient;
-use solana_keypair::Keypair;
 use std::env;
 use std::sync::Arc;
 use x402_chain_eip155::{V1Eip155ExactClient, V2Eip155ExactClient};
-use x402_chain_solana::{V1SolanaExactClient, V2SolanaExactClient};
 use x402_reqwest::{ReqwestWithPayments, ReqwestWithPaymentsBuild, X402Client};
 
 #[tokio::main]
@@ -28,25 +25,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Enabled eip155 exact scheme")
         }
     };
-
-    // Register solana "exact" scheme
-    {
-        let keypair = env::var("SOLANA_PRIVATE_KEY")
-            .ok()
-            .map(|v| Keypair::from_base58_string(&v));
-        let rpc_client = env::var("SOLANA_RPC_URL").ok().map(RpcClient::new);
-        if let Some((keypair, rpc_client)) = keypair.zip(rpc_client) {
-            let keypair = Arc::new(keypair);
-            let rpc_client = Arc::new(rpc_client);
-            x402_client = x402_client
-                .register(V1SolanaExactClient::new(
-                    keypair.clone(),
-                    rpc_client.clone(),
-                ))
-                .register(V2SolanaExactClient::new(keypair, rpc_client));
-            println!("Enabled solana exact scheme")
-        }
-    }
 
     let http_client = Client::new().with_payments(x402_client).build();
 

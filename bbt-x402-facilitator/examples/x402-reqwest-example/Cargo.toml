@@ -6,7 +6,6 @@ publish = false
 
 [dependencies]
 x402-chain-eip155 = { workspace = true, features = ["client", "telemetry"] }
-x402-chain-solana = { workspace = true, features = ["client", "telemetry"] }
 x402-reqwest = { workspace = true, features = ["telemetry"] }
 reqwest = { workspace = true }
 tokio = { workspace = true }
@@ -14,7 +13,3 @@ dotenvy = { workspace = true }
 
 # EVM: Alloy
 alloy-signer-local = { version = "1.4" }
-
-# Solana
-solana-client = { version = "3.1.4" }
-solana-keypair = { version = "3.1.0" }

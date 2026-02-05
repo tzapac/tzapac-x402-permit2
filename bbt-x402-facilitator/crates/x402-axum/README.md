@@ -164,9 +164,6 @@ built-in schemes are available:
 
 - **`V1Eip155Exact::price_tag()`** - V1 EIP-155 exact payment on EVM chains (ERC-3009)
 - **`V2Eip155Exact::price_tag()`** - V2 EIP-155 exact payment on EVM chains (ERC-3009)
-- **`V1SolanaExact::price_tag()`** - V1 Solana exact payment (SPL token transfer)
-- **`V2SolanaExact::price_tag()`** - V2 Solana exact payment (SPL token transfer)
-- **`V2AptosExact::price_tag()`** - V2 Aptos exact payment (Coin transfer)
 
 ### Built-in Schemes
 
@@ -174,24 +171,19 @@ built-in schemes are available:
 use alloy_primitives::address;
 use axum::Router;
 use axum::routing::get;
-use solana_pubkey::pubkey;
 use x402_axum::X402Middleware;
 use x402_chain_eip155::{KnownNetworkEip155, V1Eip155Exact};
-use x402_chain_solana::{KnownNetworkSolana, V1SolanaExact};
 use x402_types::networks::USDC;
 
 let x402 = X402Middleware::new("https://facilitator.x402.rs");
 
-// Accept both EVM and Solana payments
+// Accept EVM payments
 let app = Router::new().route(
     "/premium",
     get(handler).layer(
         x402.with_price_tag(V1Eip155Exact::price_tag(
             address!("0xBAc675C310721717Cd4A37F6cbeA1F081b1C2a07"),
             USDC::base_sepolia().parse("0.01").unwrap(),
-        )).with_price_tag(V1SolanaExact::price_tag(
-            pubkey!("EGBQqKn968sVv5cQh5Cr72pSTHfxsuzq7o7asqYB5uEV"),
-            USDC::solana().amount(100),
         ))
     ),
 );
@@ -362,7 +354,6 @@ You can connect these to OpenTelemetry exporters like Jaeger, Tempo, or Otel Col
 - [x402-types](https://crates.io/crates/x402-types): Core x402 types, facilitator traits, protocol definitions.
 - [x402-reqwest](https://crates.io/crates/x402-reqwest): Reqwest middleware for paying x402 requests.
 - [x402-chain-eip155](https://crates.io/crates/x402-chain-eip155): EVM/EIP-155 chain support for x402.
-- [x402-chain-solana](https://crates.io/crates/x402-chain-solana): Solana chain support for x402.
 
 ## License
 

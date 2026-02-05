@@ -2,7 +2,7 @@
 //!
 //! This module provides chain-specific configuration types that extend the base
 //! [`x402_types::config::Config`] with support for multiple blockchain families
-//! (EVM, Solana).
+//! (EVM).
 //!
 //! The core configuration loading logic, environment variable resolution, and CLI
 //! argument parsing are provided by [`x402_types::config`]. This module adds:
@@ -23,9 +23,9 @@
 //!       "rpc_url": "https://sepolia.base.org",
 //!       "signer_private_key": "0x..."
 //!     },
-//!     "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": {
-//!       "rpc_url": "https://api.devnet.solana.com",
-//!       "signer_private_key": "base58..."
+//!     "eip155:84532": {
+//!       "rpc_url": "https://sepolia.base.org",
+//!       "signer_private_key": "0x..."
 //!     }
 //!   }
 //! }
@@ -39,10 +39,6 @@ use x402_types::chain::ChainId;
 use x402_chain_eip155::chain as eip155;
 #[cfg(feature = "chain-eip155")]
 use x402_chain_eip155::chain::config::{Eip155ChainConfig, Eip155ChainConfigInner};
-#[cfg(feature = "chain-solana")]
-use x402_chain_solana::chain as solana;
-#[cfg(feature = "chain-solana")]
-use x402_chain_solana::chain::config::{SolanaChainConfig, SolanaChainConfigInner};
 
 /// Server configuration.
 ///
@@ -53,16 +49,13 @@ pub type Config = x402_types::config::Config<ChainsConfig>;
 /// Configuration for a specific chain.
 ///
 /// This enum represents chain-specific configuration that varies by chain family
-/// (EVM vs Solana). The chain family is determined by the CAIP-2 prefix of the
-/// chain identifier key (e.g., "eip155:" for EVM, "solana:" for Solana).
+/// (EVM). The chain family is determined by the CAIP-2 prefix of the
+/// chain identifier key (e.g., "eip155:" for EVM).
 #[derive(Debug, Clone)]
 pub enum ChainConfig {
     /// EVM chain configuration (for chains with "eip155:" prefix).
     #[cfg(feature = "chain-eip155")]
     Eip155(Box<Eip155ChainConfig>),
-    /// Solana chain configuration (for chains with "solana:" prefix).
-    #[cfg(feature = "chain-solana")]
-    Solana(Box<SolanaChainConfig>),
 }
 
 /// Configuration for chains.
@@ -94,12 +87,6 @@ impl Serialize for ChainsConfig {
             match chain_config {
                 #[cfg(feature = "chain-eip155")]
                 ChainConfig::Eip155(config) => {
-                    let chain_id = config.chain_id();
-                    let inner = &config.inner;
-                    map.serialize_entry(&chain_id, inner)?;
-                }
-                #[cfg(feature = "chain-solana")]
-                ChainConfig::Solana(config) => {
                     let chain_id = config.chain_id();
                     let inner = &config.inner;
                     map.serialize_entry(&chain_id, inner)?;
@@ -150,17 +137,6 @@ impl<'de> Deserialize<'de> for ChainsConfig {
                                 inner,
                             };
                             ChainConfig::Eip155(Box::new(config))
-                        }
-                        #[cfg(feature = "chain-solana")]
-                        solana::SOLANA_NAMESPACE => {
-                            let inner: SolanaChainConfigInner = access.next_value()?;
-                            let config = SolanaChainConfig {
-                                chain_reference: chain_id
-                                    .try_into()
-                                    .map_err(|e| serde::de::Error::custom(format!("{}", e)))?,
-                                inner,
-                            };
-                            ChainConfig::Solana(Box::new(config))
                         }
                         _ => {
                             return Err(serde::de::Error::custom(format!(

@@ -47,11 +47,8 @@ The facilitator architecture consists of:
 │ Registry   │        │ Registry    │
 └───┬────────┘        └──────┬──────┘
     │                        │
-    ├─ EIP-155 Provider      ├─ V1Eip155Exact
-    ├─ Solana Provider       ├─ V2Eip155Exact
-    └─ Aptos Provider        ├─ V1SolanaExact
-                             ├─ V2SolanaExact
-                             └─ V2AptosExact
+    └─ EIP-155 Provider      ├─ V1Eip155Exact
+                             └─ V2Eip155Exact
 ```
 
 ## Getting Started
@@ -65,7 +62,6 @@ The facilitator architecture consists of:
 x402-types = { version = "1.0", features = ["cli"] }
 x402-facilitator-local = { version = "1.0" }
 x402-chain-eip155 = { version = "1.0", features = ["facilitator"] }
-x402-chain-solana = { version = "1.0", features = ["facilitator"] }
 
 dotenvy = "0.15"
 serde_json = "1.0"
@@ -83,7 +79,6 @@ use x402_facilitator_local::{FacilitatorLocal, handlers};
 use x402_types::chain::{ChainRegistry, FromConfig};
 use x402_types::scheme::{SchemeBlueprints, SchemeRegistry};
 use x402_chain_eip155::{V1Eip155Exact, V2Eip155Exact};
-use x402_chain_solana::{V1SolanaExact, V2SolanaExact};
 use std::sync::Arc;
 use axum::Router;
 use tower_http::cors;
@@ -110,8 +105,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut blueprints = SchemeBlueprints::new();
         blueprints.register(V1Eip155Exact);
         blueprints.register(V2Eip155Exact);
-        blueprints.register(V1SolanaExact);
-        blueprints.register(V2SolanaExact);
         blueprints
     };
 
@@ -161,11 +154,6 @@ Create a `config.json` file:
           "rate_limit": 100
         }
       ]
-    },
-    "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": {
-      "signer": "$SOLANA_PRIVATE_KEY",
-      "rpc": "https://api.mainnet-beta.solana.com",
-      "pubsub": "wss://api.mainnet-beta.solana.com"
     }
   },
   "schemes": [
@@ -176,14 +164,6 @@ Create a `config.json` file:
     {
       "id": "v2-eip155-exact",
       "chains": "eip155:*"
-    },
-    {
-      "id": "v1-solana-exact",
-      "chains": "solana:*"
-    },
-    {
-      "id": "v2-solana-exact",
-      "chains": "solana:*"
     }
   ]
 }
@@ -234,7 +214,7 @@ To do this:
 
 ### Chain-Specific Facilitator Deployment
 
-If you want to run a facilitator that only supports specific chains (e.g., only Solana, only EVM chains), you have two options:
+If you want to run a facilitator that only supports specific chains (e.g., only EVM chains), you have two options:
 
 **Option 1: Use the `facilitator` crate with feature flags**
 
@@ -242,12 +222,11 @@ The `facilitator` crate supports feature flags to enable only specific chains. S
 
 ```toml
 [dependencies]
-x402-facilitator = { git = "https://github.com/x402-rs/x402-rs", default-features = false, features = ["chain-solana"] }
+x402-facilitator = { git = "https://github.com/x402-rs/x402-rs", default-features = false, features = ["chain-eip155"] }
 ```
 
 Available features:
 - `chain-eip155` — Enable EIP-155 (EVM) chain support
-- `chain-solana` — Enable Solana chain support
 - `telemetry` — Enable OpenTelemetry tracing
 
 Then in your `main.rs`, simply call the `run` function:
@@ -268,11 +247,11 @@ async fn main() {
 Follow the "Getting Started" section above, but only register the schemes you need:
 
 ```rust
-// Only register Solana schemes
+// Only register EIP-155 schemes
 let scheme_blueprints = {
     let mut blueprints = SchemeBlueprints::new();
-    blueprints.register(V1SolanaExact);
-    blueprints.register(V2SolanaExact);
+    blueprints.register(V1Eip155Exact);
+    blueprints.register(V2Eip155Exact);
     blueprints
 };
 ```

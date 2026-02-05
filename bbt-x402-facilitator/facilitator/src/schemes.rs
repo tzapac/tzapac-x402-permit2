@@ -11,8 +11,6 @@
 //! |--------|--------|-------------|
 //! | [`V1Eip155Exact`] | EIP-155 (EVM) | V1 protocol with exact amount on EVM |
 //! | [`V2Eip155Exact`] | EIP-155 (EVM) | V2 protocol with exact amount on EVM |
-//! | [`V1SolanaExact`] | Solana | V1 protocol with exact amount on Solana |
-//! | [`V2SolanaExact`] | Solana | V2 protocol with exact amount on Solana |
 //!
 //! # Example
 //!
@@ -24,7 +22,7 @@
 //! // Register schemes
 //! let blueprints = SchemeBlueprints::new()
 //!     .and_register(V2Eip155Exact)
-//!     .and_register(V2SolanaExact);
+//!     .and_register(V2Eip155Exact);
 //! ```
 
 #[allow(unused_imports)] // For when no chain features are enabled
@@ -36,43 +34,6 @@ use x402_types::scheme::{X402SchemeFacilitator, X402SchemeFacilitatorBuilder};
 
 #[cfg(feature = "chain-eip155")]
 use x402_chain_eip155::{V1Eip155Exact, V2Eip155Exact};
-#[cfg(feature = "chain-solana")]
-use x402_chain_solana::{V1SolanaExact, V2SolanaExact};
-
-#[cfg(feature = "chain-solana")]
-impl X402SchemeFacilitatorBuilder<&ChainProvider> for V1SolanaExact {
-    fn build(
-        &self,
-        provider: &ChainProvider,
-        config: Option<serde_json::Value>,
-    ) -> Result<Box<dyn X402SchemeFacilitator>, Box<dyn std::error::Error>> {
-        #[allow(irrefutable_let_patterns)] // For when just chain-solana is enabled
-        let solana_provider = if let ChainProvider::Solana(provider) = provider {
-            Arc::clone(provider)
-        } else {
-            return Err("V1SolanaExact::build: provider must be a SolanaChainProvider".into());
-        };
-        self.build(solana_provider, config)
-    }
-}
-
-#[cfg(feature = "chain-solana")]
-impl X402SchemeFacilitatorBuilder<&ChainProvider> for V2SolanaExact {
-    fn build(
-        &self,
-        provider: &ChainProvider,
-        config: Option<serde_json::Value>,
-    ) -> Result<Box<dyn X402SchemeFacilitator>, Box<dyn std::error::Error>> {
-        #[allow(irrefutable_let_patterns)] // For when just chain-solana is enabled
-        let solana_provider = if let ChainProvider::Solana(provider) = provider {
-            Arc::clone(provider)
-        } else {
-            return Err("V2SolanaExact::build: provider must be a SolanaChainProvider".into());
-        };
-        self.build(solana_provider, config)
-    }
-}
-
 #[cfg(feature = "chain-eip155")]
 impl X402SchemeFacilitatorBuilder<&ChainProvider> for V2Eip155Exact {
     fn build(

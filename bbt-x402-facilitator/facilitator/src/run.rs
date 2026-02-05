@@ -16,7 +16,7 @@
 //!
 //! # Features
 //!
-//! - **Multi-chain support**: EIP-155 (EVM) and Solana networks
+//! - **Multi-chain support**: EIP-155 (EVM) networks
 //! - **OpenTelemetry tracing** (with `telemetry` feature): Distributed tracing and metrics
 //! - **CORS support**: Cross-origin requests for browser-based clients
 //! - **Graceful shutdown**: Signal-based shutdown with cleanup
@@ -42,8 +42,6 @@ use x402_types::scheme::{SchemeBlueprints, SchemeRegistry};
 
 #[cfg(feature = "chain-eip155")]
 use x402_chain_eip155::{V1Eip155Exact, V2Eip155Exact};
-#[cfg(feature = "chain-solana")]
-use x402_chain_solana::{V1SolanaExact, V2SolanaExact};
 #[cfg(feature = "telemetry")]
 use x402_facilitator_local::util::Telemetry;
 
@@ -84,11 +82,6 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
         {
             scheme_blueprints.register(V1Eip155Exact);
             scheme_blueprints.register(V2Eip155Exact);
-        }
-        #[cfg(feature = "chain-solana")]
-        {
-            scheme_blueprints.register(V1SolanaExact);
-            scheme_blueprints.register(V2SolanaExact);
         }
         scheme_blueprints
     };

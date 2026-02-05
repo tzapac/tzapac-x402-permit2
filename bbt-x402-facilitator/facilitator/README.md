@@ -2,13 +2,13 @@
 
 A production-ready x402 facilitator server binary.
 
-This crate provides a complete, runnable HTTP server that implements the [x402](https://www.x402.org) payment protocol. It supports multiple blockchain networks (EVM/EIP-155, Solana, Aptos) and can verify and settle payments on-chain.
+This crate provides a complete, runnable HTTP server that implements the [x402](https://www.x402.org) payment protocol. It supports EVM/EIP-155 networks and can verify and settle payments on-chain.
 
 The crate can also be used as a library to build custom facilitator implementations.
 
 ## Features
 
-- **Multi-chain Support**: EVM (EIP-155), Solana, and Aptos blockchains
+- **Multi-chain Support**: EVM (EIP-155) blockchains
 - **Multiple Payment Schemes**: V1 and V2 protocol implementations
 - **OpenTelemetry Integration**: Optional distributed tracing and metrics (`telemetry` feature)
 - **Graceful Shutdown**: Clean shutdown on SIGTERM/SIGINT signals
@@ -50,10 +50,7 @@ cargo run --package x402-facilitator
 cargo run --package x402-facilitator --features telemetry
 
 # With specific chains only
-cargo run --package x402-facilitator --features chain-eip155,chain-solana
-
-# With all chains including Aptos (requires patches)
-cargo run --package x402-facilitator --features chain-eip155,chain-solana
+cargo run --package x402-facilitator --features chain-eip155
 
 # With the full feature (all chains + telemetry)
 cargo run --package x402-facilitator --features full
@@ -80,24 +77,12 @@ Create a `config.json` file:
           "rate_limit": 100
         }
       ]
-    },
-    "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": {
-      "signers": ["$SOLANA_PRIVATE_KEY"],
-      "rpc": [
-        {
-          "http": "https://api.mainnet-beta.solana.com"
-        }
-      ]
     }
   },
   "schemes": [
     {
       "scheme": "v2-eip155-exact",
       "chains": ["eip155:8453"]
-    },
-    {
-      "scheme": "v2-solana-exact",
-      "chains": ["solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"]
     }
   ]
 }
@@ -152,10 +137,10 @@ The facilitator is built on top of the `x402-facilitator-local` crate and uses:
        │
   ┌────┴────┐
   ▼         ▼
-┌─────┐  ┌─────┐  ┌─────┐
-│EIP  │  │Sol  │  │Apt  │
-│155  │  │ana  │  │os   │
-└─────┘  └─────┘  └─────┘
+┌─────┐
+│EIP  │
+│155  │
+└─────┘
 ```
 
 ## Feature Flags
@@ -164,8 +149,7 @@ The facilitator is built on top of the `x402-facilitator-local` crate and uses:
 |----------------|-----------------------------------------------|
 | `telemetry`    | Enable OpenTelemetry tracing and metrics      |
 | `chain-eip155` | Enable EVM/EIP-155 chain support              |
-| `chain-solana` | Enable Solana chain support                   |
-| `full`         | Enable all features: telemetry + all chains   |
+| `full`         | Enable all features: telemetry + EIP-155      |
 
 
 ## License
