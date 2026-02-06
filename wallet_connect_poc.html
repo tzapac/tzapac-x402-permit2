@@ -493,8 +493,8 @@
                     Run two containers: the store API (paid endpoint) and the store web/proxy (demo UI + /api proxy).
                 </div>
                 <ul class="guide-list">
-                    <li>Download API image (placeholder): https://example.com/x402-store-api-image</li>
-                    <li>Download web image (placeholder): https://example.com/x402-store-web-image</li>
+                    <li>Store API image: ghcr.io/tzapac/tzapac-x402-permit2-store-api:latest</li>
+                    <li>Store web image: ghcr.io/tzapac/tzapac-x402-permit2-store-web:latest</li>
                     <li>Create a .env file with your store wallet and facilitator URL.</li>
                     <li>Create a Docker network and run both containers.</li>
                 </ul>
@@ -510,12 +510,12 @@ docker run -d --name x402-store-api \
   --network x402-store \
   --env-file .env \
   -p 8001:8001 \
-  &lt;STORE_API_IMAGE_URL_PLACEHOLDER&gt;
+  ghcr.io/tzapac/tzapac-x402-permit2-store-api:latest
 
 docker run -d --name x402-store-web \
   --network x402-store \
   -p 9091:80 \
-  &lt;STORE_WEB_IMAGE_URL_PLACEHOLDER&gt;
+  ghcr.io/tzapac/tzapac-x402-permit2-store-web:latest
 </pre>
                 <div class="guide-text">
                     For local dev, you can also run this stack with docker-compose.wallet-poc.yml.
@@ -532,7 +532,7 @@ docker run -d --name x402-store-web \
                     Run the Permit2 facilitator that settles payments on-chain.
                 </div>
                 <ul class="guide-list">
-                    <li>Download image (placeholder): https://example.com/x402-facilitator-image</li>
+                    <li>Facilitator image: ghcr.io/tzapac/tzapac-x402-permit2-facilitator:latest</li>
                     <li>Create a config file and provide a signer private key.</li>
                     <li>Run the container and expose port 9090.</li>
                 </ul>
@@ -559,7 +559,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
 </pre>
                 <pre>docker run --env-file .env -p 9090:9090 \
   -v $(pwd)/bbt_config.json:/app/bbt_config.json \
-  &lt;FACILITATOR_IMAGE_URL_PLACEHOLDER&gt; --config /app/bbt_config.json
+  ghcr.io/tzapac/tzapac-x402-permit2-facilitator:latest --config /app/bbt_config.json
 </pre>
                 <div class="guide-text">
                     For local dev, run the Rust binary with the same config.
