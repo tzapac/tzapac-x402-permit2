@@ -49,6 +49,12 @@ This PoC implements **Permit2** for authorization and settlement pathing.
 
 Reason: **USDC EIP-3009 is not currently supported on Etherlink in this setup**, so Permit2 is used as the practical mechanism for this Etherlink-first BBT demonstration.
 
+## Acknowledgements and License
+
+- This project incorporates and builds on work from `coinbase/x402` (`https://github.com/coinbase/x402`), licensed under Apache-2.0 (Copyright 2024 Coinbase).
+- This project also incorporates and builds on work from `x402-rs` (`https://github.com/x402-rs/x402-rs`) and related derivatives in `bbt-x402-facilitator/`, licensed under Apache-2.0 (Copyright 2025 Sergey Ukustov).
+- This repository is licensed under Apache License 2.0. See `LICENSE` and `NOTICE`.
+
 ## Notes
 
 - This is a proof-of-concept repository, not a hardened production deployment.

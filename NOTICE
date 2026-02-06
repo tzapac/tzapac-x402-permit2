@@ -1,0 +1,15 @@
+This product includes software developed by third parties and distributed
+under the Apache License, Version 2.0.
+
+Upstream projects acknowledged:
+- Coinbase x402 (https://github.com/coinbase/x402)
+  Copyright 2024 Coinbase
+  Licensed under Apache License, Version 2.0.
+
+- x402-rs (https://github.com/x402-rs/x402-rs) and related derivatives used in
+  this repository under bbt-x402-facilitator/
+  Copyright 2025 Sergey Ukustov
+  Licensed under Apache License, Version 2.0.
+
+This repository is licensed under Apache License, Version 2.0.
+See LICENSE for full terms.
