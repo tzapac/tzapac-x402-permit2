@@ -53,6 +53,7 @@ Reason: **USDC EIP-3009 is not currently supported on Etherlink in this setup**,
 
 - This project incorporates and builds on work from `coinbase/x402` (`https://github.com/coinbase/x402`), licensed under Apache-2.0 (Copyright 2024 Coinbase).
 - This project also incorporates and builds on work from `x402-rs` (`https://github.com/x402-rs/x402-rs`) and related derivatives in `bbt-x402-facilitator/`, licensed under Apache-2.0 (Copyright 2025 Sergey Ukustov).
+- This project uses Permit2 concepts/interfaces from `Uniswap/permit2` (`https://github.com/Uniswap/permit2`) and ERC-6492 signature-validation concepts (`https://eips.ethereum.org/EIPS/eip-6492`) for compatibility in payment/signature flows.
 - This repository is licensed under Apache License 2.0. See `LICENSE` and `NOTICE`.
 
 ## Notes

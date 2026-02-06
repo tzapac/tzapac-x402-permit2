@@ -11,5 +11,13 @@ Upstream projects acknowledged:
   Copyright 2025 Sergey Ukustov
   Licensed under Apache License, Version 2.0.
 
+- Uniswap Permit2 concepts and interface usage
+  (https://github.com/Uniswap/permit2)
+  Used for Permit2 payment authorization and settlement flow compatibility.
+
+- ERC-6492 signature validation concepts/interface usage
+  (https://eips.ethereum.org/EIPS/eip-6492)
+  Used in chain/facilitator compatibility paths.
+
 This repository is licensed under Apache License, Version 2.0.
 See LICENSE for full terms.
