@@ -30,7 +30,7 @@ services:
       - -lc
       - |
         export SERVER_WALLET=$${STORE_ADDRESS:-$${SERVER_WALLET}}
-        pip install --no-cache-dir fastapi uvicorn httpx python-dotenv
+        pip install --no-cache-dir fastapi uvicorn httpx python-dotenv web3
         python bbt_mvp_server.py
     volumes:
       - ./bbt_mvp_server.py:/app/bbt_mvp_server.py:ro

@@ -242,10 +242,63 @@
             letter-spacing: 1px;
         }
 
-        .hidden { display: none; }
+        .hidden { display: none !important; }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            padding: 20px;
+        }
+
+        .modal-card {
+            width: 100%;
+            max-width: 560px;
+            background: #0b0b0b;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .modal-body {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            line-height: 1.4;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
     </style>
 </head>
 <body>
+
+<div id="disclaimer-overlay" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-title">Experimental Notice</div>
+        <div class="modal-body">
+            This project is experimental and has not been audited. Use at your own risk.
+        </div>
+        <div class="modal-actions">
+            <button id="disclaimer-ok-btn">I UNDERSTAND</button>
+        </div>
+    </div>
+</div>
 
 <div class="container">
     <header>
@@ -363,7 +416,6 @@
     </div>
 
     <footer>
-        NO PRIVATE KEYS REQUIRED. TESTNET/MAINNET SAFE.
     </footer>
 </div>
 
@@ -423,6 +475,8 @@
         gasClientBtn: document.getElementById('gas-client-btn'),
         gasStoreBtn: document.getElementById('gas-store-btn'),
         gasFacilitatorBtn: document.getElementById('gas-facilitator-btn'),
+        disclaimerOverlay: document.getElementById('disclaimer-overlay'),
+        disclaimerOkBtn: document.getElementById('disclaimer-ok-btn'),
         console: document.getElementById('console-output')
     };
 
@@ -482,6 +536,9 @@
         ui.gasClientBtn.addEventListener('click', () => setGasPayerMode('client'));
         ui.gasStoreBtn.addEventListener('click', () => setGasPayerMode('store'));
         ui.gasFacilitatorBtn.addEventListener('click', () => setGasPayerMode('facilitator'));
+        ui.disclaimerOkBtn.addEventListener('click', () => {
+            ui.disclaimerOverlay.classList.add('hidden');
+        });
 
         setGasPayerMode('facilitator');
         updateTokenToggle();
@@ -850,6 +907,15 @@
     }
 
     function getSpenderForPermit2() {
+        if (gasPayerMode === "client") {
+            return userAddress || null;
+        }
+        if (gasPayerMode === "store") {
+            if (cachedRequirements && cachedRequirements.accepts && cachedRequirements.accepts[0]) {
+                return cachedRequirements.accepts[0].payTo;
+            }
+            return null;
+        }
         const input = ui.spenderInput.value.trim();
         if (input) {
             return input;
@@ -943,11 +1009,6 @@
             log("GET PAYMENT REQUIREMENTS FIRST", "error");
             return;
         }
-        if (gasPayerMode !== "facilitator") {
-            log("ONLY FACILITATOR GAS FLOW IS IMPLEMENTED IN THIS POC", "error");
-            log("CLIENT/STORE GAS MODES REQUIRE BACKEND CHANGES", "info");
-            return;
-        }
         const ready = await ensureWalletConnected();
         if (!ready) {
             log("WALLET NOT CONNECTED", "error");
@@ -960,10 +1021,9 @@
         const amountRaw = accept.amount || accept.maxAmountRequired;
         const amount = BigInt(amountRaw);
 
-            const spenderInput = ui.spenderInput.value.trim();
-            const spender = spenderInput.length ? spenderInput : null;
+            const spender = getSpenderForPermit2();
             if (!spender) {
-                log("SPENDER REQUIRED. CLICK CHECK /HEALTH TO AUTO-FILL OR ENTER MANUALLY.", "error");
+                log("SPENDER REQUIRED. CLICK CHECK /HEALTH OR SET GAS PAYER MODE.", "error");
                 return;
             }
 
@@ -976,9 +1036,11 @@
             }
 
             const permit2Abi = [
-                "function allowance(address owner,address token,address spender) view returns (uint160 amount,uint48 expiration,uint48 nonce)"
+                "function allowance(address owner,address token,address spender) view returns (uint160 amount,uint48 expiration,uint48 nonce)",
+                "function permit(address owner, tuple(tuple(address token,uint160 amount,uint48 expiration,uint48 nonce) details,address spender,uint256 sigDeadline) permitSingle, bytes signature)",
+                "function transferFrom(address from,address to,uint160 amount,address token)"
             ];
-            const permit2 = new ethers.Contract(PERMIT2_ADDRESS, permit2Abi, provider);
+            const permit2 = new ethers.Contract(PERMIT2_ADDRESS, permit2Abi, signer);
             const allowanceData = await permit2.allowance(userAddress, tokenAddress, spender);
             const nonce = allowanceData[2];
 
@@ -1047,9 +1109,28 @@
             log(`PERMIT2 SIGNATURE: ${signature}`, "success");
             log(`PAYLOAD JSON: ${JSON.stringify(payload, null, 2)}`, "info");
             log(`X-PAYMENT (base64): ${header}`, "info");
+
+            const headers = {
+                "X-PAYMENT": header,
+                "X-GAS-PAYER": gasPayerMode
+            };
+
+            if (gasPayerMode === "client") {
+                log("SUBMITTING PERMIT2 (CLIENT GAS)...", "info");
+                const permitTx = await permit2.permit(userAddress, value, signature);
+                await permitTx.wait();
+                log(`PERMIT TX: ${permitTx.hash}`, "success");
+
+                log("SUBMITTING TRANSFERFROM (CLIENT GAS)...", "info");
+                const transferTx = await permit2.transferFrom(userAddress, payTo, amount, tokenAddress);
+                await transferTx.wait();
+                log(`TRANSFER TX: ${transferTx.hash}`, "success");
+                headers["X-PAYMENT-TX"] = transferTx.hash;
+            }
+
             log("SENDING X-PAYMENT...", "info");
             const resp = await fetch(getStoreUrl(), {
-                headers: { "X-PAYMENT": header }
+                headers
             });
 
             const body = await resp.text();
