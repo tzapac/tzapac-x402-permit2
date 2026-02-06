@@ -14,7 +14,7 @@
             --border-color: #333;
             --text-main: #e0e0e0;
             --text-dim: #666;
-            --accent-color: #00ff9d;
+            --accent-color: #38FF9C;
             --accent-dim: #005f3b;
             --error-color: #ff3e3e;
             --font-display: 'Rajdhani', sans-serif;
@@ -69,6 +69,69 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+        }
+
+        .tab-bar {
+            display: flex;
+            gap: 8px;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 10px 12px;
+            font-size: 0.7rem;
+        }
+
+        .tab-button.active {
+            background: var(--accent-color);
+            color: var(--bg-color);
+            box-shadow: 0 0 12px var(--accent-dim);
+        }
+
+        .tab-panel.hidden {
+            display: none;
+        }
+
+        .guide-block {
+            border: 1px solid var(--border-color);
+            padding: 16px;
+            background: #060606;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .guide-title {
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .guide-text {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+
+        .guide-list {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            line-height: 1.6;
+            padding-left: 18px;
+        }
+
+        pre {
+            background: #000;
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-main);
+            overflow-x: auto;
         }
 
         h1 {
@@ -309,7 +372,43 @@
         </div>
     </header>
 
-    <div class="content">
+    <div class="tab-bar">
+        <button class="tab-button" data-tab="client">Client</button>
+        <button class="tab-button" data-tab="server">Server</button>
+        <button class="tab-button" data-tab="facilitator">Facilitator</button>
+        <button class="tab-button active" data-tab="demo">Demo</button>
+    </div>
+
+    <div class="tab-panel hidden" data-panel="client">
+        <div class="content">
+        <div class="guide-block">
+            <div class="guide-title">Client Setup</div>
+            <div class="guide-text">
+                Use this client to request paid content and sign Permit2 payloads.
+            </div>
+            <ul class="guide-list">
+                <li>Download image (placeholder): https://example.com/x402-client-image</li>
+                <li>Create a .env file with your client key and target store URL.</li>
+                <li>Run the container and point it to your store API.</li>
+            </ul>
+            <pre># .env
+PRIVATE_KEY=0xYOUR_CLIENT_PRIVATE_KEY
+RPC_URL=https://rpc.bubbletez.com
+SERVER_URL=http://localhost:8001
+FACILITATOR_WALLET=0xYOUR_FACILITATOR_WALLET
+</pre>
+            <pre>docker run --env-file .env \
+  &lt;CLIENT_IMAGE_URL_PLACEHOLDER&gt;
+</pre>
+            <div class="guide-text">
+                Use the Demo tab for interactive testing.
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <div class="tab-panel" data-panel="demo">
+        <div class="content">
         <!-- Wallet Section -->
         <div id="wallet-section">
             <div class="data-row">
@@ -413,6 +512,80 @@
                 <span id="permit2-nonce-display" class="data-value">--</span>
             </div>
         </div>
+        </div>
+    </div>
+
+    <div class="tab-panel hidden" data-panel="server">
+        <div class="content">
+            <div class="guide-block">
+                <div class="guide-title">Store / Server Setup</div>
+                <div class="guide-text">
+                    Run the store API that serves paid content and calls the facilitator for settlement.
+                </div>
+                <ul class="guide-list">
+                    <li>Download image (placeholder): https://example.com/x402-store-image</li>
+                    <li>Create a .env file with your store wallet and facilitator URL.</li>
+                    <li>Run the container and expose port 8001.</li>
+                </ul>
+                <pre># .env
+FACILITATOR_URL=http://localhost:9090
+RPC_URL=https://rpc.bubbletez.com
+SERVER_WALLET=0xYOUR_STORE_WALLET
+STORE_PRIVATE_KEY=0xYOUR_STORE_PRIVATE_KEY
+</pre>
+                <pre>docker run --env-file .env -p 8001:8001 \
+  &lt;STORE_IMAGE_URL_PLACEHOLDER&gt;
+</pre>
+                <div class="guide-text">
+                    For local dev, you can also run: python bbt_mvp_server.py
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-panel hidden" data-panel="facilitator">
+        <div class="content">
+            <div class="guide-block">
+                <div class="guide-title">Facilitator Setup</div>
+                <div class="guide-text">
+                    Run the Permit2 facilitator that settles payments on-chain.
+                </div>
+                <ul class="guide-list">
+                    <li>Download image (placeholder): https://example.com/x402-facilitator-image</li>
+                    <li>Create a config file and provide a signer private key.</li>
+                    <li>Run the container and expose port 9090.</li>
+                </ul>
+                <pre># .env
+FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
+</pre>
+                <pre>// bbt_config.json
+{
+  "port": 9090,
+  "host": "0.0.0.0",
+  "chains": {
+    "eip155:42793": {
+      "eip1559": true,
+      "signers": ["$FACILITATOR_PRIVATE_KEY"],
+      "rpc": [
+        { "http": "https://rpc.bubbletez.com", "rate_limit": 100 }
+      ]
+    }
+  },
+  "schemes": [
+    { "id": "v2-eip155-exact", "chains": "eip155:42793", "enabled": true }
+  ]
+}
+</pre>
+                <pre>docker run --env-file .env -p 9090:9090 \
+  -v $(pwd)/bbt_config.json:/app/bbt_config.json \
+  &lt;FACILITATOR_IMAGE_URL_PLACEHOLDER&gt; --config /app/bbt_config.json
+</pre>
+                <div class="guide-text">
+                    For local dev, run the Rust binary with the same config.
+                </div>
+            </div>
+        </div>
+    </div>
     </div>
 
     <footer>
@@ -481,6 +654,9 @@
         console: document.getElementById('console-output')
     };
 
+    const tabButtons = Array.from(document.querySelectorAll('.tab-button'));
+    const tabPanels = Array.from(document.querySelectorAll('.tab-panel'));
+
     // --- LOGGING ---
     function log(msg, type = 'info') {
         const div = document.createElement('div');
@@ -541,6 +717,12 @@
             ui.disclaimerOverlay.classList.add('hidden');
         });
 
+        tabButtons.forEach((button) => {
+            button.addEventListener('click', () => setActiveTab(button.dataset.tab));
+        });
+
+        setActiveTab('demo');
+
         setGasPayerMode('facilitator');
         updateTokenToggle();
 
@@ -565,6 +747,15 @@
 
         window.ethereum.on('chainChanged', () => window.location.reload());
         window.ethereum.on('accountsChanged', () => window.location.reload());
+    }
+
+    function setActiveTab(tabName) {
+        tabButtons.forEach((button) => {
+            button.classList.toggle('active', button.dataset.tab === tabName);
+        });
+        tabPanels.forEach((panel) => {
+            panel.classList.toggle('hidden', panel.dataset.panel !== tabName);
+        });
     }
 
     // --- CONNECT WALLET ---
