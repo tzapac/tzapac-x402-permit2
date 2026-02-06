@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Run the end-to-end Permit2 x402 flow and report on-chain proof."""
+
 from __future__ import annotations
 
 import asyncio
@@ -21,7 +22,7 @@ from web3 import Web3
 load_dotenv()
 
 SERVER_URL = os.getenv("SERVER_URL", "http://localhost:8001")
-FACILITATOR_URL = os.getenv("FACILITATOR_URL", "http://100.112.150.8:9090")
+FACILITATOR_URL = os.getenv("FACILITATOR_URL", "https://exp-faci.etherlinkinsights.com")
 RPC_URL = os.getenv("NODE_URL", os.getenv("RPC_URL", "https://rpc.bubbletez.com"))
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 SERVER_WALLET = os.getenv("SERVER_WALLET", "0xA6e868Cd44C7643Fb4Ca9E2D0D66B13f403B488F")
@@ -276,7 +277,11 @@ async def main() -> int:
     expected_to = Web3.to_checksum_address(SERVER_WALLET)
     expected_amount = _extract_expected_amount(output)
 
-    if result.transfer_from and result.transfer_to and result.transfer_amount is not None:
+    if (
+        result.transfer_from
+        and result.transfer_to
+        and result.transfer_amount is not None
+    ):
         print("Transfer event:")
         print(f"  from: {result.transfer_from}")
         print(f"  to:   {result.transfer_to}")

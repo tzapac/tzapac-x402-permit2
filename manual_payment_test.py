@@ -11,7 +11,7 @@ import os
 load_dotenv()
 
 STOREFRONT_URL = "http://localhost:8000"
-FACILITATOR_URL = "http://100.112.150.8:8080"
+FACILITATOR_URL = "https://exp-faci.etherlinkinsights.com"
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 ETHERLINK_CHAIN = "eip155:42793"
 BBT_TOKEN = "0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"

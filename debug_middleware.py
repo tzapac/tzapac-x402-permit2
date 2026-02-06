@@ -5,7 +5,7 @@ import asyncio
 import json
 import httpx
 
-FACILITATOR_URL = "http://100.112.150.8:8080"
+FACILITATOR_URL = "https://exp-faci.etherlinkinsights.com"
 NETWORK_ID = "eip155:42793"
 
 
