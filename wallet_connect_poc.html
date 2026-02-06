@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETHERLINK x402 // PERMIT2 UPLINK</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #050505;
+            --panel-bg: #0a0a0a;
+            --border-color: #333;
+            --text-main: #e0e0e0;
+            --text-dim: #666;
+            --accent-color: #38FF9C;
+            --accent-dim: #005f3b;
+            --error-color: #ff3e3e;
+            --font-display: 'Rajdhani', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-display);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--accent-color);
+            box-shadow: 0 0 10px var(--accent-color);
+        }
+
+        header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tab-bar {
+            display: flex;
+            gap: 8px;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 10px 12px;
+            font-size: 0.7rem;
+        }
+
+        .tab-button.active {
+            background: var(--accent-color);
+            color: var(--bg-color);
+            box-shadow: 0 0 12px var(--accent-dim);
+        }
+
+        .tab-panel.hidden {
+            display: none;
+        }
+
+        .guide-block {
+            border: 1px solid var(--border-color);
+            padding: 16px;
+            background: #060606;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .guide-title {
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .guide-text {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+
+        .guide-list {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            line-height: 1.6;
+            padding-left: 18px;
+        }
+
+        pre {
+            background: #000;
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-main);
+            overflow-x: auto;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 700;
+        }
+
+        .status-indicator {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--text-dim);
+            border-radius: 50%;
+        }
+
+        .status-dot.active {
+            background-color: var(--accent-color);
+            box-shadow: 0 0 5px var(--accent-color);
+        }
+
+        .content {
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .data-label {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        .data-value {
+            font-family: var(--font-mono);
+            font-size: 1rem;
+            color: var(--accent-color);
+            text-align: right;
+        }
+
+        .data-value.address {
+            font-size: 0.85rem;
+            word-break: break-all;
+        }
+
+        .actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .flow-actions {
+            margin-top: 10px;
+            gap: 8px;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .flow-actions button {
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 0.7rem;
+            white-space: nowrap;
+        }
+
+        .toggle-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .toggle-button {
+            flex: 1 1 30%;
+            padding: 8px 10px;
+            font-size: 0.65rem;
+        }
+
+        .toggle-button.active {
+            background: var(--accent-color);
+            color: var(--bg-color);
+            box-shadow: 0 0 10px var(--accent-dim);
+        }
+
+        .text-input {
+            width: 100%;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 8px 10px;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+        }
+
+        button {
+            flex: 1;
+            background: transparent;
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 15px;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button:hover {
+            background: var(--accent-color);
+            color: var(--bg-color);
+            box-shadow: 0 0 15px var(--accent-dim);
+        }
+
+        button:disabled {
+            border-color: var(--text-dim);
+            color: var(--text-dim);
+            cursor: not-allowed;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        #console-output {
+            margin-top: 20px;
+            background: #000;
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            height: 150px;
+            overflow-y: auto;
+            color: var(--text-dim);
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            border-left: 2px solid transparent;
+            padding-left: 8px;
+        }
+
+        .log-info { border-left-color: var(--text-dim); }
+        .log-success { border-left-color: var(--accent-color); color: var(--accent-color); }
+        .log-error { border-left-color: var(--error-color); color: var(--error-color); }
+
+        footer {
+            padding: 15px 20px;
+            border-top: 1px solid var(--border-color);
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .hidden { display: none !important; }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            padding: 20px;
+        }
+
+        .modal-card {
+            width: 100%;
+            max-width: 560px;
+            background: #0b0b0b;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .modal-body {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            line-height: 1.4;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+    </style>
+</head>
+<body>
+
+<div id="disclaimer-overlay" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-title">Experimental Notice</div>
+        <div class="modal-body">
+            This project is experimental and has not been audited. Use at your own risk.
+        </div>
+        <div class="modal-actions">
+            <button id="disclaimer-ok-btn">I UNDERSTAND</button>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <header>
+        <h1>x402</h1>
+        <div class="status-indicator">
+            <div id="status-dot" class="status-dot"></div>
+            <span id="status-text">OFFLINE</span>
+        </div>
+    </header>
+
+    <div class="tab-bar">
+        <button class="tab-button" data-tab="server">Server</button>
+        <button class="tab-button" data-tab="facilitator">Facilitator</button>
+        <button class="tab-button active" data-tab="demo">Demo</button>
+    </div>
+
+    <div class="tab-panel" data-panel="demo">
+        <div class="content">
+        <!-- Wallet Section -->
+        <div id="wallet-section">
+            <div class="data-row">
+                <span class="data-label">Network</span>
+                <span id="network-display" class="data-value">--</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Account</span>
+                <span id="account-display" class="data-value address">--</span>
+            </div>
+        </div>
+
+        <!-- Facilitator Section -->
+        <div id="facilitator-section">
+            <div class="data-row">
+                <span class="data-label">Facilitator URL</span>
+                <span class="data-value address">
+                    <input id="facilitator-input" class="text-input" type="text" value="https://exp-faci.bubbletez.com" />
+                </span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Facilitator Spender</span>
+                <span class="data-value address">
+                    <input id="spender-input" class="text-input" type="text" placeholder="0x... (signer wallet)" />
+                </span>
+            </div>
+        </div>
+
+        <!-- Store Section -->
+        <div id="store-section">
+            <div class="data-row">
+                <span class="data-label">Store API URL</span>
+                <span class="data-value address">
+                    <input id="store-input" class="text-input" type="text" value="https://exp-store.bubbletez.com/api/weather" />
+                </span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Payment Amount</span>
+                <span id="amount-display" class="data-value">--</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Pay To</span>
+                <span id="payto-display" class="data-value address">--</span>
+            </div>
+        </div>
+
+        <div class="data-row">
+            <span class="data-label">Gas Payer</span>
+            <span class="data-value">
+                <div class="toggle-group">
+                    <button id="gas-client-btn" class="toggle-button">CLIENT PAYS GAS</button>
+                    <button id="gas-store-btn" class="toggle-button">STORE PAYS GAS</button>
+                    <button id="gas-facilitator-btn" class="toggle-button active">FACILITATOR PAYS GAS</button>
+                </div>
+            </span>
+        </div>
+
+        <!-- Flow Actions -->
+        <div class="actions flow-actions">
+            <button id="health-btn">1. CHECK /HEALTH</button>
+            <button id="requirements-btn">2. GET PAYMENT</button>
+            <button id="approve-btn" class="hidden">3. APPROVE PERMIT2</button>
+            <button id="pay-btn" disabled>4. SIGN & PAY 0.01 BBT</button>
+        </div>
+
+        <!-- Console -->
+        <div id="console-output">
+            <div class="log-entry log-info">> SYSTEM READY</div>
+            <div class="log-entry log-info">> WAITING FOR CONNECTION...</div>
+        </div>
+
+        <div class="actions">
+            <button id="token-toggle-btn">SHOW TOKEN DETAILS</button>
+        </div>
+
+        <!-- Token Section -->
+        <div id="token-section" class="hidden">
+            <div class="data-row">
+                <span class="data-label">Asset</span>
+                <span class="data-value">BBT (BubbleTez)</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Balance</span>
+                <span id="balance-display" class="data-value">0.00</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">ERC20 Allowance -> Permit2</span>
+                <span id="allowance-display" class="data-value">0.00</span>
+            </div>
+            <div id="permit2-allowance-row" class="data-row hidden">
+                <span class="data-label">Permit2 Allowance</span>
+                <span id="permit2-allowance-display" class="data-value">--</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Permit2 Expiration</span>
+                <span id="permit2-expiration-display" class="data-value">--</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Permit2 Nonce</span>
+                <span id="permit2-nonce-display" class="data-value">--</span>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <div class="tab-panel hidden" data-panel="server">
+        <div class="content">
+            <div class="guide-block">
+                <div class="guide-title">Store / Server Setup</div>
+                <div class="guide-text">
+                    Run two containers: the store API (paid endpoint) and the store web/proxy (demo UI + /api proxy).
+                </div>
+                <ul class="guide-list">
+                    <li>Download API image (placeholder): https://example.com/x402-store-api-image</li>
+                    <li>Download web image (placeholder): https://example.com/x402-store-web-image</li>
+                    <li>Create a .env file with your store wallet and facilitator URL.</li>
+                    <li>Create a Docker network and run both containers.</li>
+                </ul>
+                <pre># .env
+FACILITATOR_URL=http://localhost:9090
+RPC_URL=https://rpc.bubbletez.com
+SERVER_WALLET=0xYOUR_STORE_WALLET
+STORE_PRIVATE_KEY=0xYOUR_STORE_PRIVATE_KEY
+</pre>
+                <pre>docker network create x402-store || true
+
+docker run -d --name x402-store-api \
+  --network x402-store \
+  --env-file .env \
+  -p 8001:8001 \
+  &lt;STORE_API_IMAGE_URL_PLACEHOLDER&gt;
+
+docker run -d --name x402-store-web \
+  --network x402-store \
+  -p 9091:80 \
+  &lt;STORE_WEB_IMAGE_URL_PLACEHOLDER&gt;
+</pre>
+                <div class="guide-text">
+                    For local dev, you can also run this stack with docker-compose.wallet-poc.yml.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-panel hidden" data-panel="facilitator">
+        <div class="content">
+            <div class="guide-block">
+                <div class="guide-title">Facilitator Setup</div>
+                <div class="guide-text">
+                    Run the Permit2 facilitator that settles payments on-chain.
+                </div>
+                <ul class="guide-list">
+                    <li>Download image (placeholder): https://example.com/x402-facilitator-image</li>
+                    <li>Create a config file and provide a signer private key.</li>
+                    <li>Run the container and expose port 9090.</li>
+                </ul>
+                <pre># .env
+FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
+</pre>
+                <pre>// bbt_config.json
+{
+  "port": 9090,
+  "host": "0.0.0.0",
+  "chains": {
+    "eip155:42793": {
+      "eip1559": true,
+      "signers": ["$FACILITATOR_PRIVATE_KEY"],
+      "rpc": [
+        { "http": "https://rpc.bubbletez.com", "rate_limit": 100 }
+      ]
+    }
+  },
+  "schemes": [
+    { "id": "v2-eip155-exact", "chains": "eip155:42793", "enabled": true }
+  ]
+}
+</pre>
+                <pre>docker run --env-file .env -p 9090:9090 \
+  -v $(pwd)/bbt_config.json:/app/bbt_config.json \
+  &lt;FACILITATOR_IMAGE_URL_PLACEHOLDER&gt; --config /app/bbt_config.json
+</pre>
+                <div class="guide-text">
+                    For local dev, run the Rust binary with the same config.
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <footer>
+        built with <3 by tzapac.
+    </footer>
+</div>
+
+<script>
+    // --- CONSTANTS ---
+    const BBT_ADDRESS = "0x7EfE4bdd11237610bcFca478937658bE39F8dfd6";
+    const PERMIT2_ADDRESS = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
+    const ETHERLINK_CHAIN_ID = 42793;
+    const ETHERLINK_CHAIN_ID_HEX = "0xA739";
+    const RPC_URL = "https://rpc.bubbletez.com";
+    const DEFAULT_FACILITATOR_URL = "https://exp-faci.bubbletez.com";
+    const ETHERS_CDN_URLS = [
+        "https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js",
+        "https://unpkg.com/ethers@6.13.4/dist/ethers.umd.min.js"
+    ];
+
+    // --- STATE ---
+    let provider, signer, bbtContract;
+    let userAddress;
+    let gasPayerMode = "facilitator";
+    let tokenDetailsOpen = false;
+    let facilitatorOnline = null;
+    let facilitatorPollTimer = null;
+
+    // --- ABI ---
+    const ERC20_ABI = [
+        "function name() view returns (string)",
+        "function symbol() view returns (string)",
+        "function decimals() view returns (uint8)",
+        "function balanceOf(address) view returns (uint256)",
+        "function allowance(address, address) view returns (uint256)",
+        "function approve(address, uint256) returns (bool)"
+    ];
+
+    // --- UI ELEMENTS ---
+    const ui = {
+        statusDot: document.getElementById('status-dot'),
+        statusText: document.getElementById('status-text'),
+        approveBtn: document.getElementById('approve-btn'),
+        healthBtn: document.getElementById('health-btn'),
+        facilitatorInput: document.getElementById('facilitator-input'),
+        spenderInput: document.getElementById('spender-input'),
+        storeInput: document.getElementById('store-input'),
+        requirementsBtn: document.getElementById('requirements-btn'),
+        payBtn: document.getElementById('pay-btn'),
+        network: document.getElementById('network-display'),
+        account: document.getElementById('account-display'),
+        balance: document.getElementById('balance-display'),
+        allowance: document.getElementById('allowance-display'),
+        permit2AllowanceRow: document.getElementById('permit2-allowance-row'),
+        permit2Allowance: document.getElementById('permit2-allowance-display'),
+        permit2Expiration: document.getElementById('permit2-expiration-display'),
+        permit2Nonce: document.getElementById('permit2-nonce-display'),
+        amount: document.getElementById('amount-display'),
+        payTo: document.getElementById('payto-display'),
+        tokenSection: document.getElementById('token-section'),
+        tokenToggleBtn: document.getElementById('token-toggle-btn'),
+        gasClientBtn: document.getElementById('gas-client-btn'),
+        gasStoreBtn: document.getElementById('gas-store-btn'),
+        gasFacilitatorBtn: document.getElementById('gas-facilitator-btn'),
+        disclaimerOverlay: document.getElementById('disclaimer-overlay'),
+        disclaimerOkBtn: document.getElementById('disclaimer-ok-btn'),
+        console: document.getElementById('console-output')
+    };
+
+    const tabButtons = Array.from(document.querySelectorAll('.tab-button'));
+    const tabPanels = Array.from(document.querySelectorAll('.tab-panel'));
+
+    // --- LOGGING ---
+    function log(msg, type = 'info') {
+        const div = document.createElement('div');
+        div.className = `log-entry log-${type}`;
+        div.innerText = `> ${msg}`;
+        ui.console.appendChild(div);
+        ui.console.scrollTop = ui.console.scrollHeight;
+    }
+
+    // --- INITIALIZATION ---
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement("script");
+            script.src = src;
+            script.async = true;
+            script.onload = () => resolve(true);
+            script.onerror = () => reject(new Error(`Failed to load ${src}`));
+            document.head.appendChild(script);
+        });
+    }
+
+    async function ensureEthers() {
+        if (typeof ethers !== "undefined") {
+            return true;
+        }
+
+        for (const src of ETHERS_CDN_URLS) {
+            try {
+                log(`LOADING ETHERS: ${src}`, "info");
+                await loadScript(src);
+                if (typeof ethers !== "undefined") {
+                    log("ETHERS LOADED", "success");
+                    return true;
+                }
+            } catch (err) {
+                log(`ETHERS LOAD FAILED: ${err.message}`, "error");
+            }
+        }
+
+        return false;
+    }
+
+    async function init() {
+        if (!ui.facilitatorInput.value || ui.facilitatorInput.value.includes("localhost")) {
+            ui.facilitatorInput.value = DEFAULT_FACILITATOR_URL;
+        }
+
+        ui.approveBtn.addEventListener('click', approvePermit2);
+        ui.healthBtn.addEventListener('click', checkFacilitatorHealth);
+        ui.requirementsBtn.addEventListener('click', fetchPaymentRequirements);
+        ui.payBtn.addEventListener('click', signAndPay);
+        ui.tokenToggleBtn.addEventListener('click', toggleTokenDetails);
+        ui.gasClientBtn.addEventListener('click', () => setGasPayerMode('client'));
+        ui.gasStoreBtn.addEventListener('click', () => setGasPayerMode('store'));
+        ui.gasFacilitatorBtn.addEventListener('click', () => setGasPayerMode('facilitator'));
+        ui.disclaimerOkBtn.addEventListener('click', () => {
+            ui.disclaimerOverlay.classList.add('hidden');
+        });
+
+        tabButtons.forEach((button) => {
+            button.addEventListener('click', () => setActiveTab(button.dataset.tab));
+        });
+
+        setActiveTab('demo');
+
+        setGasPayerMode('facilitator');
+        updateTokenToggle();
+
+        startFacilitatorPolling();
+
+        const ethersReady = await ensureEthers();
+        if (!ethersReady) {
+            log("CRITICAL: Ethers.js library not loaded. Check internet connection or CDN.", "error");
+            disableWalletActions();
+            return;
+        }
+
+        if (!window.ethereum) {
+            log("METAMASK NOT DETECTED", "error");
+            disableWalletActions();
+            return;
+        }
+
+        // Auto-connect if already authorized
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts.length > 0) {
+            connectWallet();
+        }
+
+        window.ethereum.on('chainChanged', () => window.location.reload());
+        window.ethereum.on('accountsChanged', () => window.location.reload());
+    }
+
+    function setActiveTab(tabName) {
+        tabButtons.forEach((button) => {
+            button.classList.toggle('active', button.dataset.tab === tabName);
+        });
+        tabPanels.forEach((panel) => {
+            panel.classList.toggle('hidden', panel.dataset.panel !== tabName);
+        });
+    }
+
+    function setFacilitatorStatus(isOnline) {
+        if (facilitatorOnline === isOnline) {
+            return;
+        }
+        facilitatorOnline = isOnline;
+        ui.statusDot.classList.toggle('active', isOnline);
+        ui.statusText.innerText = isOnline ? "ONLINE" : "OFFLINE";
+    }
+
+    function hasSupportedNetwork(body) {
+        if (!body) {
+            return false;
+        }
+        const text = typeof body === "string" ? body : JSON.stringify(body);
+        return text.includes("eip155:42793") || text.includes("42793");
+    }
+
+    async function pollFacilitatorSupported() {
+        const base = getFacilitatorUrl();
+        if (!base) {
+            setFacilitatorStatus(false);
+            return;
+        }
+        const url = `${base}/supported`;
+        try {
+            const resp = await fetch(url, { cache: "no-store" });
+            const contentType = resp.headers.get("content-type") || "";
+            const body = contentType.includes("application/json") ? await resp.json() : await resp.text();
+            if (!resp.ok) {
+                throw new Error(`HTTP ${resp.status}`);
+            }
+            setFacilitatorStatus(hasSupportedNetwork(body));
+        } catch (err) {
+            setFacilitatorStatus(false);
+        }
+    }
+
+    function startFacilitatorPolling() {
+        pollFacilitatorSupported();
+        if (facilitatorPollTimer) {
+            clearInterval(facilitatorPollTimer);
+        }
+        facilitatorPollTimer = setInterval(pollFacilitatorSupported, 10000);
+        ui.facilitatorInput.addEventListener('change', pollFacilitatorSupported);
+    }
+
+    // --- CONNECT WALLET ---
+    async function connectWallet() {
+        try {
+            log("INITIALIZING CONNECTION...", "info");
+            provider = new ethers.BrowserProvider(window.ethereum);
+            
+            await provider.send("eth_requestAccounts", []);
+            signer = await provider.getSigner();
+            userAddress = await signer.getAddress();
+
+            log(`CONNECTED: ${userAddress.slice(0,6)}...${userAddress.slice(-4)}`, "success");
+            ui.account.innerText = userAddress;
+
+            await checkNetwork();
+        } catch (err) {
+            log(`CONNECTION FAILED: ${err.message}`, "error");
+        }
+    }
+
+    async function ensureWalletConnected() {
+        if (signer && userAddress) {
+            return true;
+        }
+        if (!window.ethereum) {
+            log("METAMASK NOT DETECTED", "error");
+            return false;
+        }
+        await connectWallet();
+        return Boolean(signer && userAddress);
+    }
+
+    function disableWalletActions() {
+        ui.approveBtn.disabled = true;
+        ui.payBtn.disabled = true;
+    }
+
+    function updateTokenToggle() {
+        ui.tokenToggleBtn.innerText = tokenDetailsOpen
+            ? "HIDE TOKEN DETAILS"
+            : "SHOW TOKEN DETAILS";
+    }
+
+    async function toggleTokenDetails() {
+        tokenDetailsOpen = !tokenDetailsOpen;
+        if (tokenDetailsOpen) {
+            const ready = await ensureWalletConnected();
+            if (!ready) {
+                tokenDetailsOpen = false;
+                updateTokenToggle();
+                return;
+            }
+            if (!bbtContract) {
+                await loadTokenData();
+            }
+            ui.tokenSection.classList.remove('hidden');
+        } else {
+            ui.tokenSection.classList.add('hidden');
+        }
+        updateTokenToggle();
+    }
+
+    function setGasPayerMode(mode) {
+        gasPayerMode = mode;
+        ui.gasClientBtn.classList.toggle('active', mode === 'client');
+        ui.gasStoreBtn.classList.toggle('active', mode === 'store');
+        ui.gasFacilitatorBtn.classList.toggle('active', mode === 'facilitator');
+        log(`GAS PAYER: ${mode.toUpperCase()}`, "info");
+    }
+
+    // --- CHECK NETWORK ---
+    async function checkNetwork() {
+        const network = await provider.getNetwork();
+        const chainId = Number(network.chainId);
+
+        if (chainId !== ETHERLINK_CHAIN_ID) {
+            log(`WRONG NETWORK DETECTED (ID: ${chainId})`, "error");
+            ui.network.innerText = "WRONG NETWORK";
+            ui.network.style.color = "var(--error-color)";
+            await switchNetwork();
+        } else {
+            ui.network.innerText = "ETHERLINK MAINNET";
+            ui.network.style.color = "var(--accent-color)";
+            log("NETWORK VERIFIED: ETHERLINK", "success");
+            await loadTokenData();
+        }
+    }
+
+    // --- SWITCH NETWORK ---
+    async function switchNetwork() {
+        try {
+            log("ATTEMPTING NETWORK SWITCH...", "info");
+            await window.ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: ETHERLINK_CHAIN_ID_HEX }],
+            });
+            window.location.reload();
+        } catch (switchError) {
+            // This error code indicates that the chain has not been added to MetaMask.
+            if (switchError.code === 4902) {
+                log("NETWORK NOT FOUND. ADDING ETHERLINK...", "info");
+                try {
+                    await window.ethereum.request({
+                        method: 'wallet_addEthereumChain',
+                        params: [
+                            {
+                                chainId: ETHERLINK_CHAIN_ID_HEX,
+                                chainName: 'Etherlink Mainnet',
+                                rpcUrls: [RPC_URL],
+                                nativeCurrency: {
+                                    name: 'Tezos',
+                                    symbol: 'XTZ',
+                                    decimals: 18
+                                },
+                                blockExplorerUrls: ['https://explorer.etherlink.com/']
+                            },
+                        ],
+                    });
+                    window.location.reload();
+                } catch (addError) {
+                    log(`FAILED TO ADD NETWORK: ${addError.message}`, "error");
+                }
+            } else {
+                log(`FAILED TO SWITCH NETWORK: ${switchError.message}`, "error");
+            }
+        }
+    }
+
+    // --- LOAD TOKEN DATA ---
+    async function loadTokenData() {
+        try {
+            if (!signer || !userAddress) {
+                return;
+            }
+            bbtContract = new ethers.Contract(BBT_ADDRESS, ERC20_ABI, signer);
+
+            const decimals = await bbtContract.decimals();
+            const balance = await bbtContract.balanceOf(userAddress);
+            const erc20Allowance = await bbtContract.allowance(userAddress, PERMIT2_ADDRESS);
+
+            ui.balance.innerText = ethers.formatUnits(balance, decimals);
+            ui.allowance.innerText = ethers.formatUnits(erc20Allowance, decimals);
+
+            const spender = getSpenderForPermit2();
+            if (spender) {
+                const permit2Abi = [
+                    "function allowance(address owner,address token,address spender) view returns (uint160 amount,uint48 expiration,uint48 nonce)"
+                ];
+                const permit2 = new ethers.Contract(PERMIT2_ADDRESS, permit2Abi, provider);
+                const tokenAddress = getPermit2Token();
+                const allowanceData = await permit2.allowance(userAddress, tokenAddress, spender);
+                const permit2Amount = allowanceData[0];
+                const permit2Expiration = allowanceData[1];
+                const permit2Nonce = allowanceData[2];
+
+                if (permit2Amount > 0n) {
+                    ui.permit2AllowanceRow.classList.remove('hidden');
+                    ui.permit2Allowance.innerText = ethers.formatUnits(permit2Amount, decimals);
+                } else {
+                    ui.permit2AllowanceRow.classList.add('hidden');
+                    ui.permit2Allowance.innerText = "--";
+                }
+                ui.permit2Expiration.innerText = formatExpiry(Number(permit2Expiration));
+                ui.permit2Nonce.innerText = permit2Nonce.toString();
+            } else {
+                ui.permit2AllowanceRow.classList.add('hidden');
+                ui.permit2Allowance.innerText = "--";
+                ui.permit2Expiration.innerText = "--";
+                ui.permit2Nonce.innerText = "--";
+            }
+
+            updateApproveButton(erc20Allowance);
+
+            if (tokenDetailsOpen) {
+                ui.tokenSection.classList.remove('hidden');
+            }
+            ui.approveBtn.classList.remove('hidden');
+
+            log("TOKEN DATA LOADED", "success");
+        } catch (err) {
+            log(`FAILED TO LOAD TOKEN DATA: ${err.message}`, "error");
+        }
+    }
+
+    // --- APPROVE PERMIT2 ---
+    async function approvePermit2() {
+        const ready = await ensureWalletConnected();
+        if (!ready) return;
+        if (!bbtContract) {
+            await loadTokenData();
+        }
+        if (!bbtContract) return;
+
+        try {
+            ui.approveBtn.disabled = true;
+            ui.approveBtn.innerText = "SIGNING...";
+            log("INITIATING APPROVAL TRANSACTION...", "info");
+
+            const maxUint256 = ethers.MaxUint256;
+            const tx = await bbtContract.approve(PERMIT2_ADDRESS, maxUint256);
+            
+            log(`TX SENT: ${tx.hash}`, "info");
+            ui.approveBtn.innerText = "PENDING...";
+
+            await tx.wait();
+            
+            log("TRANSACTION CONFIRMED", "success");
+            
+            await loadTokenData(); // Refresh UI
+        } catch (err) {
+            log(`APPROVAL FAILED: ${err.message}`, "error");
+            ui.approveBtn.disabled = false;
+            ui.approveBtn.innerText = "APPROVE PERMIT2";
+        }
+    }
+
+    // --- FACILITATOR LINKS ---
+    function getFacilitatorUrl() {
+        const raw = ui.facilitatorInput.value.trim();
+        const value = raw.length ? raw : DEFAULT_FACILITATOR_URL;
+        return value.replace(/\/$/, "");
+    }
+
+    async function checkFacilitatorHealth() {
+        const url = `${getFacilitatorUrl()}/health`;
+        try {
+            log(`CHECKING FACILITATOR: ${url}`, "info");
+            const resp = await fetch(url);
+            const contentType = resp.headers.get("content-type") || "";
+            const body = contentType.includes("application/json") ? await resp.json() : await resp.text();
+            if (!resp.ok) {
+                throw new Error(`HTTP ${resp.status}`);
+            }
+            log("FACILITATOR HEALTHY", "success");
+            setFacilitatorStatus(true);
+            let signerAddress = null;
+            if (body && typeof body === "object") {
+                signerAddress = body.signer || body.address || body.wallet || body.facilitator;
+                if (!signerAddress && body.signers && body.signers["eip155:42793"]) {
+                    const candidates = body.signers["eip155:42793"];
+                    if (Array.isArray(candidates) && candidates.length > 0) {
+                        signerAddress = candidates[0];
+                    }
+                }
+                if (signerAddress && !ui.spenderInput.value) {
+                    ui.spenderInput.value = signerAddress;
+                    log(`SPENDER AUTO-FILLED: ${signerAddress}`, "success");
+                }
+            }
+            if (signerAddress) {
+                await loadTokenData();
+            }
+        } catch (err) {
+            log(`FACILITATOR CHECK FAILED: ${err.message}`, "error");
+            if (err.message.includes("Failed to fetch")) {
+                log("HINT: Check CORS or Mixed Content (HTTPS vs HTTP)", "info");
+                log("HINT: Ensure Facilitator is running and accessible", "info");
+            }
+        }
+    }
+
+    function getStoreUrl() {
+        return ui.storeInput.value.trim();
+    }
+
+    function toBase64(text) {
+        const data = new TextEncoder().encode(text);
+        let binary = "";
+        data.forEach((byte) => {
+            binary += String.fromCharCode(byte);
+        });
+        return btoa(binary);
+    }
+
+    function fromBase64(text) {
+        const binary = atob(text);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return new TextDecoder().decode(bytes);
+    }
+
+    let cachedRequirements = null;
+
+    function formatExpiry(seconds) {
+        if (!seconds || seconds === 0) {
+            return "--";
+        }
+        const date = new Date(seconds * 1000);
+        return date.toISOString().replace("T", " ").replace("Z", " UTC");
+    }
+
+    function getPermit2Token() {
+        if (cachedRequirements && cachedRequirements.accepts && cachedRequirements.accepts[0]) {
+            const asset = cachedRequirements.accepts[0].asset || "";
+            const token = asset.split("erc20:")[1];
+            if (token) {
+                return token;
+            }
+        }
+        return BBT_ADDRESS;
+    }
+
+    function getSpenderForPermit2() {
+        if (gasPayerMode === "client") {
+            return userAddress || null;
+        }
+        if (gasPayerMode === "store") {
+            if (cachedRequirements && cachedRequirements.accepts && cachedRequirements.accepts[0]) {
+                return cachedRequirements.accepts[0].payTo;
+            }
+            return null;
+        }
+        const input = ui.spenderInput.value.trim();
+        if (input) {
+            return input;
+        }
+        if (cachedRequirements && cachedRequirements.accepts && cachedRequirements.accepts[0]) {
+            return cachedRequirements.accepts[0].payTo;
+        }
+        return null;
+    }
+
+    function getRequiredAmount() {
+        if (!cachedRequirements || !cachedRequirements.accepts || !cachedRequirements.accepts[0]) {
+            return null;
+        }
+        const accept = cachedRequirements.accepts[0];
+        const raw = accept.amount || accept.maxAmountRequired;
+        if (!raw) {
+            return null;
+        }
+        try {
+            return BigInt(raw.toString());
+        } catch (err) {
+            return null;
+        }
+    }
+
+    function updateApproveButton(erc20Allowance) {
+        const required = getRequiredAmount();
+        const hasAllowance = erc20Allowance > 0n;
+        const sufficient = required ? erc20Allowance >= required : hasAllowance;
+
+        if (sufficient) {
+            ui.approveBtn.disabled = true;
+            ui.approveBtn.innerText = "APPROVED";
+            return;
+        }
+
+        ui.approveBtn.disabled = false;
+        ui.approveBtn.innerText = hasAllowance && required ? "INCREASE APPROVAL" : "APPROVE PERMIT2";
+    }
+
+    async function fetchPaymentRequirements() {
+        const url = getStoreUrl();
+        if (!url) {
+            log("STORE URL REQUIRED", "error");
+            return;
+        }
+
+        try {
+            log(`REQUESTING PAYMENT REQUIREMENTS: ${url}`, "info");
+            const resp = await fetch(url);
+            if (resp.status !== 402) {
+                log(`EXPECTED 402, GOT ${resp.status}`, "error");
+                return;
+            }
+
+            const header = resp.headers.get("x-payment-required");
+            if (!header) {
+                log("MISSING X-PAYMENT-REQUIRED HEADER", "error");
+                return;
+            }
+
+            const decoded = JSON.parse(fromBase64(header));
+            cachedRequirements = decoded;
+
+            const accept = decoded.accepts && decoded.accepts[0];
+            if (!accept) {
+                log("NO PAYMENT OPTIONS FOUND", "error");
+                return;
+            }
+
+            const amount = accept.amount || accept.maxAmountRequired;
+            const payTo = accept.payTo;
+
+            ui.amount.innerText = amount ? amount.toString() : "--";
+            ui.payTo.innerText = payTo || "--";
+            ui.payBtn.disabled = false;
+
+            if (signer) {
+                await loadTokenData();
+            }
+
+            log("PAYMENT REQUIREMENTS LOADED", "success");
+        } catch (err) {
+            log(`FAILED TO GET REQUIREMENTS: ${err.message}`, "error");
+        }
+    }
+
+    async function signAndPay() {
+        if (!cachedRequirements) {
+            log("GET PAYMENT REQUIREMENTS FIRST", "error");
+            return;
+        }
+        const ready = await ensureWalletConnected();
+        if (!ready) {
+            log("WALLET NOT CONNECTED", "error");
+            return;
+        }
+
+        const accept = cachedRequirements.accepts[0];
+        const tokenAddress = accept.asset.split("erc20:")[1];
+        const payTo = accept.payTo;
+        const amountRaw = accept.amount || accept.maxAmountRequired;
+        const amount = BigInt(amountRaw);
+
+            const spender = getSpenderForPermit2();
+            if (!spender) {
+                log("SPENDER REQUIRED. CLICK CHECK /HEALTH OR SET GAS PAYER MODE.", "error");
+                return;
+            }
+
+        try {
+            const decimals = await bbtContract.decimals();
+            const erc20Allowance = await bbtContract.allowance(userAddress, PERMIT2_ADDRESS);
+            if (erc20Allowance < amount) {
+                log("ALLOWANCE TOO LOW. APPROVE PERMIT2 FIRST.", "error");
+                return;
+            }
+
+            const permit2Abi = [
+                "function allowance(address owner,address token,address spender) view returns (uint160 amount,uint48 expiration,uint48 nonce)",
+                "function permit(address owner, tuple(tuple(address token,uint160 amount,uint48 expiration,uint48 nonce) details,address spender,uint256 sigDeadline) permitSingle, bytes signature)",
+                "function transferFrom(address from,address to,uint160 amount,address token)"
+            ];
+            const permit2 = new ethers.Contract(PERMIT2_ADDRESS, permit2Abi, signer);
+            const allowanceData = await permit2.allowance(userAddress, tokenAddress, spender);
+            const nonce = allowanceData[2];
+
+            const now = Math.floor(Date.now() / 1000);
+            const expiration = BigInt(now + 3600);
+            const sigDeadline = BigInt(now + 3600);
+
+            const domain = {
+                name: "Permit2",
+                chainId: ETHERLINK_CHAIN_ID,
+                verifyingContract: PERMIT2_ADDRESS
+            };
+
+            const types = {
+                PermitDetails: [
+                    { name: "token", type: "address" },
+                    { name: "amount", type: "uint160" },
+                    { name: "expiration", type: "uint48" },
+                    { name: "nonce", type: "uint48" }
+                ],
+                PermitSingle: [
+                    { name: "details", type: "PermitDetails" },
+                    { name: "spender", type: "address" },
+                    { name: "sigDeadline", type: "uint256" }
+                ]
+            };
+
+            const value = {
+                details: {
+                    token: tokenAddress,
+                    amount,
+                    expiration,
+                    nonce
+                },
+                spender,
+                sigDeadline
+            };
+
+            log("SIGNING PERMIT2...", "info");
+            const signature = await signer.signTypedData(domain, types, value);
+
+            const payload = {
+                x402Version: 2,
+                scheme: "exact",
+                network: "eip155:42793",
+                payload: {
+                    permit2: {
+                        owner: userAddress,
+                        permitSingle: {
+                            details: {
+                                token: tokenAddress,
+                                amount: amount.toString(),
+                                expiration: Number(expiration),
+                                nonce: Number(nonce)
+                            },
+                            spender,
+                            sigDeadline: Number(sigDeadline)
+                        },
+                        signature
+                    }
+                }
+            };
+
+            const header = toBase64(JSON.stringify(payload));
+
+            log(`PERMIT2 SIGNATURE: ${signature}`, "success");
+            log(`PAYLOAD JSON: ${JSON.stringify(payload, null, 2)}`, "info");
+            log(`X-PAYMENT (base64): ${header}`, "info");
+
+            const headers = {
+                "X-PAYMENT": header,
+                "X-GAS-PAYER": gasPayerMode
+            };
+
+            if (gasPayerMode === "client") {
+                log("SUBMITTING PERMIT2 (CLIENT GAS)...", "info");
+                const permitTx = await permit2.permit(userAddress, value, signature);
+                await permitTx.wait();
+                log(`PERMIT TX: ${permitTx.hash}`, "success");
+
+                log("SUBMITTING TRANSFERFROM (CLIENT GAS)...", "info");
+                const transferTx = await permit2.transferFrom(userAddress, payTo, amount, tokenAddress);
+                await transferTx.wait();
+                log(`TRANSFER TX: ${transferTx.hash}`, "success");
+                headers["X-PAYMENT-TX"] = transferTx.hash;
+            }
+
+            log("SENDING X-PAYMENT...", "info");
+            const resp = await fetch(getStoreUrl(), {
+                headers
+            });
+
+            const body = await resp.text();
+            if (!resp.ok) {
+                log(`PAYMENT FAILED: HTTP ${resp.status}`, "error");
+                log(`RESPONSE: ${body}`, "error");
+                return;
+            }
+
+            log("PAYMENT SENT. RESPONSE:", "success");
+            log(body, "success");
+
+            ui.amount.innerText = ethers.formatUnits(amount, decimals);
+        } catch (err) {
+            log(`SIGN/PAY FAILED: ${err.message}`, "error");
+        }
+    }
+
+    // Start
+    window.addEventListener('DOMContentLoaded', init);
+
+</script>
+
+</body>
+</html>

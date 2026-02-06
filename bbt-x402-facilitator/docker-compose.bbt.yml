@@ -1,0 +1,12 @@
+services:
+  bbt-facilitator:
+    image: bbt-x402-facilitator:permit2
+    container_name: bbt-x402-facilitator
+    restart: unless-stopped
+    ports:
+      - "${BBT_BIND_ADDR:-127.0.0.1}:9090:9090"
+    environment:
+      - RUST_LOG=info
+      - X402_CONFIG=/app/bbt_config.json
+    volumes:
+      - ${BBT_CONFIG_PATH:-./bbt_config.json}:/app/bbt_config.json:ro

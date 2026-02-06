@@ -1,0 +1,4 @@
+FROM nginx:1.27
+
+COPY wallet_connect_poc.html /usr/share/nginx/html/index.html
+COPY nginx.wallet-poc.conf /etc/nginx/conf.d/default.conf

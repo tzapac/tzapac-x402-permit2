@@ -1,0 +1,12 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir fastapi uvicorn httpx python-dotenv web3
+
+COPY bbt_mvp_server.py /app/bbt_mvp_server.py
+COPY logging_utils.py /app/logging_utils.py
+
+EXPOSE 8001
+
+CMD ["python", "bbt_mvp_server.py"]
