@@ -2,6 +2,8 @@ PROOF_OF_CONCEPT.md
 x402_permit2_report.md
 AGENTS.md
 __pycache__/
+*.log
+logs/
 reports/
 scripts/
 venv/
