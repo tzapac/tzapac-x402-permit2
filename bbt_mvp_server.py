@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 import base64
 import json
+import logging
 import os
 
 import httpx
 from fastapi import FastAPI, Request, Response
 from dotenv import load_dotenv
 
+from logging_utils import get_logger, log_json
+
 load_dotenv()
 
 app = FastAPI()
 http_client = httpx.AsyncClient(timeout=120.0)
+logger = get_logger("bbt_mvp_server")
 
 FACILITATOR_URL = os.getenv("FACILITATOR_URL", "http://localhost:9090")
 SERVER_WALLET = os.getenv("SERVER_WALLET", "0xA6e868Cd44C7643Fb4Ca9E2D0D66B13f403B488F")
@@ -65,8 +69,9 @@ async def weather(request: Request):
 
     try:
         payment_payload = json.loads(base64.b64decode(payment_header))
-        print(f"Received payment: {json.dumps(payment_payload, indent=2)}")
+        log_json(logger, logging.DEBUG, "Received payment payload", payment_payload)
     except Exception as e:
+        logger.warning("Invalid payment header: %s", e)
         return Response(
             content=json.dumps({"error": f"Invalid payment header: {e}"}),
             status_code=400,
@@ -87,8 +92,8 @@ async def weather(request: Request):
         "paymentRequirements": requirements_for_facilitator,
     }
 
-    print(f"Calling facilitator /settle: {FACILITATOR_URL}/settle")
-    print(f"Settle request: {json.dumps(settle_request, indent=2)}")
+    logger.info("Calling facilitator /settle: %s/settle", FACILITATOR_URL)
+    log_json(logger, logging.DEBUG, "Settle request", settle_request)
 
     try:
         settle_resp = await http_client.post(
@@ -113,8 +118,11 @@ async def weather(request: Request):
                 status_code=402,
                 media_type="application/json",
             )
-        print(
-            f"Facilitator response ({settle_resp.status_code}): {json.dumps(settle_data, indent=2)}"
+        log_json(
+            logger,
+            logging.DEBUG,
+            f"Facilitator response ({settle_resp.status_code})",
+            settle_data,
         )
 
         if settle_resp.status_code != 200:
@@ -156,7 +164,7 @@ async def weather(request: Request):
                     tx_hash = settle_data
 
     except Exception as e:
-        print(f"Facilitator error: {e}")
+        logger.exception("Facilitator error: %s", e)
         return Response(
             content=json.dumps({"error": f"Facilitator error: {e}"}),
             status_code=500,

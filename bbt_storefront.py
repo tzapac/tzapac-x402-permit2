@@ -2,6 +2,8 @@
 
 import os
 
+from logging_utils import get_logger
+
 from fastapi import FastAPI, Request
 
 from x402.http import HTTPFacilitatorClient
@@ -19,6 +21,8 @@ app = FastAPI(
     description="Accept BBT payments on Etherlink via x402 protocol",
     version="1.0.0",
 )
+
+logger = get_logger("bbt_storefront")
 
 facilitator_client = HTTPFacilitatorClient(config={"url": FACILITATOR_URL})
 resource_server = x402ResourceServer(facilitator_client)
@@ -98,8 +102,8 @@ async def get_premium_content(request: Request):
 if __name__ == "__main__":
     import uvicorn
 
-    print(f"Starting BBT Token Storefront on port 8000")
-    print(f"Facilitator: {FACILITATOR_URL}")
-    print(f"Network: {ETHERLINK_CHAIN}")
-    print(f"BBT Token: {BBT_TOKEN_ADDRESS}")
+    logger.info("Starting BBT Token Storefront on port 8000")
+    logger.info("Facilitator: %s", FACILITATOR_URL)
+    logger.info("Network: %s", ETHERLINK_CHAIN)
+    logger.info("BBT Token: %s", BBT_TOKEN_ADDRESS)
     uvicorn.run(app, host="0.0.0.0", port=8000)
