@@ -16,6 +16,7 @@ The protected resource is a sample weather endpoint, and payment is denominated 
 ## Access Links
 
 Hosted endpoints currently used in the demo UI defaults:
+- Demo frontend: `https://exp-store.bubbletez.com/`
 - Facilitator: `https://exp-faci.bubbletez.com`
 - Store API endpoint: `https://exp-store.bubbletez.com/api/weather`
 
