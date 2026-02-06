@@ -368,43 +368,14 @@
         <h1>x402</h1>
         <div class="status-indicator">
             <div id="status-dot" class="status-dot"></div>
-            <span id="status-text">DISCONNECTED</span>
+            <span id="status-text">OFFLINE</span>
         </div>
     </header>
 
     <div class="tab-bar">
-        <button class="tab-button" data-tab="client">Client</button>
         <button class="tab-button" data-tab="server">Server</button>
         <button class="tab-button" data-tab="facilitator">Facilitator</button>
         <button class="tab-button active" data-tab="demo">Demo</button>
-    </div>
-
-    <div class="tab-panel hidden" data-panel="client">
-        <div class="content">
-        <div class="guide-block">
-            <div class="guide-title">Client Setup</div>
-            <div class="guide-text">
-                Use this client to request paid content and sign Permit2 payloads.
-            </div>
-            <ul class="guide-list">
-                <li>Download image (placeholder): https://example.com/x402-client-image</li>
-                <li>Create a .env file with your client key and target store URL.</li>
-                <li>Run the container and point it to your store API.</li>
-            </ul>
-            <pre># .env
-PRIVATE_KEY=0xYOUR_CLIENT_PRIVATE_KEY
-RPC_URL=https://rpc.bubbletez.com
-SERVER_URL=http://localhost:8001
-FACILITATOR_WALLET=0xYOUR_FACILITATOR_WALLET
-</pre>
-            <pre>docker run --env-file .env \
-  &lt;CLIENT_IMAGE_URL_PLACEHOLDER&gt;
-</pre>
-            <div class="guide-text">
-                Use the Demo tab for interactive testing.
-            </div>
-        </div>
-        </div>
     </div>
 
     <div class="tab-panel" data-panel="demo">
@@ -468,11 +439,10 @@ FACILITATOR_WALLET=0xYOUR_FACILITATOR_WALLET
 
         <!-- Flow Actions -->
         <div class="actions flow-actions">
-            <button id="supported-btn">1. CHECK NETWORK</button>
-            <button id="health-btn">2. CHECK /HEALTH</button>
-            <button id="requirements-btn">3. GET PAYMENT</button>
-            <button id="approve-btn" class="hidden">4. APPROVE PERMIT2</button>
-            <button id="pay-btn" disabled>5. SIGN & PAY 0.01 BBT</button>
+            <button id="health-btn">1. CHECK /HEALTH</button>
+            <button id="requirements-btn">2. GET PAYMENT</button>
+            <button id="approve-btn" class="hidden">3. APPROVE PERMIT2</button>
+            <button id="pay-btn" disabled>4. SIGN & PAY 0.01 BBT</button>
         </div>
 
         <!-- Console -->
@@ -611,6 +581,8 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
     let userAddress;
     let gasPayerMode = "facilitator";
     let tokenDetailsOpen = false;
+    let facilitatorOnline = null;
+    let facilitatorPollTimer = null;
 
     // --- ABI ---
     const ERC20_ABI = [
@@ -628,7 +600,6 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
         statusText: document.getElementById('status-text'),
         approveBtn: document.getElementById('approve-btn'),
         healthBtn: document.getElementById('health-btn'),
-        supportedBtn: document.getElementById('supported-btn'),
         facilitatorInput: document.getElementById('facilitator-input'),
         spenderInput: document.getElementById('spender-input'),
         storeInput: document.getElementById('store-input'),
@@ -706,7 +677,6 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
 
         ui.approveBtn.addEventListener('click', approvePermit2);
         ui.healthBtn.addEventListener('click', checkFacilitatorHealth);
-        ui.supportedBtn.addEventListener('click', openSupported);
         ui.requirementsBtn.addEventListener('click', fetchPaymentRequirements);
         ui.payBtn.addEventListener('click', signAndPay);
         ui.tokenToggleBtn.addEventListener('click', toggleTokenDetails);
@@ -725,6 +695,8 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
 
         setGasPayerMode('facilitator');
         updateTokenToggle();
+
+        startFacilitatorPolling();
 
         const ethersReady = await ensureEthers();
         if (!ethersReady) {
@@ -758,6 +730,52 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
         });
     }
 
+    function setFacilitatorStatus(isOnline) {
+        if (facilitatorOnline === isOnline) {
+            return;
+        }
+        facilitatorOnline = isOnline;
+        ui.statusDot.classList.toggle('active', isOnline);
+        ui.statusText.innerText = isOnline ? "ONLINE" : "OFFLINE";
+    }
+
+    function hasSupportedNetwork(body) {
+        if (!body) {
+            return false;
+        }
+        const text = typeof body === "string" ? body : JSON.stringify(body);
+        return text.includes("eip155:42793") || text.includes("42793");
+    }
+
+    async function pollFacilitatorSupported() {
+        const base = getFacilitatorUrl();
+        if (!base) {
+            setFacilitatorStatus(false);
+            return;
+        }
+        const url = `${base}/supported`;
+        try {
+            const resp = await fetch(url, { cache: "no-store" });
+            const contentType = resp.headers.get("content-type") || "";
+            const body = contentType.includes("application/json") ? await resp.json() : await resp.text();
+            if (!resp.ok) {
+                throw new Error(`HTTP ${resp.status}`);
+            }
+            setFacilitatorStatus(hasSupportedNetwork(body));
+        } catch (err) {
+            setFacilitatorStatus(false);
+        }
+    }
+
+    function startFacilitatorPolling() {
+        pollFacilitatorSupported();
+        if (facilitatorPollTimer) {
+            clearInterval(facilitatorPollTimer);
+        }
+        facilitatorPollTimer = setInterval(pollFacilitatorSupported, 10000);
+        ui.facilitatorInput.addEventListener('change', pollFacilitatorSupported);
+    }
+
     // --- CONNECT WALLET ---
     async function connectWallet() {
         try {
@@ -769,9 +787,6 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
             userAddress = await signer.getAddress();
 
             log(`CONNECTED: ${userAddress.slice(0,6)}...${userAddress.slice(-4)}`, "success");
-            
-            ui.statusDot.classList.add('active');
-            ui.statusText.innerText = "ONLINE";
             ui.account.innerText = userAddress;
 
             await checkNetwork();
@@ -994,6 +1009,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
                 throw new Error(`HTTP ${resp.status}`);
             }
             log("FACILITATOR HEALTHY", "success");
+            setFacilitatorStatus(true);
             let signerAddress = null;
             if (body && typeof body === "object") {
                 signerAddress = body.signer || body.address || body.wallet || body.facilitator;
@@ -1013,41 +1029,6 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
             }
         } catch (err) {
             log(`FACILITATOR CHECK FAILED: ${err.message}`, "error");
-            if (err.message.includes("Failed to fetch")) {
-                log("HINT: Check CORS or Mixed Content (HTTPS vs HTTP)", "info");
-                log("HINT: Ensure Facilitator is running and accessible", "info");
-            }
-        }
-    }
-
-    async function openSupported() {
-        const url = `${getFacilitatorUrl()}/supported`;
-        try {
-            log(`FETCHING SUPPORTED: ${url}`, "info");
-            const resp = await fetch(url);
-            const contentType = resp.headers.get("content-type") || "";
-
-            let body;
-            if (contentType.includes("application/json")) {
-                body = await resp.json();
-            } else {
-                body = await resp.text();
-            }
-
-            if (!resp.ok) {
-                throw new Error(`HTTP ${resp.status}`);
-            }
-
-            if (typeof body === "string") {
-                const trimmed = body.trim();
-                const preview = trimmed.length > 800 ? `${trimmed.slice(0, 800)}...` : trimmed;
-                log(`SUPPORTED RESPONSE: ${preview || "(empty)"}`, "success");
-            } else {
-                const preview = JSON.stringify(body);
-                log(`SUPPORTED RESPONSE: ${preview}`, "success");
-            }
-        } catch (err) {
-            log(`SUPPORTED FETCH FAILED: ${err.message}`, "error");
             if (err.message.includes("Failed to fetch")) {
                 log("HINT: Check CORS or Mixed Content (HTTPS vs HTTP)", "info");
                 log("HINT: Ensure Facilitator is running and accessible", "info");

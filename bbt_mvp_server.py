@@ -327,6 +327,19 @@ async def root():
     }
 
 
+@app.get("/config")
+async def config():
+    return {
+        "x402Version": 2,
+        "scheme": "exact",
+        "network": NETWORK,
+        "asset": f"{NETWORK}/erc20:{BBT_TOKEN}",
+        "payTo": SERVER_WALLET,
+        "amount": PAYMENT_REQUIRED["accepts"][0]["amount"],
+        "facilitatorUrl": FACILITATOR_URL,
+    }
+
+
 @app.get("/api/weather")
 async def weather(request: Request):
     payment_header = request.headers.get("X-PAYMENT") or request.headers.get(
