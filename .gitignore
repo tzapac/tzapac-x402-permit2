@@ -4,6 +4,7 @@ AGENTS.md
 __pycache__/
 *.log
 logs/
+storefront.log
 reports/
 scripts/
 venv/
@@ -16,3 +17,4 @@ bbt-x402-facilitator/bbt_config.etherlink.json
 !**/.env.example
 diary.md
 reports/successful_test_1.md
+debug_middleware.py
