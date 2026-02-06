@@ -1,9 +1,6 @@
 services:
   facilitator:
-    build:
-      context: ./bbt-x402-facilitator
-      dockerfile: Dockerfile.bbt
-    image: bbt-x402-facilitator:permit2
+    image: ghcr.io/tzapac/tzapac-x402-permit2-facilitator:latest
     container_name: bbt-x402-facilitator
     restart: unless-stopped
     ports:
@@ -17,10 +14,9 @@ services:
       - ./bbt-x402-facilitator/bbt_config.multitest.json:/app/bbt_config.json:ro
 
   store-api:
-    image: python:3.11-slim
+    image: ghcr.io/tzapac/tzapac-x402-permit2-store-api:latest
     container_name: bbt-store-api
     restart: unless-stopped
-    working_dir: /app
     env_file:
       - .env.multitest
     environment:
@@ -30,16 +26,12 @@ services:
       - -lc
       - |
         export SERVER_WALLET=$${STORE_ADDRESS:-$${SERVER_WALLET}}
-        pip install --no-cache-dir fastapi uvicorn httpx python-dotenv web3
         python bbt_mvp_server.py
-    volumes:
-      - ./bbt_mvp_server.py:/app/bbt_mvp_server.py:ro
-      - ./logging_utils.py:/app/logging_utils.py:ro
     expose:
       - "8001"
 
   store-proxy:
-    image: nginx:1.27
+    image: ghcr.io/tzapac/tzapac-x402-permit2-store-web:latest
     container_name: bbt-store-proxy
     restart: unless-stopped
     depends_on:
@@ -47,6 +39,3 @@ services:
       - store-api
     ports:
       - "9091:80"
-    volumes:
-      - ./wallet_connect_poc.html:/usr/share/nginx/html/index.html:ro
-      - ./nginx.wallet-poc.conf:/etc/nginx/conf.d/default.conf:ro
