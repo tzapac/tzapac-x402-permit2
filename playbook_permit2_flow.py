@@ -177,7 +177,11 @@ async def _fetch_payment_required() -> dict:
 
 
 async def _check_facilitator() -> None:
-    paths = ["/api/supported", "/supported", "/api/"]
+    if os.getenv("SKIP_FACILITATOR_CHECK", "0") == "1":
+        print("Skipping facilitator check (SKIP_FACILITATOR_CHECK=1).")
+        return
+
+    paths = ["/api/supported", "/supported", "/health", "/"]
     async with httpx.AsyncClient(timeout=5.0) as client:
         last_error: Optional[Exception] = None
         for path in paths:
@@ -197,9 +201,12 @@ async def _check_facilitator() -> None:
             except Exception as exc:
                 last_error = exc
                 continue
+        # Some facilitator deployments don't expose a supported-list endpoint. Treat this as a
+        # soft check and continue; settlement will fail later if the URL is wrong.
         if last_error:
-            raise last_error
-        raise RuntimeError("Facilitator check failed")
+            print(f"WARNING: facilitator check did not succeed ({last_error}); continuing...")
+            return
+        print("WARNING: facilitator check did not succeed; continuing...")
 
 
 def _check_rpc(w3: Web3) -> None:

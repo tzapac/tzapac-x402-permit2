@@ -33,7 +33,8 @@ services:
       - bash
       - -lc
       - |
-        export SERVER_WALLET=33568{STORE_ADDRESS:-33568{SERVER_WALLET}}
+        # Prefer STORE_ADDRESS if provided, otherwise fall back to SERVER_WALLET.
+        export SERVER_WALLET=${STORE_ADDRESS:-${SERVER_WALLET}}
         pip install --no-cache-dir fastapi uvicorn httpx python-dotenv web3
         python bbt_mvp_server.py
     volumes:
