@@ -15,7 +15,7 @@ load_dotenv()
 
 SERVER_URL = os.getenv("SERVER_URL", "http://localhost:8000")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
-FACILITATOR_URL = os.getenv("FACILITATOR_URL", "https://exp-faci.etherlinkinsights.com")
+FACILITATOR_URL = os.getenv("FACILITATOR_URL", "https://exp-faci.bubbletez.com")
 
 if not PRIVATE_KEY:
     raise ValueError("PRIVATE_KEY required in .env")

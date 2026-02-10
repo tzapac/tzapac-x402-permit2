@@ -170,10 +170,22 @@ def _extract_permit2_payload(payment_payload: dict) -> dict | None:
     payload = payment_payload.get("payload")
     if not isinstance(payload, dict):
         return None
+    # Coinbase x402 model 3: SignatureTransfer (PermitWitnessTransferFrom)
+    permit2_auth = payload.get("permit2Authorization")
+    signature = payload.get("signature")
+    if isinstance(permit2_auth, dict) and signature:
+        return {
+            "kind": "witness",
+            "permit2Authorization": permit2_auth,
+            "signature": signature,
+        }
+
+    # Legacy PoC: AllowanceTransfer (PermitSingle)
     permit2 = payload.get("permit2")
-    if not isinstance(permit2, dict):
-        return None
-    return permit2
+    if isinstance(permit2, dict):
+        return {"kind": "allowance", "permit2": permit2}
+
+    return None
 
 
 def _verify_client_payment(
@@ -388,15 +400,51 @@ async def weather(request: Request):
             media_type="application/json",
         )
 
-    permit_single = permit2_payload.get("permitSingle", {})
-    details = permit_single.get("details", {})
-    owner = permit2_payload.get("owner")
-    spender = permit_single.get("spender")
-    token = details.get("token")
-    amount_raw = details.get("amount")
     pay_to = requirements_for_facilitator.get("payTo")
+    if not pay_to:
+        return Response(
+            content=json.dumps({"error": "Missing payTo in requirements"}),
+            status_code=400,
+            media_type="application/json",
+        )
 
-    if not owner or not spender or not token or amount_raw is None or not pay_to:
+    kind = permit2_payload.get("kind")
+    if kind == "witness":
+        permit2_auth = permit2_payload.get("permit2Authorization", {}) or {}
+        permitted = permit2_auth.get("permitted", {}) or {}
+        witness = permit2_auth.get("witness", {}) or {}
+
+        owner = permit2_auth.get("from")
+        spender = permit2_auth.get("spender")
+        token = permitted.get("token")
+        amount_raw = permitted.get("amount")
+
+        witness_to = witness.get("to")
+        if witness_to and str(witness_to).lower() != str(pay_to).lower():
+            return Response(
+                content=json.dumps(
+                    {"error": "Recipient mismatch (witness.to must equal payTo)"}
+                ),
+                status_code=402,
+                media_type="application/json",
+            )
+    elif kind == "allowance":
+        permit2 = permit2_payload.get("permit2", {}) or {}
+        permit_single = permit2.get("permitSingle", {}) or {}
+        details = permit_single.get("details", {}) or {}
+
+        owner = permit2.get("owner")
+        spender = permit_single.get("spender")
+        token = details.get("token")
+        amount_raw = details.get("amount")
+    else:
+        return Response(
+            content=json.dumps({"error": "Unknown Permit2 payload kind"}),
+            status_code=400,
+            media_type="application/json",
+        )
+
+    if not owner or not spender or not token or amount_raw is None:
         return Response(
             content=json.dumps({"error": "Incomplete permit2 payload"}),
             status_code=400,
@@ -478,7 +526,15 @@ async def weather(request: Request):
                 status_code=402,
                 media_type="application/json",
             )
-        tx_hash, error = _settle_with_store(permit2_payload, pay_to)
+        if kind != "allowance":
+            return Response(
+                content=json.dumps(
+                    {"error": "Store gas is only supported for Permit2 PermitSingle payloads"}
+                ),
+                status_code=402,
+                media_type="application/json",
+            )
+        tx_hash, error = _settle_with_store(permit2_payload["permit2"], pay_to)
         if error:
             return Response(
                 content=json.dumps(

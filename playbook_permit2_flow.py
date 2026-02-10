@@ -22,7 +22,7 @@ from web3 import Web3
 load_dotenv()
 
 SERVER_URL = os.getenv("SERVER_URL", "http://localhost:8001")
-FACILITATOR_URL = os.getenv("FACILITATOR_URL", "https://exp-faci.etherlinkinsights.com")
+FACILITATOR_URL = os.getenv("FACILITATOR_URL", "https://exp-faci.bubbletez.com")
 RPC_URL = os.getenv("NODE_URL", os.getenv("RPC_URL", "https://rpc.bubbletez.com"))
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 SERVER_WALLET = os.getenv("SERVER_WALLET", "0xA6e868Cd44C7643Fb4Ca9E2D0D66B13f403B488F")

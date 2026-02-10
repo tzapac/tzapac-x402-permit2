@@ -56,10 +56,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // GET /dynamic-price-v2?discount -> 50 units (discounted)
         .route(
             "/dynamic-price-v2",
-            get(my_handler).layer(x402.with_dynamic_price(|_headers, uri, _base_url| {
+            get(my_handler).layer(x402.with_dynamic_price({ let bbt = bbt.clone(); move |_headers, uri, _base_url| {
                 // Check if "discount" query parameter is present (before async block)
                 let has_discount = uri.query().map(|q| q.contains("discount")).unwrap_or(false);
                 let amount: u64 = if has_discount { 50 } else { 100 };
+                let bbt = bbt.clone();
 
                 async move {
                     vec![
@@ -70,7 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         ),
                     ]
                 }
-            })),
+            }})),
         )
         // Conditional free access: bypass payment when "free" query parameter is present
         // GET /conditional-free-v2 -> requires payment (402)
@@ -80,9 +81,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Useful for implementing free tiers, promotional access, or conditional pricing.
         .route(
             "/conditional-free-v2",
-            get(my_handler).layer(x402.with_dynamic_price(|_headers, uri, _base_url| {
+            get(my_handler).layer(x402.with_dynamic_price({ let bbt = bbt.clone(); move |_headers, uri, _base_url| {
                 // Check if "free" query parameter is present - if so, bypass payment
                 let is_free = uri.query().map(|q| q.contains("free")).unwrap_or(false);
+                let bbt = bbt.clone();
 
                 async move {
                     if is_free {
@@ -100,7 +102,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         ]
                     }
                 }
-            })),
+            }})),
         );
 
     tracing::info!("Using facilitator on {}", x402.facilitator_url());

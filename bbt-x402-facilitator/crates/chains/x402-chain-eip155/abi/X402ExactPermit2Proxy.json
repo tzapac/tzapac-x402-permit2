@@ -1,0 +1,40 @@
+[
+  {
+    "type": "function",
+    "name": "settle",
+    "inputs": [
+      {
+        "internalType": "struct X402ExactPermit2Proxy.PermitTransferFrom",
+        "name": "permit",
+        "type": "tuple",
+        "components": [
+          {
+            "internalType": "struct X402ExactPermit2Proxy.TokenPermissions",
+            "name": "permitted",
+            "type": "tuple",
+            "components": [
+              { "internalType": "address", "name": "token", "type": "address" },
+              { "internalType": "uint256", "name": "amount", "type": "uint256" }
+            ]
+          },
+          { "internalType": "uint256", "name": "nonce", "type": "uint256" },
+          { "internalType": "uint256", "name": "deadline", "type": "uint256" }
+        ]
+      },
+      { "internalType": "address", "name": "owner", "type": "address" },
+      {
+        "internalType": "struct X402ExactPermit2Proxy.Witness",
+        "name": "witness",
+        "type": "tuple",
+        "components": [
+          { "internalType": "address", "name": "to", "type": "address" },
+          { "internalType": "uint256", "name": "validAfter", "type": "uint256" },
+          { "internalType": "bytes", "name": "extra", "type": "bytes" }
+        ]
+      },
+      { "internalType": "bytes", "name": "signature", "type": "bytes" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  }
+]

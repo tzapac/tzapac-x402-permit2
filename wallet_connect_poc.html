@@ -397,7 +397,7 @@
             <div class="data-row">
                 <span class="data-label">Facilitator URL</span>
                 <span class="data-value address">
-                    <input id="facilitator-input" class="text-input" type="text" value="https://exp-faci.etherlinkinsights.com" />
+                    <input id="facilitator-input" class="text-input" type="text" value="https://exp-faci.bubbletez.com" />
                 </span>
             </div>
             <div class="data-row">
@@ -413,7 +413,7 @@
             <div class="data-row">
                 <span class="data-label">Store API URL</span>
                 <span class="data-value address">
-                    <input id="store-input" class="text-input" type="text" value="https://exp-store.etherlinkinsights.com/api/weather" />
+                    <input id="store-input" class="text-input" type="text" value="https://exp-store.bubbletez.com/api/weather" />
                 </span>
             </div>
             <div class="data-row">
@@ -490,12 +490,13 @@
             <div class="guide-block">
                 <div class="guide-title">Store / Server Setup</div>
                 <div class="guide-text">
-                    Run the store API that serves paid content and calls the facilitator for settlement.
+                    Run two containers: the store API (paid endpoint) and the store web/proxy (demo UI + /api proxy).
                 </div>
                 <ul class="guide-list">
-                    <li>Download image (placeholder): https://example.com/x402-store-image</li>
+                    <li>Store API image: ghcr.io/tzapac/tzapac-x402-permit2-store-api:latest</li>
+                    <li>Store web image: ghcr.io/tzapac/tzapac-x402-permit2-store-web:latest</li>
                     <li>Create a .env file with your store wallet and facilitator URL.</li>
-                    <li>Run the container and expose port 8001.</li>
+                    <li>Create a Docker network and run both containers.</li>
                 </ul>
                 <pre># .env
 FACILITATOR_URL=http://localhost:9090
@@ -503,11 +504,21 @@ RPC_URL=https://rpc.bubbletez.com
 SERVER_WALLET=0xYOUR_STORE_WALLET
 STORE_PRIVATE_KEY=0xYOUR_STORE_PRIVATE_KEY
 </pre>
-                <pre>docker run --env-file .env -p 8001:8001 \
-  &lt;STORE_IMAGE_URL_PLACEHOLDER&gt;
+                <pre>docker network create x402-store || true
+
+docker run -d --name x402-store-api \
+  --network x402-store \
+  --env-file .env \
+  -p 8001:8001 \
+  ghcr.io/tzapac/tzapac-x402-permit2-store-api:latest
+
+docker run -d --name x402-store-web \
+  --network x402-store \
+  -p 9091:80 \
+  ghcr.io/tzapac/tzapac-x402-permit2-store-web:latest
 </pre>
                 <div class="guide-text">
-                    For local dev, you can also run: python bbt_mvp_server.py
+                    For local dev, you can also run this stack with docker-compose.wallet-poc.yml.
                 </div>
             </div>
         </div>
@@ -521,7 +532,7 @@ STORE_PRIVATE_KEY=0xYOUR_STORE_PRIVATE_KEY
                     Run the Permit2 facilitator that settles payments on-chain.
                 </div>
                 <ul class="guide-list">
-                    <li>Download image (placeholder): https://example.com/x402-facilitator-image</li>
+                    <li>Facilitator image: ghcr.io/tzapac/tzapac-x402-permit2-facilitator:latest</li>
                     <li>Create a config file and provide a signer private key.</li>
                     <li>Run the container and expose port 9090.</li>
                 </ul>
@@ -548,7 +559,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
 </pre>
                 <pre>docker run --env-file .env -p 9090:9090 \
   -v $(pwd)/bbt_config.json:/app/bbt_config.json \
-  &lt;FACILITATOR_IMAGE_URL_PLACEHOLDER&gt; --config /app/bbt_config.json
+  ghcr.io/tzapac/tzapac-x402-permit2-facilitator:latest --config /app/bbt_config.json
 </pre>
                 <div class="guide-text">
                     For local dev, run the Rust binary with the same config.
@@ -567,10 +578,12 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
     // --- CONSTANTS ---
     const BBT_ADDRESS = "0x7EfE4bdd11237610bcFca478937658bE39F8dfd6";
     const PERMIT2_ADDRESS = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
+    // Coinbase x402 vanity address. Not deployed on every chain.
+    const DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS = "0x4020615294c913F045dc10f0a5cdEbd86c280001";
     const ETHERLINK_CHAIN_ID = 42793;
     const ETHERLINK_CHAIN_ID_HEX = "0xA739";
     const RPC_URL = "https://rpc.bubbletez.com";
-    const DEFAULT_FACILITATOR_URL = "https://exp-faci.etherlinkinsights.com";
+    const DEFAULT_FACILITATOR_URL = "https://exp-faci.bubbletez.com";
     const ETHERS_CDN_URLS = [
         "https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js",
         "https://unpkg.com/ethers@6.13.4/dist/ethers.umd.min.js"
@@ -1089,6 +1102,13 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
             }
             return null;
         }
+        if (gasPayerMode === "facilitator") {
+            const input = ui.spenderInput.value.trim();
+            if (input) {
+                return input;
+            }
+            return DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS;
+        }
         const input = ui.spenderInput.value.trim();
         if (input) {
             return input;
@@ -1208,78 +1228,154 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
                 return;
             }
 
-            const permit2Abi = [
-                "function allowance(address owner,address token,address spender) view returns (uint160 amount,uint48 expiration,uint48 nonce)",
-                "function permit(address owner, tuple(tuple(address token,uint160 amount,uint48 expiration,uint48 nonce) details,address spender,uint256 sigDeadline) permitSingle, bytes signature)",
-                "function transferFrom(address from,address to,uint160 amount,address token)"
-            ];
-            const permit2 = new ethers.Contract(PERMIT2_ADDRESS, permit2Abi, signer);
-            const allowanceData = await permit2.allowance(userAddress, tokenAddress, spender);
-            const nonce = allowanceData[2];
-
-            const now = Math.floor(Date.now() / 1000);
-            const expiration = BigInt(now + 3600);
-            const sigDeadline = BigInt(now + 3600);
-
             const domain = {
                 name: "Permit2",
                 chainId: ETHERLINK_CHAIN_ID,
                 verifyingContract: PERMIT2_ADDRESS
             };
 
-            const types = {
-                PermitDetails: [
-                    { name: "token", type: "address" },
-                    { name: "amount", type: "uint160" },
-                    { name: "expiration", type: "uint48" },
-                    { name: "nonce", type: "uint48" }
-                ],
-                PermitSingle: [
-                    { name: "details", type: "PermitDetails" },
-                    { name: "spender", type: "address" },
-                    { name: "sigDeadline", type: "uint256" }
-                ]
-            };
+            let signatureForLog = null;
+            let permit2 = null;
+            let permitSingleValue = null;
+            let permitSingleSignature = null;
+            let payload;
+            if (gasPayerMode === "facilitator") {
+                // Coinbase x402 model 3: PermitWitnessTransferFrom (SignatureTransfer)
+                const now = Math.floor(Date.now() / 1000);
+                const deadline = BigInt(now + 3600);
+                const validAfter = BigInt(Math.max(0, now - 600));
+                const nonce = BigInt(ethers.hexlify(ethers.randomBytes(32)));
 
-            const value = {
-                details: {
-                    token: tokenAddress,
-                    amount,
-                    expiration,
-                    nonce
-                },
-                spender,
-                sigDeadline
-            };
+                const types = {
+                    PermitWitnessTransferFrom: [
+                        { name: "permitted", type: "TokenPermissions" },
+                        { name: "spender", type: "address" },
+                        { name: "nonce", type: "uint256" },
+                        { name: "deadline", type: "uint256" },
+                        { name: "witness", type: "Witness" }
+                    ],
+                    TokenPermissions: [
+                        { name: "token", type: "address" },
+                        { name: "amount", type: "uint256" }
+                    ],
+                    Witness: [
+                        { name: "to", type: "address" },
+                        { name: "validAfter", type: "uint256" },
+                        { name: "extra", type: "bytes" }
+                    ]
+                };
 
-            log("SIGNING PERMIT2...", "info");
-            const signature = await signer.signTypedData(domain, types, value);
-
-            const payload = {
-                x402Version: 2,
-                scheme: "exact",
-                network: "eip155:42793",
-                payload: {
-                    permit2: {
-                        owner: userAddress,
-                        permitSingle: {
-                            details: {
-                                token: tokenAddress,
-                                amount: amount.toString(),
-                                expiration: Number(expiration),
-                                nonce: Number(nonce)
-                            },
-                            spender,
-                            sigDeadline: Number(sigDeadline)
-                        },
-                        signature
+                const value = {
+                    permitted: {
+                        token: tokenAddress,
+                        amount
+                    },
+                    spender,
+                    nonce,
+                    deadline,
+                    witness: {
+                        to: payTo,
+                        validAfter,
+                        extra: "0x"
                     }
-                }
-            };
+                };
+
+                log("SIGNING PERMIT2 (WITNESS)...", "info");
+                const signature = await signer.signTypedData(domain, types, value);
+                signatureForLog = signature;
+
+                payload = {
+                    x402Version: 2,
+                    scheme: "exact",
+                    network: "eip155:42793",
+                    payload: {
+                        signature,
+                        permit2Authorization: {
+                            from: userAddress,
+                            permitted: { token: tokenAddress, amount: amount.toString() },
+                            spender,
+                            nonce: nonce.toString(),
+                            deadline: deadline.toString(),
+                            witness: {
+                                to: payTo,
+                                validAfter: validAfter.toString(),
+                                extra: "0x"
+                            }
+                        }
+                    }
+                };
+            } else {
+                // Legacy PoC: PermitSingle (AllowanceTransfer)
+                const permit2Abi = [
+                    "function allowance(address owner,address token,address spender) view returns (uint160 amount,uint48 expiration,uint48 nonce)",
+                    "function permit(address owner, tuple(tuple(address token,uint160 amount,uint48 expiration,uint48 nonce) details,address spender,uint256 sigDeadline) permitSingle, bytes signature)",
+                    "function transferFrom(address from,address to,uint160 amount,address token)"
+                ];
+                permit2 = new ethers.Contract(PERMIT2_ADDRESS, permit2Abi, signer);
+                const allowanceData = await permit2.allowance(userAddress, tokenAddress, spender);
+                const nonce = allowanceData[2];
+
+                const now = Math.floor(Date.now() / 1000);
+                const expiration = BigInt(now + 3600);
+                const sigDeadline = BigInt(now + 3600);
+
+                const types = {
+                    PermitDetails: [
+                        { name: "token", type: "address" },
+                        { name: "amount", type: "uint160" },
+                        { name: "expiration", type: "uint48" },
+                        { name: "nonce", type: "uint48" }
+                    ],
+                    PermitSingle: [
+                        { name: "details", type: "PermitDetails" },
+                        { name: "spender", type: "address" },
+                        { name: "sigDeadline", type: "uint256" }
+                    ]
+                };
+
+                const value = {
+                    details: {
+                        token: tokenAddress,
+                        amount,
+                        expiration,
+                        nonce
+                    },
+                    spender,
+                    sigDeadline
+                };
+
+                log("SIGNING PERMIT2...", "info");
+                const signature = await signer.signTypedData(domain, types, value);
+                signatureForLog = signature;
+                permitSingleValue = value;
+                permitSingleSignature = signature;
+
+                payload = {
+                    x402Version: 2,
+                    scheme: "exact",
+                    network: "eip155:42793",
+                    payload: {
+                        permit2: {
+                            owner: userAddress,
+                            permitSingle: {
+                                details: {
+                                    token: tokenAddress,
+                                    amount: amount.toString(),
+                                    expiration: Number(expiration),
+                                    nonce: Number(nonce)
+                                },
+                                spender,
+                                sigDeadline: Number(sigDeadline)
+                            },
+                            signature
+                        }
+                    }
+                };
+            }
 
             const header = toBase64(JSON.stringify(payload));
 
-            log(`PERMIT2 SIGNATURE: ${signature}`, "success");
+            log(`PERMIT2 SIGNATURE: ${signatureForLog || "(none)"}`, "success");
             log(`PAYLOAD JSON: ${JSON.stringify(payload, null, 2)}`, "info");
             log(`X-PAYMENT (base64): ${header}`, "info");
 
@@ -1289,8 +1385,12 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
             };
 
             if (gasPayerMode === "client") {
+                if (!permit2 || !permitSingleValue || !permitSingleSignature) {
+                    log("CLIENT GAS MODE REQUIRES PermitSingle PAYLOAD", "error");
+                    return;
+                }
                 log("SUBMITTING PERMIT2 (CLIENT GAS)...", "info");
-                const permitTx = await permit2.permit(userAddress, value, signature);
+                const permitTx = await permit2.permit(userAddress, permitSingleValue, permitSingleSignature);
                 await permitTx.wait();
                 log(`PERMIT TX: ${permitTx.hash}`, "success");
 

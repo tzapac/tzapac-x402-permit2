@@ -23,10 +23,13 @@ use crate::V2Eip155Exact;
 use crate::chain::{Eip155ChainReference, Eip155MetaTransactionProvider};
 use crate::v1_eip155_exact::ExactScheme;
 use crate::v1_eip155_exact::facilitator::{
-    Eip155ExactError, ExactEvmPayment, IEIP3009, IPermit2, Permit2Payment,
+    Eip155ExactError, ExactEvmPayment, IEIP3009, IPermit2, Permit2Payment, Permit2WitnessPayment,
+    X402ExactPermit2Proxy,
     assert_domain, assert_enough_balance, assert_enough_value, assert_permit2_domain,
-    assert_permit2_time, assert_time, settle_payment, settle_payment_permit2,
-    verify_payment, verify_payment_permit2,
+    assert_permit2_time, assert_permit2_witness_domain, assert_permit2_witness_time, assert_time,
+    settle_payment, settle_payment_permit2, settle_payment_permit2_witness,
+    verify_payment, verify_payment_permit2, verify_payment_permit2_witness,
+    x402_exact_permit2_proxy_address,
 };
 use crate::v2_eip155_exact::types;
 
@@ -111,6 +114,11 @@ where
                 payment,
                 domain,
             } => verify_payment_permit2(self.provider.inner(), &contract, &payment, &domain).await?,
+            PaymentContext::Permit2Witness {
+                contract,
+                payment,
+                domain,
+            } => verify_payment_permit2_witness(self.provider.inner(), &contract, &payment, &domain).await?,
         };
         Ok(v2::VerifyResponse::valid(payer.to_string()).into())
     }
@@ -156,6 +164,14 @@ where
                     settlement,
                 )
             }
+            PaymentContext::Permit2Witness {
+                contract,
+                payment,
+                domain,
+            } => (
+                payment.from,
+                settle_payment_permit2_witness(&self.provider, &contract, &payment, &domain).await?,
+            ),
         };
 
         Ok(v2::SettleResponse::Success {
@@ -198,6 +214,11 @@ enum PaymentContext<'a, P: Provider> {
         payment: Permit2Payment,
         domain: Eip712Domain,
     },
+    Permit2Witness {
+        contract: X402ExactPermit2Proxy::X402ExactPermit2ProxyInstance<&'a P>,
+        payment: Permit2WitnessPayment,
+        domain: Eip712Domain,
+    },
 }
 
 /// Runs all preconditions needed for a successful payment:
@@ -235,7 +256,71 @@ async fn assert_valid_payment<'a, P: Provider>(
             return Err(PaymentVerificationError::ChainIdMismatch.into());
         }
     }
-    if let Some(permit2) = payload.permit2.as_ref() {
+    if let Some(permit2_auth) = payload.permit2_authorization.as_ref() {
+        let proxy_address = x402_exact_permit2_proxy_address();
+        let asset_address: alloy_primitives::Address = accepted.asset.address();
+        let amount_required = accepted.amount;
+        let amount_required_u256: alloy_primitives::U256 = amount_required.into();
+
+        if permit2_auth.permitted.token != asset_address {
+            return Err(PaymentVerificationError::AssetMismatch.into());
+        }
+        if permit2_auth.spender != proxy_address {
+            return Err(PaymentVerificationError::InvalidFormat(
+                "permit2Authorization.spender must be the x402 Permit2 proxy".to_string(),
+            )
+            .into());
+        }
+        if permit2_auth.witness.to != accepted.pay_to.address() {
+            return Err(PaymentVerificationError::RecipientMismatch.into());
+        }
+        if permit2_auth.permitted.amount != amount_required_u256 {
+            return Err(PaymentVerificationError::InvalidPaymentAmount.into());
+        }
+
+        assert_permit2_witness_time(permit2_auth.deadline, permit2_auth.witness.valid_after)?;
+
+        let erc20_contract = IEIP3009::new(asset_address, provider);
+        assert_enough_balance(&erc20_contract, &permit2_auth.from, amount_required_u256).await?;
+
+        let allowance = erc20_contract
+            .allowance(permit2_auth.from, crate::v1_eip155_exact::facilitator::PERMIT2_ADDRESS)
+            .call()
+            .await
+            .map_err(|e| PaymentVerificationError::TransactionSimulation(e.to_string()))?;
+        if allowance < amount_required_u256 {
+            return Err(PaymentVerificationError::TransactionSimulation(
+                "Permit2 ERC20 allowance is insufficient".to_string(),
+            )
+            .into());
+        }
+
+        let signature = payload.signature.clone().ok_or_else(|| {
+            PaymentVerificationError::InvalidFormat("Missing signature".to_string())
+        })?;
+
+        let domain = assert_permit2_witness_domain(chain);
+        let contract = X402ExactPermit2Proxy::new(proxy_address, provider);
+        let payment = Permit2WitnessPayment {
+            from: permit2_auth.from,
+            spender: permit2_auth.spender,
+            token: asset_address,
+            amount: permit2_auth.permitted.amount,
+            nonce: permit2_auth.nonce,
+            deadline: permit2_auth.deadline,
+            pay_to: accepted.pay_to.address(),
+            valid_after: permit2_auth.witness.valid_after,
+            extra: permit2_auth.witness.extra.clone(),
+            signature,
+            transfer_amount: amount_required_u256,
+        };
+
+        Ok(PaymentContext::Permit2Witness {
+            contract,
+            payment,
+            domain,
+        })
+    } else if let Some(permit2) = payload.permit2.as_ref() {
         let permit_single = &permit2.permit_single;
         let details = &permit_single.details;
         let asset_address: alloy_primitives::Address = accepted.asset.address();

@@ -12,7 +12,7 @@ load_dotenv()
 app = FastAPI()
 http_client = httpx.AsyncClient(timeout=30.0)
 
-FACILITATOR_URL = os.getenv("FACILITATOR_URL", "https://exp-faci.etherlinkinsights.com")
+FACILITATOR_URL = os.getenv("FACILITATOR_URL", "https://exp-faci.bubbletez.com")
 SERVER_WALLET = os.getenv("SERVER_WALLET", "0x81C54CB7690016b2b0c3017a4991783964601bd9")
 BBT_TOKEN = "0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"
 NETWORK = "eip155:42793"

@@ -11,7 +11,7 @@ from x402.http.middleware.fastapi import PaymentMiddlewareASGI
 from x402.mechanisms.evm.exact.register import register_exact_evm_server
 from x402.server import x402ResourceServer
 
-FACILITATOR_URL = os.getenv("FACILITATOR_URL", "https://exp-faci.etherlinkinsights.com")
+FACILITATOR_URL = os.getenv("FACILITATOR_URL", "https://exp-faci.bubbletez.com")
 ETHERLINK_CHAIN = "eip155:42793"
 BBT_TOKEN_ADDRESS = "0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"
 SERVER_WALLET = os.getenv("SERVER_WALLET", "0x81C54dB7690016b2b0c3017a4981783964601bd9")

@@ -1,6 +1,7 @@
 PROOF_OF_CONCEPT.md
 x402_permit2_report.md
 AGENTS.md
+agents.md
 __pycache__/
 *.log
 logs/
@@ -10,6 +11,7 @@ scripts/
 venv/
 reports/permit2-change-impact-table.md
 bbt-x402-facilitator/bbt_config.etherlink.json
+bbt-x402-facilitator/bbt_config.multitest.json
 .worktrees/
 .env
 .env.*
