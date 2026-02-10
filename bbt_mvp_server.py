@@ -711,7 +711,11 @@ async def weather(request: Request):
             }
         ),
         status_code=200,
-        headers={"X-PAYMENT-RESPONSE": x_payment_response},
+        # Match x402-axum's header name; also keep the legacy uppercase variant.
+        headers={
+            "X-Payment-Response": x_payment_response,
+            "X-PAYMENT-RESPONSE": x_payment_response,
+        },
         media_type="application/json",
     )
 
