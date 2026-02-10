@@ -106,6 +106,7 @@ Coinbase specs require an atomic bundle for the sponsored-approval flow to avoid
 
 This repo:
 - Does not implement a bundling mechanism.
+- The Etherlink public RPC endpoint `https://node.mainnet.etherlink.com` does not expose common bundle/private-transaction RPC methods (for example `eth_sendBundle`, `mev_sendBundle`, `eth_sendPrivateTransaction`), so this PoC does not attempt to support atomic multi-tx bundling via RPC.
 
 ## Practical Consequence
 
