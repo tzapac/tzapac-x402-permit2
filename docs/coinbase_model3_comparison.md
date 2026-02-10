@@ -1,10 +1,10 @@
-# Coinbase Model 3 (Permit2 Proxy) vs This Repo (Etherlink PoC)
+# Coinbase (Permit2 Proxy) vs This Repo (Etherlink PoC)
 
 Branch: `codex/x402-coinbase-model3-align`
 
 ## Executive Summary
 
-- The Model 3 Permit2 SignatureTransfer path is aligned with Coinbase’s design: the client signs `PermitWitnessTransferFrom` where `spender` is an x402 Permit2 proxy, the facilitator pays gas and calls `proxy.settle(...)`, and the proxy enforces `witness.to == payTo` on-chain.
+- The Permit2 SignatureTransfer path is aligned with Coinbase’s design: the client signs `PermitWitnessTransferFrom` where `spender` is an x402 Permit2 proxy, the facilitator pays gas and calls `proxy.settle(...)`, and the proxy enforces `witness.to == payTo` on-chain.
 - The primary difference is deployment/infrastructure, not protocol semantics: Coinbase targets a deterministic proxy address on supported chains; Etherlink does not have Coinbase’s proxy deployed, so we deployed the same proxy source at a different address and override it via `X402_EXACT_PERMIT2_PROXY_ADDRESS`.
 
 ## Data Flow Comparison
@@ -25,9 +25,9 @@ This repo (current PoC):
 Impact:
 - This repo’s Permit2 selection is effectively hard-wired by the PoC client/server rather than negotiated via `assetTransferMethod`.
 
-### Payment payload (Permit2 Model 3)
+### Payment payload (Permit2)
 
-Coinbase Model 3:
+Coinbase:
 - `payload.signature`: EIP-712 signature over Permit2 `PermitWitnessTransferFrom`.
 - `payload.permit2Authorization`: `{ from, permitted{token,amount}, spender, nonce, deadline, witness{to,validAfter,extra} }`.
 - Critical invariant: `spender` must be the proxy contract, not the facilitator.
@@ -44,7 +44,7 @@ Impact:
 
 ## Money Flow Comparison
 
-Coinbase Model 3:
+Coinbase:
 - Tokens move directly from client wallet to `payTo` via Permit2 SignatureTransfer executed by the proxy.
 - Facilitator pays gas, but never receives tokens unless you explicitly add a fee mechanism.
 
@@ -54,7 +54,7 @@ This repo:
 
 ## On-Chain Enforcement Comparison
 
-Coinbase Model 3 proxy:
+Coinbase proxy:
 - Enforces `block.timestamp >= witness.validAfter`.
 - Enforces `amount <= permitted.amount`.
 - Computes `witnessHash` and calls `Permit2.permitWitnessTransferFrom(...)`.
@@ -99,7 +99,7 @@ This repo:
 
 ## Practical Consequence
 
-If Coinbase deploys their official proxy on Etherlink, the Model 3 integration should reduce to changing only `X402_EXACT_PERMIT2_PROXY_ADDRESS`.
+If Coinbase deploys their official proxy on Etherlink, the Coinbase integration should reduce to changing only `X402_EXACT_PERMIT2_PROXY_ADDRESS`.
 
 What stays the same:
 - signed data format

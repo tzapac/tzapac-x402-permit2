@@ -48,9 +48,9 @@ This PoC implements **Permit2** for authorization and settlement pathing.
 
 Reason: **USDC EIP-3009 is not currently supported on Etherlink in this setup**, so Permit2 is used as the practical mechanism for this Etherlink-first BBT demonstration.
 
-## Coinbase Model 3 (Permit2 Proxy)
+## Coinbase (Permit2 Proxy)
 
-This branch aligns the Etherlink Permit2 flow with Coinbase's Model 3 design for the x402 `exact` scheme:
+This branch aligns the Etherlink Permit2 flow with Coinbase's design for the x402 `exact` scheme:
 
 - The client signs a Permit2 `PermitWitnessTransferFrom` (SignatureTransfer) where `spender` is an **x402 Permit2 proxy contract** (not the facilitator).
 - The facilitator pays gas and calls the proxy `settle(...)` method.
@@ -72,7 +72,7 @@ Set `X402_EXACT_PERMIT2_PROXY_ADDRESS` to the proxy address above in:
 
 If Coinbase deploys their official x402 Permit2 proxy to Etherlink, integration should reduce to **changing only** `X402_EXACT_PERMIT2_PROXY_ADDRESS` to the Coinbase-deployed address. The payload format, settlement call, and on-chain protections remain the same.
 
-### Local Model 3 Stack
+### Local Coinbase Stack
 
 This repo includes a dedicated compose file that pins the Etherlink proxy address:
 
