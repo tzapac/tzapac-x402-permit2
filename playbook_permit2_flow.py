@@ -39,9 +39,13 @@ SERVER_URL = os.getenv("SERVER_URL", "http://localhost:8001")
 FACILITATOR_URL = os.getenv("FACILITATOR_URL", "http://localhost:9090")
 RPC_URL = os.getenv("NODE_URL", os.getenv("RPC_URL", "https://rpc.bubbletez.com"))
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
+# Optional: used to top-up gas / tokens for the active PRIVATE_KEY wallet.
+FUNDING_PRIVATE_KEY = os.getenv("FUNDING_PRIVATE_KEY")
 
 CHAIN_ID = int(os.getenv("CHAIN_ID", "42793"))
 BBT_TOKEN = os.getenv("BBT_TOKEN", "0x7EfE4bdd11237610bcFca478937658bE39F8dfd6")
+MIN_NATIVE_BALANCE_WEI = int(os.getenv("MIN_NATIVE_BALANCE_WEI", str(10**15)))  # 0.001 native
+MIN_BBT_BALANCE = int(os.getenv("MIN_BBT_BALANCE", "0"))
 
 PERMIT2_ADDRESS = os.getenv(
     "PERMIT2_ADDRESS",
@@ -63,6 +67,13 @@ TX_RE = re.compile(r"0x[a-fA-F0-9]{64}")
 
 ERC20_ABI = [
     {
+        "name": "balanceOf",
+        "type": "function",
+        "stateMutability": "view",
+        "inputs": [{"name": "owner", "type": "address"}],
+        "outputs": [{"name": "", "type": "uint256"}],
+    },
+    {
         "name": "allowance",
         "type": "function",
         "stateMutability": "view",
@@ -78,6 +89,16 @@ ERC20_ABI = [
         "stateMutability": "nonpayable",
         "inputs": [
             {"name": "spender", "type": "address"},
+            {"name": "amount", "type": "uint256"},
+        ],
+        "outputs": [{"name": "", "type": "bool"}],
+    },
+    {
+        "name": "transfer",
+        "type": "function",
+        "stateMutability": "nonpayable",
+        "inputs": [
+            {"name": "to", "type": "address"},
             {"name": "amount", "type": "uint256"},
         ],
         "outputs": [{"name": "", "type": "bool"}],
@@ -281,6 +302,103 @@ def _build_fee_params(w3: Web3) -> dict:
     return {"gasPrice": w3.eth.gas_price}
 
 
+def _native_balance(w3: Web3, addr: str) -> int:
+    return int(w3.eth.get_balance(Web3.to_checksum_address(addr)))
+
+
+def _erc20_balance(w3: Web3, token_address: str, owner: str) -> int:
+    token = w3.eth.contract(address=Web3.to_checksum_address(token_address), abi=ERC20_ABI)
+    return int(token.functions.balanceOf(Web3.to_checksum_address(owner)).call())
+
+
+def _ensure_native_topup(w3: Web3, to_addr: str, min_balance_wei: int) -> None:
+    if not FUNDING_PRIVATE_KEY:
+        return
+
+    current = _native_balance(w3, to_addr)
+    if current >= int(min_balance_wei):
+        return
+
+    funder = Account.from_key(FUNDING_PRIVATE_KEY)
+    funder_addr = Web3.to_checksum_address(funder.address)
+    to_addr = Web3.to_checksum_address(to_addr)
+
+    # Conservative fixed top-up.
+    topup = int(min_balance_wei) * 5
+    print(
+        f"Top-up native balance: {to_addr} has {current} wei (<{min_balance_wei}); "
+        f"sending {topup} wei from {funder_addr}"
+    )
+
+    nonce = w3.eth.get_transaction_count(funder_addr)
+    fee_params = _build_fee_params(w3)
+    tx = {
+        "from": funder_addr,
+        "to": to_addr,
+        "value": topup,
+        "nonce": nonce,
+        "chainId": CHAIN_ID,
+        **fee_params,
+    }
+    gas_est = w3.eth.estimate_gas(tx)
+    tx["gas"] = int(gas_est * 12 // 10)
+    signed = w3.eth.account.sign_transaction(tx, private_key=FUNDING_PRIVATE_KEY)
+    raw = getattr(signed, "rawTransaction", None) or getattr(signed, "raw_transaction")
+    tx_hash = w3.eth.send_raw_transaction(raw)
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=180)
+    if receipt.get("status") != 1:
+        raise RuntimeError("native top-up transaction failed")
+    print(f"Native top-up tx: {tx_hash.hex()}")
+
+
+def _ensure_bbt_topup(w3: Web3, to_addr: str, min_amount: int) -> None:
+    if min_amount <= 0 or not FUNDING_PRIVATE_KEY:
+        return
+
+    to_addr = Web3.to_checksum_address(to_addr)
+    current = _erc20_balance(w3, BBT_TOKEN, to_addr)
+    if current >= int(min_amount):
+        return
+
+    funder = Account.from_key(FUNDING_PRIVATE_KEY)
+    funder_addr = Web3.to_checksum_address(funder.address)
+
+    funder_bal = _erc20_balance(w3, BBT_TOKEN, funder_addr)
+    if funder_bal <= 0:
+        raise RuntimeError(
+            f"BBT top-up requested but funding wallet {funder_addr} has 0 BBT"
+        )
+
+    # Send at least what is needed (or 2x to avoid re-running).
+    needed = int(min_amount) - int(current)
+    amount = min(int(funder_bal), max(needed, int(min_amount)))
+    print(
+        f"Top-up BBT balance: {to_addr} has {current} (<{min_amount}); "
+        f"sending {amount} from {funder_addr}"
+    )
+
+    token = w3.eth.contract(address=Web3.to_checksum_address(BBT_TOKEN), abi=ERC20_ABI)
+    nonce = w3.eth.get_transaction_count(funder_addr)
+    fee_params = _build_fee_params(w3)
+    tx = token.functions.transfer(to_addr, amount).build_transaction(
+        {
+            "from": funder_addr,
+            "nonce": nonce,
+            "chainId": CHAIN_ID,
+            **fee_params,
+        }
+    )
+    gas_est = w3.eth.estimate_gas(tx)
+    tx["gas"] = int(gas_est * 12 // 10)
+    signed = w3.eth.account.sign_transaction(tx, private_key=FUNDING_PRIVATE_KEY)
+    raw = getattr(signed, "rawTransaction", None) or getattr(signed, "raw_transaction")
+    tx_hash = w3.eth.send_raw_transaction(raw)
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=180)
+    if receipt.get("status") != 1:
+        raise RuntimeError("BBT top-up transfer failed")
+    print(f"BBT top-up tx: {tx_hash.hex()}")
+
+
 def _ensure_erc20_allowance_to_permit2(
     w3: Web3,
     account,
@@ -380,6 +498,8 @@ async def main() -> int:
     print(f"RPC_URL: {RPC_URL}")
     print(f"CHAIN_ID: {CHAIN_ID}")
     print(f"Client wallet: {account.address}")
+    if FUNDING_PRIVATE_KEY:
+        print(f"Funding wallet: {Account.from_key(FUNDING_PRIVATE_KEY).address}")
     print(f"PERMIT2_ADDRESS: {PERMIT2_ADDRESS}")
     print(f"X402_EXACT_PERMIT2_PROXY_ADDRESS: {X402_EXACT_PERMIT2_PROXY_ADDRESS}")
 
@@ -441,6 +561,23 @@ async def main() -> int:
     print(f"Token: {token_address}")
     print(f"Amount: {amount}")
     print(f"payTo: {pay_to}")
+
+    _print_header("BALANCES (PRE)")
+    client_native = _native_balance(w3, account.address)
+    client_bbt = _erc20_balance(w3, token_address, account.address)
+    print(f"Client native balance: {client_native} wei")
+    print(f"Client BBT balance: {client_bbt}")
+    if FUNDING_PRIVATE_KEY:
+        funder = Account.from_key(FUNDING_PRIVATE_KEY)
+        funder_native = _native_balance(w3, funder.address)
+        funder_bbt = _erc20_balance(w3, token_address, funder.address)
+        print(f"Funder native balance: {funder_native} wei")
+        print(f"Funder BBT balance: {funder_bbt}")
+
+    # For Permit2 SignatureTransfer, the client still needs gas at least once to approve Permit2,
+    # and needs token balance to cover the payment.
+    _ensure_native_topup(w3, account.address, MIN_NATIVE_BALANCE_WEI)
+    _ensure_bbt_topup(w3, account.address, max(amount, MIN_BBT_BALANCE))
 
     _print_header("ALLOWANCE")
     _ensure_erc20_allowance_to_permit2(w3, account, token_address, amount)
