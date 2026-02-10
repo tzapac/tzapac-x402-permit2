@@ -61,6 +61,7 @@ X402_EXACT_PERMIT2_PROXY_ADDRESS = os.getenv(
 AUTO_STACK = os.getenv("AUTO_STACK", "0") == "1"
 KEEP_STACK = os.getenv("KEEP_STACK", "0") == "1"
 COMPOSE_FILE = os.getenv("COMPOSE_FILE", "docker-compose.model3-etherlink.yml")
+FORCE_SERVER_RESTART = os.getenv("FORCE_SERVER_RESTART", "0") == "1"
 
 TRANSFER_EVENT_SIG = Web3.keccak(text="Transfer(address,address,uint256)").hex()
 TX_RE = re.compile(r"0x[a-fA-F0-9]{64}")
@@ -273,6 +274,20 @@ def _is_server_alive() -> bool:
         return resp.status_code == 200
     except Exception:
         return False
+
+
+def _kill_host_server() -> None:
+    # Best-effort: kill a locally-run FastAPI process on the host.
+    # This is only used for non-docker runs where we control the process lifecycle.
+    try:
+        subprocess.run(
+            ["pkill", "-f", "bbt_mvp_server.py"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+    except Exception:
+        pass
 
 
 def _stop_process(proc: subprocess.Popen) -> None:
@@ -518,7 +533,12 @@ async def main() -> int:
     server_started = False
 
     if _is_server_alive():
-        print("Server already running; will reuse.")
+        if FORCE_SERVER_RESTART and not AUTO_STACK:
+            print("Server already running; FORCE_SERVER_RESTART=1 so restarting host server...")
+            _kill_host_server()
+            await asyncio.sleep(0.5)
+        else:
+            print("Server already running; will reuse.")
     elif AUTO_STACK:
         print("Waiting for server...")
         ready = await _wait_for_server()
