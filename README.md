@@ -64,6 +64,8 @@ This branch aligns the Etherlink Permit2 flow with Coinbase's Model 3 design for
 
 The Etherlink proxy was deployed from the same verified Coinbase proxy source (as seen on Base Sepolia); only the deployed address differs on Etherlink.
 
+It is verified on Etherlink Blockscout as an **exact-match** Solidity source verification (contract `x402ExactPermit2Proxy`).
+
 Set `X402_EXACT_PERMIT2_PROXY_ADDRESS` to the proxy address above in:
 - the facilitator container/runtime
 - any client tooling that constructs the Permit2 signature (the proxy address is the signed `spender`)
