@@ -39,8 +39,12 @@ Local Docker setup (from this repo):
 2. Store returns `402 Payment Required` with `Payment-Required` containing x402 requirements (base64 JSON, x402 v2).
 3. Client signs payment data and sends `Payment-Signature` (base64 JSON payload) to the same endpoint.
 4. Settlement mode is selected by `X-GAS-PAYER` (`client`, `store`, `facilitator`, or `auto`).
-5. Server verifies/settles payment and returns `200` plus `X-PAYMENT-RESPONSE` with tx metadata.
+5. Server verifies/settles payment and returns `200` plus `X-Payment-Response` with tx metadata.
 6. Response includes an Etherlink explorer link for the settlement transaction.
+
+Notes:
+- For backward compatibility with earlier PoC tooling, the store API also accepts legacy `X-PAYMENT` / `X-PAYMENT-REQUIRED` headers.
+- The store API also emits the legacy uppercase response header `X-PAYMENT-RESPONSE` alongside `X-Payment-Response`.
 
 ## Why Permit2 (and not EIP-3009 here)
 

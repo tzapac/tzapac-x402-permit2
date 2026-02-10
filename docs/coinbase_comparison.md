@@ -13,13 +13,17 @@ Branch: `codex/coinbase-align`
 
 Coinbase (spec intent):
 - `x402Version: 2`
+- `PaymentRequired` is returned in the `Payment-Required` response header as base64 JSON.
 - `accepts[]` includes `scheme: exact`, `network: eip155:<chainId>`, `asset: <tokenAddress>`, `payTo: <serverAddress>`, `amount: <uint256>`
+- `resource` is a top-level object describing the paid URL and content metadata.
 - `extra.assetTransferMethod = "permit2"` signals the Permit2 flow.
 
 This repo (current PoC):
 - `x402Version: 2`
+- `PaymentRequired` is returned in the `Payment-Required` response header as base64 JSON (and also in legacy `X-PAYMENT-REQUIRED`).
 - `accepts[]` includes the same structural fields.
 - `asset` is encoded as the raw token address (matching x402 v2 types).
+- `resource` is a top-level object (matching x402 v2 types).
 - We set `extra.assetTransferMethod = "permit2"`.
 
 Impact:
@@ -28,12 +32,15 @@ Impact:
 ### Payment payload (Permit2)
 
 Coinbase:
+- Payment is sent in the `Payment-Signature` request header as base64 JSON.
+- `paymentPayload.accepted` must exactly match one of the requirements offered in `PaymentRequired.accepts[]`.
 - `payload.signature`: EIP-712 signature over Permit2 `PermitWitnessTransferFrom`.
 - `payload.permit2Authorization`: `{ from, permitted{token,amount}, spender, nonce, deadline, witness{to,validAfter,extra} }`.
 - Critical invariant: `spender` must be the proxy contract, not the facilitator.
 
 This repo:
 - Matches the above shape.
+- Requires `paymentPayload.accepted` and rejects if it does not exactly match the offered requirements (Coinbase-style v2 verification).
 - Facilitator enforces:
   - `permit2Authorization.spender == X402_EXACT_PERMIT2_PROXY_ADDRESS`
   - `permit2Authorization.witness.to == payTo`
@@ -113,3 +120,6 @@ What stays the same:
 What differs in this PoC:
 - token address and proxy address differ from Coinbase's deployments per chain
 - no sponsored-approval extensions / bundling pipeline
+
+Back-compat note (PoC):
+- This repo still accepts legacy PoC header names (`X-PAYMENT-REQUIRED`, `X-PAYMENT`) in addition to the x402 v2 header names (`Payment-Required`, `Payment-Signature`).
