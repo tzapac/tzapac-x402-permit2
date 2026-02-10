@@ -44,9 +44,65 @@ Local Docker setup (from this repo):
 
 ## Why Permit2 (and not EIP-3009 here)
 
-This PoC implements **Permit2** for authorization and settlement pathing.
+The Rust facilitator in `bbt-x402-facilitator` supports both:
+- **EIP-3009** (`transferWithAuthorization`)
+- **Permit2** (via an x402 Permit2 proxy)
 
-Reason: **USDC EIP-3009 is not currently supported on Etherlink in this setup**, so Permit2 is used as the practical mechanism for this Etherlink-first BBT demonstration.
+This PoC demo flow uses **Permit2** because the example token used here (BBT) is not wired as an EIP-3009 token in this setup.
+
+### Example: EIP-3009 (transferWithAuthorization)
+
+If you use a token that supports EIP-3009, the payment payload uses `payload.authorization` (signed EIP-712) instead of Permit2.
+
+Below is an example **facilitator** `/settle` request (x402 v2) shape using EIP-3009:
+
+```json
+{
+  "x402Version": 2,
+  "paymentRequirements": {
+    "scheme": "exact",
+    "network": "eip155:42793",
+    "amount": "10000000000000000",
+    "payTo": "0xPAY_TO_ADDRESS",
+    "maxTimeoutSeconds": 60,
+    "asset": "0xTOKEN_ADDRESS",
+    "extra": {
+      "name": "TOKEN_EIP712_NAME",
+      "version": "TOKEN_EIP712_VERSION"
+    }
+  },
+  "paymentPayload": {
+    "x402Version": 2,
+    "accepted": {
+      "scheme": "exact",
+      "network": "eip155:42793",
+      "amount": "10000000000000000",
+      "payTo": "0xPAY_TO_ADDRESS",
+      "maxTimeoutSeconds": 60,
+      "asset": "0xTOKEN_ADDRESS",
+      "extra": {
+        "name": "TOKEN_EIP712_NAME",
+        "version": "TOKEN_EIP712_VERSION"
+      }
+    },
+    "payload": {
+      "signature": "0xEIP712_SIGNATURE",
+      "authorization": {
+        "from": "0xPAYER_ADDRESS",
+        "to": "0xPAY_TO_ADDRESS",
+        "value": "10000000000000000",
+        "validAfter": "1700000000",
+        "validBefore": "1700003600",
+        "nonce": "0x32_BYTE_NONCE"
+      }
+    }
+  }
+}
+```
+
+Notes:
+- `extra.name` / `extra.version` are optional, but including them avoids extra RPC calls to fetch the token EIP-712 domain fields.
+- The facilitator pays gas to submit `transferWithAuthorization(...)`, but the destination/amount are fixed by the signed authorization.
 
 ## Coinbase (Permit2 Proxy)
 
