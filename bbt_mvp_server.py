@@ -60,7 +60,8 @@ PAYMENT_REQUIRED = {
             "payTo": SERVER_WALLET,
             "maxTimeoutSeconds": 60,
             "asset": f"{NETWORK}/erc20:{BBT_TOKEN}",
-            "extra": {"name": "BBT", "version": "1"},
+            # Coinbase-style hint to clients about the intended settlement path.
+            "extra": {"name": "BBT", "version": "1", "assetTransferMethod": "permit2"},
         }
     ],
     "error": None,

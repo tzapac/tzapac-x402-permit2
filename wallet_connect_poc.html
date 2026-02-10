@@ -1180,6 +1180,13 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
                 return;
             }
 
+            const assetTransferMethod = accept.extra && accept.extra.assetTransferMethod;
+            if (assetTransferMethod && assetTransferMethod !== "permit2") {
+                log(`UNSUPPORTED assetTransferMethod: ${assetTransferMethod} (expected 'permit2')`, "error");
+                ui.payBtn.disabled = true;
+                return;
+            }
+
             const amount = accept.amount || accept.maxAmountRequired;
             const payTo = accept.payTo;
 
@@ -1209,6 +1216,11 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
         }
 
         const accept = cachedRequirements.accepts[0];
+        const assetTransferMethod = accept.extra && accept.extra.assetTransferMethod;
+        if (assetTransferMethod && assetTransferMethod !== "permit2") {
+            log(`UNSUPPORTED assetTransferMethod: ${assetTransferMethod} (expected 'permit2')`, "error");
+            return;
+        }
         const tokenAddress = accept.asset.split("erc20:")[1];
         const payTo = accept.payTo;
         const amountRaw = accept.amount || accept.maxAmountRequired;

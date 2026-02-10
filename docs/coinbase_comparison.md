@@ -20,10 +20,10 @@ This repo (current PoC):
 - `x402Version: 2`
 - `accepts[]` includes the same structural fields.
 - `asset` is encoded as `"eip155:42793/erc20:<token>"` (PoC convenience format), and client/server extract the token address by splitting on `"erc20:"`.
-- We do not currently set `extra.assetTransferMethod = "permit2"`.
+- We set `extra.assetTransferMethod = "permit2"`.
 
 Impact:
-- This repo’s Permit2 selection is effectively hard-wired by the PoC client/server rather than negotiated via `assetTransferMethod`.
+- Permit2 is explicitly signaled via `assetTransferMethod`, matching Coinbase's intent for client selection.
 
 ### Payment payload (Permit2)
 

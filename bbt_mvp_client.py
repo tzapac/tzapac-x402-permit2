@@ -155,6 +155,12 @@ async def main():
     print("=" * 60)
 
     accept = payment_required["accepts"][0]
+    extra = accept.get("extra") or {}
+    asset_transfer_method = extra.get("assetTransferMethod")
+    if asset_transfer_method and asset_transfer_method != "permit2":
+        raise RuntimeError(
+            f"Unsupported assetTransferMethod={asset_transfer_method!r}; this PoC client only supports 'permit2'."
+        )
     asset = accept["asset"]
     pay_to = Web3.to_checksum_address(accept["payTo"])
     amount_raw = accept.get("amount") or accept.get("maxAmountRequired")
