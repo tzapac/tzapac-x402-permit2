@@ -48,6 +48,37 @@ This PoC implements **Permit2** for authorization and settlement pathing.
 
 Reason: **USDC EIP-3009 is not currently supported on Etherlink in this setup**, so Permit2 is used as the practical mechanism for this Etherlink-first BBT demonstration.
 
+## Coinbase Model 3 (Permit2 Proxy)
+
+This branch aligns the Etherlink Permit2 flow with Coinbase's Model 3 design for the x402 `exact` scheme:
+
+- The client signs a Permit2 `PermitWitnessTransferFrom` (SignatureTransfer) where `spender` is an **x402 Permit2 proxy contract** (not the facilitator).
+- The facilitator pays gas and calls the proxy `settle(...)` method.
+- The proxy enforces `witness.to == payTo` on-chain, so the facilitator cannot redirect funds.
+- Funds move **directly from the client wallet to `payTo`**; the facilitator never takes custody.
+
+### Etherlink Addresses
+
+- Canonical Permit2 (Etherlink): `0x000000000022D473030F116dDEE9F6B43aC78BA3`
+- x402 Exact Permit2 Proxy (Etherlink, deployed for this PoC): `0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E`
+
+Set `X402_EXACT_PERMIT2_PROXY_ADDRESS` to the proxy address above in:
+- the facilitator container/runtime
+- any client tooling that constructs the Permit2 signature (the proxy address is the signed `spender`)
+
+If Coinbase deploys their official x402 Permit2 proxy to Etherlink, integration should reduce to **changing only** `X402_EXACT_PERMIT2_PROXY_ADDRESS` to the Coinbase-deployed address. The payload format, settlement call, and on-chain protections remain the same.
+
+### Local Model 3 Stack
+
+This repo includes a dedicated compose file that pins the Etherlink proxy address:
+
+- `docker-compose.model3-etherlink.yml`
+
+Run:
+
+- `docker compose -f docker-compose.model3-etherlink.yml up -d --build`
+- `AUTO_STACK=0 ./.venv/bin/python playbook_permit2_flow.py` (or `AUTO_STACK=1` to let the playbook bring up the compose stack)
+
 ## Notes
 
 - This is a proof-of-concept repository, not a hardened production deployment.
