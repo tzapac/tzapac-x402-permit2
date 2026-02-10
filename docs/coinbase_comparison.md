@@ -1,6 +1,6 @@
 # Coinbase (Permit2 Proxy) vs This Repo (Etherlink PoC)
 
-Branch: `codex/x402-coinbase-model3-align`
+Branch: `codex/coinbase-align`
 
 ## Executive Summary
 
