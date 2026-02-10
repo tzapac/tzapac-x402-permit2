@@ -427,14 +427,8 @@
         </div>
 
         <div class="data-row">
-            <span class="data-label">Gas Payer</span>
-            <span class="data-value">
-                <div class="toggle-group">
-                    <button id="gas-client-btn" class="toggle-button">CLIENT PAYS GAS</button>
-                    <button id="gas-store-btn" class="toggle-button">STORE PAYS GAS</button>
-                    <button id="gas-facilitator-btn" class="toggle-button active">FACILITATOR PAYS GAS</button>
-                </div>
-            </span>
+            <span class="data-label">Settlement Gas</span>
+            <span class="data-value">FACILITATOR (SPONSORED)</span>
         </div>
 
         <!-- Flow Actions -->
@@ -592,7 +586,6 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
     // --- STATE ---
     let provider, signer, bbtContract;
     let userAddress;
-    let gasPayerMode = "facilitator";
     let tokenDetailsOpen = false;
     let facilitatorOnline = null;
     let facilitatorPollTimer = null;
@@ -630,9 +623,6 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
         payTo: document.getElementById('payto-display'),
         tokenSection: document.getElementById('token-section'),
         tokenToggleBtn: document.getElementById('token-toggle-btn'),
-        gasClientBtn: document.getElementById('gas-client-btn'),
-        gasStoreBtn: document.getElementById('gas-store-btn'),
-        gasFacilitatorBtn: document.getElementById('gas-facilitator-btn'),
         disclaimerOverlay: document.getElementById('disclaimer-overlay'),
         disclaimerOkBtn: document.getElementById('disclaimer-ok-btn'),
         console: document.getElementById('console-output')
@@ -693,9 +683,6 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
         ui.requirementsBtn.addEventListener('click', fetchPaymentRequirements);
         ui.payBtn.addEventListener('click', signAndPay);
         ui.tokenToggleBtn.addEventListener('click', toggleTokenDetails);
-        ui.gasClientBtn.addEventListener('click', () => setGasPayerMode('client'));
-        ui.gasStoreBtn.addEventListener('click', () => setGasPayerMode('store'));
-        ui.gasFacilitatorBtn.addEventListener('click', () => setGasPayerMode('facilitator'));
         ui.disclaimerOkBtn.addEventListener('click', () => {
             ui.disclaimerOverlay.classList.add('hidden');
         });
@@ -706,7 +693,6 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
 
         setActiveTab('demo');
 
-        setGasPayerMode('facilitator');
         updateTokenToggle();
 
         startFacilitatorPolling();
@@ -848,14 +834,6 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
             ui.tokenSection.classList.add('hidden');
         }
         updateTokenToggle();
-    }
-
-    function setGasPayerMode(mode) {
-        gasPayerMode = mode;
-        ui.gasClientBtn.classList.toggle('active', mode === 'client');
-        ui.gasStoreBtn.classList.toggle('active', mode === 'store');
-        ui.gasFacilitatorBtn.classList.toggle('active', mode === 'facilitator');
-        log(`GAS PAYER: ${mode.toUpperCase()}`, "info");
     }
 
     // --- CHECK NETWORK ---
@@ -1093,30 +1071,11 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
     }
 
     function getSpenderForPermit2() {
-        if (gasPayerMode === "client") {
-            return userAddress || null;
-        }
-        if (gasPayerMode === "store") {
-            if (cachedRequirements && cachedRequirements.accepts && cachedRequirements.accepts[0]) {
-                return cachedRequirements.accepts[0].payTo;
-            }
-            return null;
-        }
-        if (gasPayerMode === "facilitator") {
-            const input = ui.spenderInput.value.trim();
-            if (input) {
-                return input;
-            }
-            return DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS;
-        }
         const input = ui.spenderInput.value.trim();
         if (input) {
             return input;
         }
-        if (cachedRequirements && cachedRequirements.accepts && cachedRequirements.accepts[0]) {
-            return cachedRequirements.accepts[0].payTo;
-        }
-        return null;
+        return DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS;
     }
 
     function getRequiredAmount() {
@@ -1226,11 +1185,11 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
         const amountRaw = accept.amount || accept.maxAmountRequired;
         const amount = BigInt(amountRaw);
 
-            const spender = getSpenderForPermit2();
-            if (!spender) {
-                log("SPENDER REQUIRED. CLICK CHECK /HEALTH OR SET GAS PAYER MODE.", "error");
-                return;
-            }
+        const spender = getSpenderForPermit2();
+        if (!spender) {
+            log("SPENDER REQUIRED. CLICK CHECK /HEALTH OR ENTER A SPENDER ADDRESS.", "error");
+            return;
+        }
 
         try {
             const decimals = await bbtContract.decimals();
@@ -1247,143 +1206,72 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
             };
 
             let signatureForLog = null;
-            let permit2 = null;
-            let permitSingleValue = null;
-            let permitSingleSignature = null;
             let payload;
-            if (gasPayerMode === "facilitator") {
-                // Coinbase x402 model 3: PermitWitnessTransferFrom (SignatureTransfer)
-                const now = Math.floor(Date.now() / 1000);
-                const deadline = BigInt(now + 3600);
-                const validAfter = BigInt(Math.max(0, now - 600));
-                const nonce = BigInt(ethers.hexlify(ethers.randomBytes(32)));
+            // Coinbase-aligned flow: PermitWitnessTransferFrom (SignatureTransfer).
+            // The facilitator submits the on-chain settlement transaction and pays gas.
+            const now = Math.floor(Date.now() / 1000);
+            const deadline = BigInt(now + 3600);
+            const validAfter = BigInt(Math.max(0, now - 600));
+            const nonce = BigInt(ethers.hexlify(ethers.randomBytes(32)));
 
-                const types = {
-                    PermitWitnessTransferFrom: [
-                        { name: "permitted", type: "TokenPermissions" },
-                        { name: "spender", type: "address" },
-                        { name: "nonce", type: "uint256" },
-                        { name: "deadline", type: "uint256" },
-                        { name: "witness", type: "Witness" }
-                    ],
-                    TokenPermissions: [
-                        { name: "token", type: "address" },
-                        { name: "amount", type: "uint256" }
-                    ],
-                    Witness: [
-                        { name: "to", type: "address" },
-                        { name: "validAfter", type: "uint256" },
-                        { name: "extra", type: "bytes" }
-                    ]
-                };
+            const types = {
+                PermitWitnessTransferFrom: [
+                    { name: "permitted", type: "TokenPermissions" },
+                    { name: "spender", type: "address" },
+                    { name: "nonce", type: "uint256" },
+                    { name: "deadline", type: "uint256" },
+                    { name: "witness", type: "Witness" }
+                ],
+                TokenPermissions: [
+                    { name: "token", type: "address" },
+                    { name: "amount", type: "uint256" }
+                ],
+                Witness: [
+                    { name: "to", type: "address" },
+                    { name: "validAfter", type: "uint256" },
+                    { name: "extra", type: "bytes" }
+                ]
+            };
 
-                const value = {
-                    permitted: {
-                        token: tokenAddress,
-                        amount
-                    },
-                    spender,
-                    nonce,
-                    deadline,
-                    witness: {
-                        to: payTo,
-                        validAfter,
-                        extra: "0x"
-                    }
-                };
+            const value = {
+                permitted: {
+                    token: tokenAddress,
+                    amount
+                },
+                spender,
+                nonce,
+                deadline,
+                witness: {
+                    to: payTo,
+                    validAfter,
+                    extra: "0x"
+                }
+            };
 
-                log("SIGNING PERMIT2 (WITNESS)...", "info");
-                const signature = await signer.signTypedData(domain, types, value);
-                signatureForLog = signature;
+            log("SIGNING PERMIT2 (WITNESS)...", "info");
+            const signature = await signer.signTypedData(domain, types, value);
+            signatureForLog = signature;
 
-                payload = {
-                    x402Version: 2,
-                    scheme: "exact",
-                    network: "eip155:42793",
-                    payload: {
-                        signature,
-                        permit2Authorization: {
-                            from: userAddress,
-                            permitted: { token: tokenAddress, amount: amount.toString() },
-                            spender,
-                            nonce: nonce.toString(),
-                            deadline: deadline.toString(),
-                            witness: {
-                                to: payTo,
-                                validAfter: validAfter.toString(),
-                                extra: "0x"
-                            }
+            payload = {
+                x402Version: 2,
+                scheme: "exact",
+                network: "eip155:42793",
+                payload: {
+                    signature,
+                    permit2Authorization: {
+                        from: userAddress,
+                        permitted: { token: tokenAddress, amount: amount.toString() },
+                        spender,
+                        nonce: nonce.toString(),
+                        deadline: deadline.toString(),
+                        witness: {
+                            to: payTo,
+                            validAfter: validAfter.toString(),
+                            extra: "0x"
                         }
                     }
-                };
-            } else {
-                // Legacy PoC: PermitSingle (AllowanceTransfer)
-                const permit2Abi = [
-                    "function allowance(address owner,address token,address spender) view returns (uint160 amount,uint48 expiration,uint48 nonce)",
-                    "function permit(address owner, tuple(tuple(address token,uint160 amount,uint48 expiration,uint48 nonce) details,address spender,uint256 sigDeadline) permitSingle, bytes signature)",
-                    "function transferFrom(address from,address to,uint160 amount,address token)"
-                ];
-                permit2 = new ethers.Contract(PERMIT2_ADDRESS, permit2Abi, signer);
-                const allowanceData = await permit2.allowance(userAddress, tokenAddress, spender);
-                const nonce = allowanceData[2];
-
-                const now = Math.floor(Date.now() / 1000);
-                const expiration = BigInt(now + 3600);
-                const sigDeadline = BigInt(now + 3600);
-
-                const types = {
-                    PermitDetails: [
-                        { name: "token", type: "address" },
-                        { name: "amount", type: "uint160" },
-                        { name: "expiration", type: "uint48" },
-                        { name: "nonce", type: "uint48" }
-                    ],
-                    PermitSingle: [
-                        { name: "details", type: "PermitDetails" },
-                        { name: "spender", type: "address" },
-                        { name: "sigDeadline", type: "uint256" }
-                    ]
-                };
-
-                const value = {
-                    details: {
-                        token: tokenAddress,
-                        amount,
-                        expiration,
-                        nonce
-                    },
-                    spender,
-                    sigDeadline
-                };
-
-                log("SIGNING PERMIT2...", "info");
-                const signature = await signer.signTypedData(domain, types, value);
-                signatureForLog = signature;
-                permitSingleValue = value;
-                permitSingleSignature = signature;
-
-                payload = {
-                    x402Version: 2,
-                    scheme: "exact",
-                    network: "eip155:42793",
-                    payload: {
-                        permit2: {
-                            owner: userAddress,
-                            permitSingle: {
-                                details: {
-                                    token: tokenAddress,
-                                    amount: amount.toString(),
-                                    expiration: Number(expiration),
-                                    nonce: Number(nonce)
-                                },
-                                spender,
-                                sigDeadline: Number(sigDeadline)
-                            },
-                            signature
-                        }
-                    }
-                };
-            }
+                }
+            };
 
             const header = toBase64(JSON.stringify(payload));
 
@@ -1395,26 +1283,8 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
                 // V2 spec header name:
                 "Payment-Signature": header,
                 // Legacy PoC compatibility:
-                "X-PAYMENT": header,
-                "X-GAS-PAYER": gasPayerMode
+                "X-PAYMENT": header
             };
-
-            if (gasPayerMode === "client") {
-                if (!permit2 || !permitSingleValue || !permitSingleSignature) {
-                    log("CLIENT GAS MODE REQUIRES PermitSingle PAYLOAD", "error");
-                    return;
-                }
-                log("SUBMITTING PERMIT2 (CLIENT GAS)...", "info");
-                const permitTx = await permit2.permit(userAddress, permitSingleValue, permitSingleSignature);
-                await permitTx.wait();
-                log(`PERMIT TX: ${permitTx.hash}`, "success");
-
-                log("SUBMITTING TRANSFERFROM (CLIENT GAS)...", "info");
-                const transferTx = await permit2.transferFrom(userAddress, payTo, amount, tokenAddress);
-                await transferTx.wait();
-                log(`TRANSFER TX: ${transferTx.hash}`, "success");
-                headers["X-PAYMENT-TX"] = transferTx.hash;
-            }
 
             log("SENDING Payment-Signature...", "info");
             const resp = await fetch(getStoreUrl(), {
