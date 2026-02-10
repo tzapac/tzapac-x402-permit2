@@ -190,11 +190,14 @@ async def _fetch_payment_required() -> dict:
             raise RuntimeError(
                 f"Expected 402 from {endpoint}, got {resp.status_code}: {resp.text}"
             )
-        required_b64 = resp.headers.get("x-payment-required") or resp.headers.get(
-            "X-PAYMENT-REQUIRED"
+        required_b64 = (
+            resp.headers.get("payment-required")
+            or resp.headers.get("Payment-Required")
+            or resp.headers.get("x-payment-required")
+            or resp.headers.get("X-PAYMENT-REQUIRED")
         )
         if not required_b64:
-            raise RuntimeError("Missing X-PAYMENT-REQUIRED header")
+            raise RuntimeError("Missing Payment-Required header")
         return json.loads(base64.b64decode(required_b64))
 
 
@@ -569,9 +572,9 @@ async def main() -> int:
         asset = accept["asset"]
         amount = int(accept.get("amount") or accept.get("maxAmountRequired"))
         pay_to = Web3.to_checksum_address(accept["payTo"])
-        token_address = Web3.to_checksum_address(asset.split("erc20:")[-1])
+        token_address = Web3.to_checksum_address(asset)
     except Exception as exc:
-        print(f"ERROR: could not parse X-PAYMENT-REQUIRED: {exc}")
+        print(f"ERROR: could not parse Payment-Required: {exc}")
         if server_started and server_proc:
             _stop_process(server_proc)
         if AUTO_STACK and not KEEP_STACK:

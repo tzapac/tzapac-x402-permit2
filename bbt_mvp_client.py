@@ -141,13 +141,15 @@ async def main():
             print(f"Body: {resp.text}")
             return
 
-        payment_required_b64 = resp.headers.get("x-payment-required")
+        payment_required_b64 = resp.headers.get("payment-required") or resp.headers.get(
+            "x-payment-required"
+        )
         if not payment_required_b64:
-            print("No X-PAYMENT-REQUIRED header!")
+            print("No Payment-Required header!")
             return
 
         payment_required = json.loads(base64.b64decode(payment_required_b64))
-        print("\nDecoded X-PAYMENT-REQUIRED:")
+        print("\nDecoded Payment-Required:")
         print(json.dumps(payment_required, indent=2))
 
     print("\n" + "=" * 60)
@@ -166,7 +168,7 @@ async def main():
     amount_raw = accept.get("amount") or accept.get("maxAmountRequired")
     max_amount = int(amount_raw)
 
-    token_address = Web3.to_checksum_address(asset.split("erc20:")[-1])
+    token_address = Web3.to_checksum_address(asset)
     spender = Web3.to_checksum_address(X402_EXACT_PERMIT2_PROXY_ADDRESS)
 
     now = int(time.time())
@@ -202,8 +204,8 @@ async def main():
 
     payment_payload = {
         "x402Version": 2,
-        "scheme": "exact",
-        "network": "eip155:42793",
+        "accepted": accept,
+        "resource": payment_required.get("resource"),
         "payload": {
             "signature": f"0x{signature}",
             "permit2Authorization": {
@@ -231,7 +233,15 @@ async def main():
     print("=" * 60)
 
     async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.get(endpoint, headers={"X-PAYMENT": payment_header})
+        resp = await client.get(
+            endpoint,
+            headers={
+                # V2 spec header name:
+                "Payment-Signature": payment_header,
+                # Legacy PoC compatibility:
+                "X-PAYMENT": payment_header,
+            },
+        )
         print(f"Status: {resp.status_code}")
         print(f"Headers: {dict(resp.headers)}")
         print("\nResponse body:")

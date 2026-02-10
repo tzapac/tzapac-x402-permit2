@@ -36,8 +36,8 @@ Local Docker setup (from this repo):
 ## Payment Flow (High-Level)
 
 1. Client requests `GET /api/weather`.
-2. Store returns `402 Payment Required` with `X-PAYMENT-REQUIRED` containing x402 requirements.
-3. Client signs payment data and sends `X-PAYMENT` (base64 JSON payload) to the same endpoint.
+2. Store returns `402 Payment Required` with `Payment-Required` containing x402 requirements (base64 JSON, x402 v2).
+3. Client signs payment data and sends `Payment-Signature` (base64 JSON payload) to the same endpoint.
 4. Settlement mode is selected by `X-GAS-PAYER` (`client`, `store`, `facilitator`, or `auto`).
 5. Server verifies/settles payment and returns `200` plus `X-PAYMENT-RESPONSE` with tx metadata.
 6. Response includes an Etherlink explorer link for the settlement transaction.

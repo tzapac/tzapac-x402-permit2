@@ -19,7 +19,7 @@ Coinbase (spec intent):
 This repo (current PoC):
 - `x402Version: 2`
 - `accepts[]` includes the same structural fields.
-- `asset` is encoded as `"eip155:42793/erc20:<token>"` (PoC convenience format), and client/server extract the token address by splitting on `"erc20:"`.
+- `asset` is encoded as the raw token address (matching x402 v2 types).
 - We set `extra.assetTransferMethod = "permit2"`.
 
 Impact:
@@ -111,5 +111,5 @@ What stays the same:
 - on-chain witness enforcement
 
 What differs in this PoC:
-- token address and PoC-specific `asset` string formatting
+- token address and proxy address differ from Coinbase's deployments per chain
 - no sponsored-approval extensions / bundling pipeline

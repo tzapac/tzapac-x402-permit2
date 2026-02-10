@@ -1084,9 +1084,9 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
     function getPermit2Token() {
         if (cachedRequirements && cachedRequirements.accepts && cachedRequirements.accepts[0]) {
             const asset = cachedRequirements.accepts[0].asset || "";
-            const token = asset.split("erc20:")[1];
-            if (token) {
-                return token;
+            // In x402 v2, `asset` is the raw token address.
+            if (asset && asset.startsWith("0x") && asset.length === 42) {
+                return asset;
             }
         }
         return BBT_ADDRESS;
@@ -1165,9 +1165,9 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
                 return;
             }
 
-            const header = resp.headers.get("x-payment-required");
+            const header = resp.headers.get("payment-required") || resp.headers.get("x-payment-required");
             if (!header) {
-                log("MISSING X-PAYMENT-REQUIRED HEADER", "error");
+                log("MISSING Payment-Required HEADER", "error");
                 return;
             }
 
@@ -1221,7 +1221,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
             log(`UNSUPPORTED assetTransferMethod: ${assetTransferMethod} (expected 'permit2')`, "error");
             return;
         }
-        const tokenAddress = accept.asset.split("erc20:")[1];
+        const tokenAddress = accept.asset;
         const payTo = accept.payTo;
         const amountRaw = accept.amount || accept.maxAmountRequired;
         const amount = BigInt(amountRaw);
@@ -1389,9 +1389,12 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
 
             log(`PERMIT2 SIGNATURE: ${signatureForLog || "(none)"}`, "success");
             log(`PAYLOAD JSON: ${JSON.stringify(payload, null, 2)}`, "info");
-            log(`X-PAYMENT (base64): ${header}`, "info");
+            log(`Payment-Signature (base64): ${header}`, "info");
 
             const headers = {
+                // V2 spec header name:
+                "Payment-Signature": header,
+                // Legacy PoC compatibility:
                 "X-PAYMENT": header,
                 "X-GAS-PAYER": gasPayerMode
             };
@@ -1413,7 +1416,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
                 headers["X-PAYMENT-TX"] = transferTx.hash;
             }
 
-            log("SENDING X-PAYMENT...", "info");
+            log("SENDING Payment-Signature...", "info");
             const resp = await fetch(getStoreUrl(), {
                 headers
             });

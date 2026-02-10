@@ -47,25 +47,49 @@ try:
 except Exception:
     SERVER_WALLET = DEFAULT_SERVER_WALLET
 
+PAYMENT_REQUIREMENTS = {
+    "scheme": "exact",
+    "network": NETWORK,
+    "amount": "10000000000000000",
+    "payTo": SERVER_WALLET,
+    "maxTimeoutSeconds": 60,
+    # Coinbase/x402 v2 uses the raw token address in `asset`.
+    "asset": BBT_TOKEN,
+    # Coinbase-style hint to clients about the intended settlement path.
+    "extra": {"name": "BBT", "version": "1", "assetTransferMethod": "permit2"},
+}
+
+PAYMENT_RESOURCE = {
+    "description": "Weather data access",
+    "mimeType": "application/json",
+    "url": "http://localhost:8001/api/weather",
+}
+
 PAYMENT_REQUIRED = {
     "x402Version": 2,
-    "accepts": [
-        {
-            "scheme": "exact",
-            "network": NETWORK,
-            "amount": "10000000000000000",
-            "resource": "http://localhost:8001/api/weather",
-            "description": "Weather data access",
-            "mimeType": "application/json",
-            "payTo": SERVER_WALLET,
-            "maxTimeoutSeconds": 60,
-            "asset": f"{NETWORK}/erc20:{BBT_TOKEN}",
-            # Coinbase-style hint to clients about the intended settlement path.
-            "extra": {"name": "BBT", "version": "1", "assetTransferMethod": "permit2"},
-        }
-    ],
+    "accepts": [PAYMENT_REQUIREMENTS],
+    "resource": PAYMENT_RESOURCE,
     "error": None,
 }
+
+
+def _get_payment_header(request: Request) -> str | None:
+    # V2 spec: Payment-Signature
+    return (
+        request.headers.get("Payment-Signature")
+        or request.headers.get("payment-signature")
+        # Legacy PoC: X-PAYMENT
+        or request.headers.get("X-PAYMENT")
+        or request.headers.get("x-payment")
+    )
+
+
+def _requirements_match(accepted: dict, required: dict) -> bool:
+    # Coinbase/x402 v2 requires the accepted requirements to match one offered in accepts[].
+    if not isinstance(accepted, dict) or not isinstance(required, dict):
+        return False
+    # Strict key/value equality on the requirements object.
+    return accepted == required
 
 PERMIT2_ABI = [
     {
@@ -346,18 +370,16 @@ async def config():
         "x402Version": 2,
         "scheme": "exact",
         "network": NETWORK,
-        "asset": f"{NETWORK}/erc20:{BBT_TOKEN}",
+        "asset": BBT_TOKEN,
         "payTo": SERVER_WALLET,
-        "amount": PAYMENT_REQUIRED["accepts"][0]["amount"],
+        "amount": PAYMENT_REQUIREMENTS["amount"],
         "facilitatorUrl": FACILITATOR_URL,
     }
 
 
 @app.get("/api/weather")
 async def weather(request: Request):
-    payment_header = request.headers.get("X-PAYMENT") or request.headers.get(
-        "x-payment"
-    )
+    payment_header = _get_payment_header(request)
     gas_payer_header = request.headers.get("X-GAS-PAYER") or request.headers.get(
         "x-gas-payer"
     )
@@ -367,10 +389,15 @@ async def weather(request: Request):
         payload = base64.b64encode(json.dumps(PAYMENT_REQUIRED).encode()).decode()
         return Response(
             content=json.dumps(
-                {"error": "Payment Required", "message": "Send X-PAYMENT header"}
+                {
+                    "error": "Payment Required",
+                    "message": "Send Payment-Signature (or legacy X-PAYMENT) header",
+                }
             ),
             status_code=402,
-            headers={"X-PAYMENT-REQUIRED": payload},
+            # V2: Payment-Required (base64 encoded PaymentRequired JSON)
+            # Also set the legacy header for backward compatibility with this PoC tooling.
+            headers={"Payment-Required": payload, "X-PAYMENT-REQUIRED": payload},
             media_type="application/json",
         )
 
@@ -385,13 +412,39 @@ async def weather(request: Request):
             media_type="application/json",
         )
 
-    requirements_for_facilitator = PAYMENT_REQUIRED["accepts"][0].copy()
-    requirements_for_facilitator["x402Version"] = 2
-    requirements_for_facilitator["network"] = NETWORK
-    requirements_for_facilitator["asset"] = BBT_TOKEN
+    requirements_for_facilitator = PAYMENT_REQUIREMENTS.copy()
 
-    if isinstance(payment_payload, dict):
-        payment_payload["accepted"] = requirements_for_facilitator
+    if not isinstance(payment_payload, dict):
+        return Response(
+            content=json.dumps({"error": "Invalid payment payload"}),
+            status_code=400,
+            media_type="application/json",
+        )
+
+    accepted = payment_payload.get("accepted")
+    if not isinstance(accepted, dict):
+        return Response(
+            content=json.dumps(
+                {
+                    "error": "Missing accepted requirements in payment payload (x402 v2)",
+                }
+            ),
+            status_code=402,
+            media_type="application/json",
+        )
+
+    if not _requirements_match(accepted, PAYMENT_REQUIREMENTS):
+        return Response(
+            content=json.dumps(
+                {
+                    "error": "Accepted requirements do not match offered requirements",
+                    "offered": PAYMENT_REQUIREMENTS,
+                    "accepted": accepted,
+                }
+            ),
+            status_code=402,
+            media_type="application/json",
+        )
 
     permit2_payload = _extract_permit2_payload(payment_payload)
     if not permit2_payload:
