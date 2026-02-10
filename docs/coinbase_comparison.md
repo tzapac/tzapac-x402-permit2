@@ -5,7 +5,7 @@ Branch: `codex/coinbase-align`
 ## Executive Summary
 
 - The Permit2 SignatureTransfer path is aligned with Coinbase’s design: the client signs `PermitWitnessTransferFrom` where `spender` is an x402 Permit2 proxy, the facilitator pays gas and calls `proxy.settle(...)`, and the proxy enforces `witness.to == payTo` on-chain.
-- The primary difference is deployment/infrastructure, not protocol semantics: Coinbase targets a deterministic proxy address on supported chains; Etherlink does not have Coinbase’s proxy deployed, so we deployed the same proxy source at a different address and override it via `X402_EXACT_PERMIT2_PROXY_ADDRESS`.
+- The primary difference is deployment/infrastructure, not protocol semantics: Coinbase deploys a known proxy address per supported chain; Etherlink does not have Coinbase’s proxy deployed, so we deployed the same proxy source at a different address and override it via `X402_EXACT_PERMIT2_PROXY_ADDRESS`.
 
 ## Data Flow Comparison
 
@@ -84,8 +84,11 @@ Coinbase specs describe extensions for cases where the user has no native gas to
 - `eip2612GasSponsoring`: if token supports EIP-2612, user signs a permit; facilitator submits permit + settle.
 
 This repo:
-- Does not implement these extensions.
+- Does not implement Coinbase’s end-to-end sponsored-approval flows (payload shapes, relaying/bundling, and operational pipeline).
 - Assumes the user already has Permit2 allowance set (or can set it themselves).
+
+Nuance:
+- The deployed proxy contract source includes `settleWithPermit(...)`, which can combine an EIP-2612 `permit()` + Permit2 witness settlement in a single on-chain call for tokens that support EIP-2612. This PoC does not currently wire a client/facilitator flow that uses that method.
 
 ### Atomic bundling / ordering guarantees
 
