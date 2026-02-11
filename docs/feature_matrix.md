@@ -16,6 +16,7 @@ Legend: ✓ = supported in-repo, ✗ = not supported, ~ = partially supported (s
 | Facilitator pays settlement gas (default model) | ✓ | ✓ | Coinbase-aligned model: user signs, facilitator submits tx and pays gas. |
 | Client pays gas mode (client submits on-chain txs) | ✗ | ✗ | Removed from the PoC frontend; not part of Coinbase model. |
 | Store pays gas mode (store submits on-chain txs) | ✗ | ✗ | Removed from the PoC frontend; not part of Coinbase model. |
+| Legacy Permit2 allowance payload path (`payload.permit2`) | ✗ | ✗ | Server now accepts only witness-based `permit2Authorization` payloads. |
 | On-chain recipient binding (witness enforces `payTo`) | ✓ | ✓ | Trustless recipient binding via Permit2 witness. |
 | Proxy contract Solidity source included in repo | ✗ | ✓ | Coinbase repo exposes ABIs/constants + spec reference code; this repo includes extracted Solidity + verification input. |
 | Etherlink deployment of Permit2 proxy | ✗ | ✓ | Deployed and verified on Etherlink: `0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E`. |

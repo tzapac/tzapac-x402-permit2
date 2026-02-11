@@ -85,7 +85,7 @@ This repo:
 - Mechanism: `X402_EXACT_PERMIT2_PROXY_ADDRESS`.
 - Facilitator runtime can pin bytecode hash with `X402_EXACT_PERMIT2_PROXY_CODEHASH_ALLOWLIST`.
 - Permit2 deployment is a chain prerequisite; in this repo it is configurable via `PERMIT2_ADDRESS`.
-- Store/UI defaults are locked to facilitator-gas Coinbase flow (`ALLOW_LEGACY_GAS_MODES=0` unless explicitly overridden).
+- Store/UI execution is hard-enforced to facilitator-gas Coinbase flow (legacy client/store gas handling removed).
 
 ## Not Implemented Here (Compared to Coinbase Specs)
 

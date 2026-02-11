@@ -488,35 +488,22 @@
             <div class="guide-block">
                 <div class="guide-title">Store / Server Setup</div>
                 <div class="guide-text">
-                    Run two containers: the store API (paid endpoint) and the store web/proxy (demo UI + /api proxy).
+                    Run the local stack with docker-compose (store API + store web/proxy + facilitator).
                 </div>
                 <ul class="guide-list">
-                    <li>Store API image: ghcr.io/tzapac/tzapac-x402-permit2-store-api:latest</li>
-                    <li>Store web image: ghcr.io/tzapac/tzapac-x402-permit2-store-web:latest</li>
-                    <li>Create a .env file with your store wallet and facilitator URL.</li>
-                    <li>Create a Docker network and run both containers.</li>
+                    <li>Create `.env` with store wallet/private key and RPC details.</li>
+                    <li>Start stack using `docker-compose.wallet-poc.yml`.</li>
+                    <li>Open UI at `http://localhost:9091`.</li>
                 </ul>
                 <pre># .env
 FACILITATOR_URL=http://localhost:9090
-RPC_URL=https://rpc.bubbletez.com
+RPC_URL=https://YOUR_ETHERLINK_RPC
 SERVER_WALLET=0xYOUR_STORE_WALLET
 STORE_PRIVATE_KEY=0xYOUR_STORE_PRIVATE_KEY
 </pre>
-                <pre>docker network create x402-store || true
-
-docker run -d --name x402-store-api \
-  --network x402-store \
-  --env-file .env \
-  -p 8001:8001 \
-  ghcr.io/tzapac/tzapac-x402-permit2-store-api:latest
-
-docker run -d --name x402-store-web \
-  --network x402-store \
-  -p 9091:80 \
-  ghcr.io/tzapac/tzapac-x402-permit2-store-web:latest
-</pre>
+                <pre>docker compose -f docker-compose.wallet-poc.yml up -d --build</pre>
                 <div class="guide-text">
-                    For local dev, you can also run this stack with docker-compose.wallet-poc.yml.
+                    If you run containers manually, keep the same env values and exposed ports.
                 </div>
             </div>
         </div>
@@ -527,12 +514,11 @@ docker run -d --name x402-store-web \
             <div class="guide-block">
                 <div class="guide-title">Facilitator Setup</div>
                 <div class="guide-text">
-                    Run the Permit2 facilitator that settles payments on-chain.
+                    Facilitator gas mode is the only supported execution path in this Coinbase-aligned branch.
                 </div>
                 <ul class="guide-list">
-                    <li>Facilitator image: ghcr.io/tzapac/tzapac-x402-permit2-facilitator:latest</li>
-                    <li>Create a config file and provide a signer private key.</li>
-                    <li>Run the container and expose port 9090.</li>
+                    <li>The easiest path is running via `docker-compose.wallet-poc.yml`.</li>
+                    <li>For standalone runs, provide a signer private key and RPC endpoint.</li>
                 </ul>
                 <pre># .env
 FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
@@ -546,7 +532,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
       "eip1559": true,
       "signers": ["$FACILITATOR_PRIVATE_KEY"],
       "rpc": [
-        { "http": "https://rpc.bubbletez.com", "rate_limit": 100 }
+        { "http": "https://YOUR_ETHERLINK_RPC", "rate_limit": 100 }
       ]
     }
   },
@@ -560,7 +546,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
   ghcr.io/tzapac/tzapac-x402-permit2-facilitator:latest --config /app/bbt_config.json
 </pre>
                 <div class="guide-text">
-                    For local dev, run the Rust binary with the same config.
+                    Local compose already wires the same facilitator flow.
                 </div>
             </div>
         </div>
