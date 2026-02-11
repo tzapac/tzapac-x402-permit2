@@ -2,6 +2,12 @@ import os
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
+if os.getenv("ENABLE_UNSAFE_MANUAL_STOREFRONT", "0") != "1":
+    raise RuntimeError(
+        "manual_storefront.py is intentionally unsafe for payments. "
+        "Set ENABLE_UNSAFE_MANUAL_STOREFRONT=1 only for isolated demos."
+    )
+
 app = FastAPI(title="BBT Storefront Manual")
 
 @app.get("/")
