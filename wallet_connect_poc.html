@@ -714,6 +714,9 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
         if (!ui.facilitatorInput.value) {
             ui.facilitatorInput.value = DEFAULT_FACILITATOR_URL;
         }
+        if (!ui.spenderInput.value) {
+            ui.spenderInput.value = DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS;
+        }
 
         ui.approveBtn.addEventListener('click', approvePermit2);
         ui.healthBtn.addEventListener('click', checkFacilitatorHealth);
@@ -1085,23 +1088,25 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
             }
             log("FACILITATOR HEALTHY", "success");
             setFacilitatorStatus(true);
-            let signerAddress = null;
+            if (!ui.spenderInput.value) {
+                ui.spenderInput.value = DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS;
+                log(`SPENDER DEFAULTED TO X402 PROXY: ${DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS}`, "success");
+            }
             if (body && typeof body === "object") {
-                signerAddress = body.signer || body.address || body.wallet || body.facilitator;
-                if (!signerAddress && body.signers && body.signers["eip155:42793"]) {
-                    const candidates = body.signers["eip155:42793"];
-                    if (Array.isArray(candidates) && candidates.length > 0) {
-                        signerAddress = candidates[0];
-                    }
-                }
-                if (signerAddress && !ui.spenderInput.value) {
-                    ui.spenderInput.value = signerAddress;
-                    log(`SPENDER AUTO-FILLED: ${signerAddress}`, "success");
+                const signerAddress =
+                    body.signer ||
+                    body.address ||
+                    body.wallet ||
+                    body.facilitator ||
+                    (body.signers &&
+                    body.signers["eip155:42793"] &&
+                    Array.isArray(body.signers["eip155:42793"]) &&
+                    body.signers["eip155:42793"][0]);
+                if (signerAddress) {
+                    log(`FACILITATOR SIGNER: ${signerAddress}`, "info");
                 }
             }
-            if (signerAddress) {
-                await loadTokenData();
-            }
+            await loadTokenData();
         } catch (err) {
             log(`FACILITATOR CHECK FAILED: ${err.message}`, "error");
             if (err.message.includes("Failed to fetch")) {
@@ -1302,11 +1307,12 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
     }
 
     function getSpenderForPermit2() {
-        const input = ui.spenderInput.value.trim();
-        if (input) {
-            return input;
+        const raw = ui.spenderInput.value.trim() || DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS;
+        try {
+            return ethers.getAddress(raw);
+        } catch (err) {
+            return null;
         }
-        return DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS;
     }
 
     function getRequiredAmount() {
@@ -1455,7 +1461,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
 
         const spender = getSpenderForPermit2();
         if (!spender) {
-            log("SPENDER REQUIRED. CLICK CHECK /HEALTH OR ENTER PROXY ADDRESS.", "error");
+            log("VALID SPENDER REQUIRED. CLICK CHECK /HEALTH OR ENTER A VALID X402 PROXY ADDRESS.", "error");
             return;
         }
 
@@ -1476,7 +1482,15 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
             let payload;
             // Coinbase x402 flow in this branch uses facilitator gas only.
             const now = Math.floor(Date.now() / 1000);
-            const deadline = BigInt(now + 3600);
+            const maxTimeoutSecondsRaw = accept.maxTimeoutSeconds;
+            const maxTimeoutSeconds = Number.isFinite(Number(maxTimeoutSecondsRaw))
+                ? Number(maxTimeoutSecondsRaw)
+                : 60;
+            if (maxTimeoutSeconds <= 0) {
+                log(`INVALID maxTimeoutSeconds: ${maxTimeoutSecondsRaw}`, "error");
+                return;
+            }
+            const deadline = BigInt(now + maxTimeoutSeconds);
             const validAfter = BigInt(Math.max(0, now - 600));
             const nonce = BigInt(ethers.hexlify(ethers.randomBytes(32)));
 
