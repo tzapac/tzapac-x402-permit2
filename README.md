@@ -37,6 +37,7 @@ Optional hosted endpoints (if your deployment exposes them):
 - `docker-compose.wallet-poc.yml`: local stack wiring (facilitator + store-api + storefront proxy)
 - `bbt-x402-facilitator/bbt_config.multitest.json`: facilitator runtime config for Etherlink multitest
 - `docs/quick_start.md`: quick setup and run guide, with links to deeper docs
+- `docs/bbt_token_reference.md`: BBT example token details used by this Beta
 - `.github/workflows/ci.yml`: CI checks for Python syntax and Compose config validation
 
 ## Payment Flow (High-Level)
