@@ -3,6 +3,7 @@ import base64
 import json
 import logging
 import os
+from typing import Any
 
 import httpx
 from fastapi import FastAPI, Request, Response
@@ -63,32 +64,70 @@ X402_EXACT_PERMIT2_PROXY_ADDRESS = _to_checksum(
     X402_EXACT_PERMIT2_PROXY_ADDRESS, "X402_EXACT_PERMIT2_PROXY_ADDRESS"
 )
 
-PAYMENT_REQUIREMENTS = {
-    "scheme": "exact",
-    "network": NETWORK,
-    "amount": "10000000000000000",
-    "payTo": SERVER_WALLET,
-    "maxTimeoutSeconds": 60,
-    # Coinbase/x402 v2 uses the raw token address in `asset`.
-    "asset": BBT_TOKEN,
-    # Coinbase-style hint to clients about the intended settlement path.
-    "extra": {"name": "BBT", "version": "1", "assetTransferMethod": "permit2"},
+def _payment_requirements(amount_wei: str) -> dict[str, Any]:
+    return {
+        "scheme": "exact",
+        "network": NETWORK,
+        "amount": amount_wei,
+        "payTo": SERVER_WALLET,
+        "maxTimeoutSeconds": 60,
+        # Coinbase/x402 v2 uses the raw token address in `asset`.
+        "asset": BBT_TOKEN,
+        # Coinbase-style hint to clients about the intended settlement path.
+        "extra": {"name": "BBT", "version": "1", "assetTransferMethod": "permit2"},
+    }
+
+
+PRODUCTS: dict[str, dict[str, Any]] = {
+    "weather": {
+        "id": "weather",
+        "name": "Weather Snapshot",
+        "path": "/api/weather",
+        "description": "Weather data access",
+        "requirements": _payment_requirements("10000000000000000"),
+        "response": {
+            "weather": "sunny",
+            "temperature": 25,
+            "location": "Etherlink",
+        },
+    },
+    "premium-content": {
+        "id": "premium-content",
+        "name": "Premium Content",
+        "path": "/api/premium-content",
+        "description": "Premium content access",
+        "requirements": _payment_requirements("50000000000000000"),
+        "response": {
+            "content": "Premium x402 content unlocked",
+            "tier": "premium",
+            "location": "Etherlink",
+        },
+    },
 }
 
-def _resource_url(request: Request) -> str:
+DEFAULT_PRODUCT_ID = "weather"
+
+
+def _resource_url(request: Request, path: str) -> str:
+    normalized_path = path if path.startswith("/") else f"/{path}"
     if PUBLIC_BASE_URL:
-        return f"{PUBLIC_BASE_URL.rstrip('/')}/api/weather"
-    return f"{str(request.base_url).rstrip('/')}/api/weather"
+        return f"{PUBLIC_BASE_URL.rstrip('/')}{normalized_path}"
+    return f"{str(request.base_url).rstrip('/')}{normalized_path}"
 
 
-def _payment_required(request: Request) -> dict:
+def _payment_required(
+    request: Request,
+    requirements: dict[str, Any],
+    resource_path: str,
+    resource_description: str,
+) -> dict[str, Any]:
     return {
         "x402Version": 2,
-        "accepts": [PAYMENT_REQUIREMENTS],
+        "accepts": [requirements],
         "resource": {
-            "description": "Weather data access",
+            "description": resource_description,
             "mimeType": "application/json",
-            "url": _resource_url(request),
+            "url": _resource_url(request, resource_path),
         },
         "error": None,
     }
@@ -126,30 +165,33 @@ def _extract_permit2_payload(payment_payload: dict) -> dict | None:
     return None
 
 
-@app.get("/")
-async def root():
+def _catalog_product(request: Request, product: dict[str, Any]) -> dict[str, Any]:
+    requirements = product["requirements"]
     return {
-        "status": "BBT Permit2 MVP x402 Server",
-        "network": NETWORK,
-        "facilitator": FACILITATOR_URL,
+        "id": product["id"],
+        "name": product["name"],
+        "path": product["path"],
+        "url": _resource_url(request, product["path"]),
+        "description": product["description"],
+        "payment": {
+            "x402Version": 2,
+            "scheme": requirements["scheme"],
+            "network": requirements["network"],
+            "amount": requirements["amount"],
+            "payTo": requirements["payTo"],
+            "asset": requirements["asset"],
+            "maxTimeoutSeconds": requirements["maxTimeoutSeconds"],
+            "extra": requirements.get("extra"),
+        },
     }
 
 
-@app.get("/config")
-async def config():
-    return {
-        "x402Version": 2,
-        "scheme": "exact",
-        "network": NETWORK,
-        "asset": BBT_TOKEN,
-        "payTo": SERVER_WALLET,
-        "amount": PAYMENT_REQUIREMENTS["amount"],
-        "facilitatorUrl": FACILITATOR_URL,
-    }
-
-
-@app.get("/api/weather")
-async def weather(request: Request):
+async def _handle_paid_product(
+    request: Request,
+    product: dict[str, Any],
+) -> Response:
+    requirements = product["requirements"]
+    product_response = product["response"]
     payment_header = _get_payment_header(request)
     gas_payer_header = request.headers.get("X-GAS-PAYER") or request.headers.get(
         "x-gas-payer"
@@ -157,7 +199,16 @@ async def weather(request: Request):
     gas_payer = gas_payer_header.lower() if gas_payer_header else "auto"
 
     if not payment_header:
-        payload = base64.b64encode(json.dumps(_payment_required(request)).encode()).decode()
+        payload = base64.b64encode(
+            json.dumps(
+                _payment_required(
+                    request,
+                    requirements,
+                    product["path"],
+                    product["description"],
+                )
+            ).encode()
+        ).decode()
         return Response(
             content=json.dumps(
                 {
@@ -185,7 +236,7 @@ async def weather(request: Request):
             media_type="application/json",
         )
 
-    requirements_for_facilitator = PAYMENT_REQUIREMENTS.copy()
+    requirements_for_facilitator = dict(requirements)
 
     if not isinstance(payment_payload, dict):
         return Response(
@@ -206,12 +257,12 @@ async def weather(request: Request):
             media_type="application/json",
         )
 
-    if not _requirements_match(accepted, PAYMENT_REQUIREMENTS):
+    if not _requirements_match(accepted, requirements):
         return Response(
             content=json.dumps(
                 {
                     "error": "Accepted requirements do not match offered requirements",
-                    "offered": PAYMENT_REQUIREMENTS,
+                    "offered": requirements,
                     "accepted": accepted,
                 }
             ),
@@ -406,29 +457,75 @@ async def weather(request: Request):
         "gasPayer": gas_payer,
         "network": NETWORK,
         "explorer": f"https://explorer.etherlink.com/tx/{tx_hash}" if tx_hash else None,
+        "productId": product["id"],
     }
     x_payment_response = base64.b64encode(
         json.dumps(response_payload).encode()
     ).decode()
 
+    paid_body = dict(product_response)
+    paid_body.update(
+        {
+            "productId": product["id"],
+            "payment_settled": True,
+            "txHash": tx_hash,
+            "explorer": f"https://explorer.etherlink.com/tx/{tx_hash}" if tx_hash else None,
+        }
+    )
+
     return Response(
-        content=json.dumps(
-            {
-                "weather": "sunny",
-                "temperature": 25,
-                "location": "Etherlink",
-                "payment_settled": True,
-                "txHash": tx_hash,
-                "explorer": f"https://explorer.etherlink.com/tx/{tx_hash}"
-                if tx_hash
-                else None,
-            }
-        ),
+        content=json.dumps(paid_body),
         status_code=200,
         # Match x402-axum's response header name.
         headers={"X-Payment-Response": x_payment_response},
         media_type="application/json",
     )
+
+
+@app.get("/")
+async def root():
+    return {
+        "status": "BBT Permit2 MVP x402 Server",
+        "network": NETWORK,
+        "facilitator": FACILITATOR_URL,
+    }
+
+
+@app.get("/config")
+async def config():
+    default_product = PRODUCTS[DEFAULT_PRODUCT_ID]
+    return {
+        "x402Version": 2,
+        "scheme": "exact",
+        "network": NETWORK,
+        "asset": BBT_TOKEN,
+        "payTo": SERVER_WALLET,
+        "amount": default_product["requirements"]["amount"],
+        "facilitatorUrl": FACILITATOR_URL,
+        "defaultProductId": DEFAULT_PRODUCT_ID,
+    }
+
+
+@app.get("/api/catalog")
+async def catalog(request: Request):
+    return {
+        "store": "TZ APAC x402 Store",
+        "network": NETWORK,
+        "products": [
+            _catalog_product(request, PRODUCTS["weather"]),
+            _catalog_product(request, PRODUCTS["premium-content"]),
+        ],
+    }
+
+
+@app.get("/api/weather")
+async def weather(request: Request):
+    return await _handle_paid_product(request, PRODUCTS["weather"])
+
+
+@app.get("/api/premium-content")
+async def premium_content(request: Request):
+    return await _handle_paid_product(request, PRODUCTS["premium-content"])
 
 
 if __name__ == "__main__":

@@ -421,6 +421,12 @@
                     <input id="store-input" class="text-input" type="text" value="https://exp-store.bubbletez.com/api/weather" />
                 </span>
             </div>
+            <div id="catalog-row" class="data-row hidden">
+                <span class="data-label">Catalog Item</span>
+                <span class="data-value address">
+                    <select id="catalog-select" class="text-input"></select>
+                </span>
+            </div>
             <div class="data-row">
                 <span class="data-label">Payment Amount</span>
                 <span id="amount-display" class="data-value">--</span>
@@ -603,6 +609,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
     let tokenDetailsOpen = false;
     let facilitatorOnline = null;
     let facilitatorPollTimer = null;
+    let catalogItems = [];
 
     // --- ABI ---
     const ERC20_ABI = [
@@ -623,6 +630,8 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
         facilitatorInput: document.getElementById('facilitator-input'),
         spenderInput: document.getElementById('spender-input'),
         storeInput: document.getElementById('store-input'),
+        catalogRow: document.getElementById('catalog-row'),
+        catalogSelect: document.getElementById('catalog-select'),
         requirementsBtn: document.getElementById('requirements-btn'),
         payBtn: document.getElementById('pay-btn'),
         network: document.getElementById('network-display'),
@@ -699,6 +708,9 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
         ui.payBtn.addEventListener('click', signAndPay);
         ui.tokenToggleBtn.addEventListener('click', toggleTokenDetails);
         ui.gasFacilitatorBtn.addEventListener('click', () => setGasPayerMode('facilitator'));
+        ui.catalogSelect.addEventListener('change', onCatalogSelectionChanged);
+        ui.storeInput.addEventListener('change', onStoreUrlChanged);
+        ui.storeInput.addEventListener('blur', onStoreUrlChanged);
         ui.disclaimerOkBtn.addEventListener('click', () => {
             ui.disclaimerOverlay.classList.add('hidden');
         });
@@ -711,6 +723,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
 
         setGasPayerMode('facilitator');
         updateTokenToggle();
+        await refreshCatalog();
 
         startFacilitatorPolling();
 
@@ -1087,6 +1100,152 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
 
     function getStoreUrl() {
         return normalizeEndpointUrl(ui.storeInput.value, "");
+    }
+
+    function clearPaymentState() {
+        cachedRequirements = null;
+        ui.amount.innerText = "--";
+        ui.payTo.innerText = "--";
+        ui.payBtn.disabled = true;
+    }
+
+    function getStoreBaseUrl() {
+        const storeUrl = getStoreUrl();
+        if (!storeUrl) {
+            return null;
+        }
+        try {
+            const parsed = new URL(storeUrl);
+            return `${parsed.protocol}//${parsed.host}`;
+        } catch (err) {
+            return null;
+        }
+    }
+
+    function normalizeCatalogItemUrl(baseUrl, item) {
+        if (!item || typeof item !== "object") {
+            return null;
+        }
+        const raw = (item.url || item.path || "").toString().trim();
+        if (!raw) {
+            return null;
+        }
+        if (raw.startsWith("http://") || raw.startsWith("https://")) {
+            return normalizeEndpointUrl(raw, "");
+        }
+        const normalizedPath = raw.startsWith("/") ? raw : `/${raw}`;
+        return normalizeEndpointUrl(`${baseUrl}${normalizedPath}`, "");
+    }
+
+    function renderCatalog(items, currentStoreUrl) {
+        catalogItems = Array.isArray(items) ? items : [];
+        ui.catalogSelect.innerHTML = "";
+        if (catalogItems.length === 0) {
+            ui.catalogRow.classList.add("hidden");
+            return;
+        }
+
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.innerText = "Select catalog item";
+        ui.catalogSelect.appendChild(placeholder);
+
+        let selectedValue = "";
+        const current = (currentStoreUrl || "").toLowerCase();
+
+        catalogItems.forEach((item) => {
+            const option = document.createElement("option");
+            option.value = item.url;
+            const amount = item.payment && item.payment.amount ? item.payment.amount : "--";
+            const id = item.id || "item";
+            const name = item.name || item.description || item.path || item.url;
+            option.innerText = `${id}: ${name} (${amount})`;
+            ui.catalogSelect.appendChild(option);
+            if (item.url && item.url.toLowerCase() === current) {
+                selectedValue = item.url;
+            }
+        });
+
+        if (!selectedValue && catalogItems[0] && catalogItems[0].url) {
+            selectedValue = catalogItems[0].url;
+        }
+
+        if (selectedValue) {
+            ui.catalogSelect.value = selectedValue;
+            if (!currentStoreUrl || currentStoreUrl.toLowerCase() !== selectedValue.toLowerCase()) {
+                ui.storeInput.value = selectedValue;
+            }
+        } else {
+            ui.catalogSelect.value = "";
+        }
+        ui.catalogRow.classList.remove("hidden");
+    }
+
+    async function refreshCatalog() {
+        const baseUrl = getStoreBaseUrl();
+        if (!baseUrl) {
+            ui.catalogRow.classList.add("hidden");
+            catalogItems = [];
+            return;
+        }
+
+        const catalogUrl = `${baseUrl}/api/catalog`;
+        try {
+            const resp = await fetch(catalogUrl, { cache: "no-store" });
+            if (!resp.ok) {
+                ui.catalogRow.classList.add("hidden");
+                catalogItems = [];
+                log(`CATALOG UNAVAILABLE (${resp.status}); USING DIRECT STORE URL`, "info");
+                return;
+            }
+
+            const body = await resp.json();
+            const products = Array.isArray(body.products) ? body.products : [];
+            const normalizedItems = products
+                .map((item) => {
+                    const normalizedUrl = normalizeCatalogItemUrl(baseUrl, item);
+                    if (!normalizedUrl) {
+                        return null;
+                    }
+                    return {
+                        id: item.id || "",
+                        name: item.name || "",
+                        description: item.description || "",
+                        payment: item.payment || {},
+                        url: normalizedUrl,
+                    };
+                })
+                .filter(Boolean);
+
+            if (normalizedItems.length === 0) {
+                ui.catalogRow.classList.add("hidden");
+                catalogItems = [];
+                log("CATALOG HAS NO USABLE PRODUCTS; USING DIRECT STORE URL", "info");
+                return;
+            }
+
+            renderCatalog(normalizedItems, getStoreUrl());
+            log(`CATALOG LOADED (${normalizedItems.length} ITEM${normalizedItems.length > 1 ? "S" : ""})`, "success");
+        } catch (err) {
+            ui.catalogRow.classList.add("hidden");
+            catalogItems = [];
+            log(`CATALOG LOOKUP FAILED: ${err.message}`, "error");
+        }
+    }
+
+    function onCatalogSelectionChanged() {
+        const selectedUrl = ui.catalogSelect.value;
+        if (!selectedUrl) {
+            return;
+        }
+        ui.storeInput.value = selectedUrl;
+        clearPaymentState();
+        log(`CATALOG ITEM SELECTED: ${selectedUrl}`, "info");
+    }
+
+    async function onStoreUrlChanged() {
+        clearPaymentState();
+        await refreshCatalog();
     }
 
     function toBase64(text) {
