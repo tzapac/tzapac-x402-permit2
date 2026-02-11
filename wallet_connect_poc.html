@@ -397,7 +397,7 @@
             <div class="data-row">
                 <span class="data-label">Facilitator URL</span>
                 <span class="data-value address">
-                    <input id="facilitator-input" class="text-input" type="text" value="http://localhost:9090" />
+                    <input id="facilitator-input" class="text-input" type="text" value="https://exp-faci.bubbletez.com" />
                 </span>
             </div>
             <div class="data-row">
@@ -413,7 +413,7 @@
             <div class="data-row">
                 <span class="data-label">Store API URL</span>
                 <span class="data-value address">
-                    <input id="store-input" class="text-input" type="text" value="http://localhost:9091/api/weather" />
+                    <input id="store-input" class="text-input" type="text" value="https://exp-store.bubbletez.com/api/weather" />
                 </span>
             </div>
             <div class="data-row">
@@ -430,7 +430,7 @@
             <span class="data-label">Gas Payer</span>
             <span class="data-value">
                 <div class="toggle-group">
-                    <button id="gas-facilitator-btn" class="toggle-button active">FACILITATOR PAYS GAS (COINBASE)</button>
+                    <button id="gas-facilitator-btn" class="toggle-button active">FACILITATOR PAYS GAS (TZAPAC)</button>
                 </div>
             </span>
         </div>
@@ -496,7 +496,7 @@
                     <li>Open UI at `http://localhost:9091`.</li>
                 </ul>
                 <pre># .env
-FACILITATOR_URL=http://localhost:9090
+FACILITATOR_URL=https://exp-faci.bubbletez.com
 RPC_URL=https://YOUR_ETHERLINK_RPC
 SERVER_WALLET=0xYOUR_STORE_WALLET
 STORE_PRIVATE_KEY=0xYOUR_STORE_PRIVATE_KEY
@@ -567,7 +567,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
     const ETHERLINK_CHAIN_ID = 42793;
     const ETHERLINK_CHAIN_ID_HEX = "0xA739";
     const RPC_URL = "https://rpc.bubbletez.com";
-    const DEFAULT_FACILITATOR_URL = "http://localhost:9090";
+    const DEFAULT_FACILITATOR_URL = "https://exp-faci.bubbletez.com";
     const ETHERS_CDN_URLS = [
         "https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js",
         "https://unpkg.com/ethers@6.13.4/dist/ethers.umd.min.js"
@@ -834,7 +834,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
         gasPayerMode = 'facilitator';
         ui.gasFacilitatorBtn.classList.add('active');
         if (mode !== 'facilitator') {
-            log("ONLY FACILITATOR GAS MODE IS ENABLED IN COINBASE-ALIGNED FLOW", "info");
+            log("ONLY FACILITATOR GAS MODE IS ENABLED IN TZAPAC-ALIGNED FLOW", "info");
         }
         log("GAS PAYER: FACILITATOR", "info");
     }
