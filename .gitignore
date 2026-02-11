@@ -22,3 +22,5 @@ reports/successful_test_1.md
 debug_middleware.py
 
 .venv/
+
+.codex/
