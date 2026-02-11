@@ -34,7 +34,6 @@ services:
       FACILITATOR_URL: http://facilitator:9090
       # Match the facilitator proxy address for local testing.
       X402_EXACT_PERMIT2_PROXY_ADDRESS: 0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E
-      PUBLIC_BASE_URL: https://exp-store.bubbletez.com
     command:
       - bash
       - -lc
