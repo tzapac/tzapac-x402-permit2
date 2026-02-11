@@ -13,6 +13,11 @@ This repository is a practical demo of pay-per-request APIs over x402 for Etherl
 
 The protected resource is a sample weather endpoint, and payment is denominated in BBT (`0x7EfE4bdd11237610bcFca478937658bE39F8dfd6`).
 
+## Quick Start
+
+Start here for the fastest setup path:
+- `docs/quick_start.md`
+
 ## Access Links
 
 Local Docker setup (from this repo, and current UI defaults):
@@ -31,6 +36,7 @@ Optional hosted endpoints (if your deployment exposes them):
 - `wallet_connect_poc.html`: browser demo for wallet connect, Permit2 approval/signing, and paid request execution
 - `docker-compose.wallet-poc.yml`: local stack wiring (facilitator + store-api + storefront proxy)
 - `bbt-x402-facilitator/bbt_config.multitest.json`: facilitator runtime config for Etherlink multitest
+- `docs/quick_start.md`: quick setup and run guide, with links to deeper docs
 - `.github/workflows/ci.yml`: CI checks for Python syntax and Compose config validation
 
 ## Payment Flow (High-Level)
