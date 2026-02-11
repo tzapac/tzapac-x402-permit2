@@ -33,11 +33,15 @@ Optional hosted endpoints (if your deployment exposes them):
 
 - `bbt-x402-facilitator/`: Rust x402 facilitator implementation and chain/scheme crates (Etherlink-focused build)
 - `bbt_mvp_server.py`: Python store API, x402 challenge/verification, and settlement handling
-- `wallet_connect_poc.html`: browser demo for wallet connect, Permit2 approval/signing, and paid request execution
+- `wallet_connect_poc.html`: browser demo shell and markup
+- `wallet_connect_poc.css`: externalized demo styles (CSP-safe, no inline style block)
+- `wallet_connect_poc.js`: externalized demo logic (CSP-safe, no inline script block)
 - `docker-compose.wallet-poc.yml`: local stack wiring (facilitator + store-api + storefront proxy)
 - `bbt-x402-facilitator/bbt_config.multitest.json`: facilitator runtime config for Etherlink multitest
 - `docs/quick_start.md`: quick setup and run guide, with links to deeper docs
 - `docs/bbt_token_reference.md`: BBT example token details used by this Beta
+- `bbt_client.py`, `bbt_storefront.py`, `manual_payment_test.py`, `sdk_payment_proof.py`: deprecated compatibility wrappers that redirect to supported v2 flows
+- `deployment_info.md`: deployment-time proxy initialization risks and required safeguards
 - `.github/workflows/ci.yml`: CI checks for Python syntax and Compose config validation
 
 ## Payment Flow (High-Level)

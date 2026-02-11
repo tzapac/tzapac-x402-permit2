@@ -215,7 +215,7 @@ async def main():
 
     now = int(time.time())
     deadline = now + max_timeout_seconds
-    valid_after = max(0, now - 10 * 60)
+    valid_after = now
     nonce = secrets.randbits(256)
     extra = b""  # "0x"
 

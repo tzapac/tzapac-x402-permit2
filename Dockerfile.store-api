@@ -5,4 +5,7 @@ WORKDIR /app
 # Keep dependency install in image build (not at runtime) for deterministic startup.
 RUN pip install --no-cache-dir fastapi uvicorn httpx python-dotenv web3
 
+COPY bbt_mvp_server.py /app/bbt_mvp_server.py
+COPY logging_utils.py /app/logging_utils.py
+
 CMD ["python", "bbt_mvp_server.py"]

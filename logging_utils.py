@@ -47,9 +47,7 @@ def _should_redact(key: str) -> bool:
 
 
 def _redact_str(value: str) -> str:
-    if len(value) <= 12:
-        return "***"
-    return f"{value[:6]}...{value[-4:]}"
+    return f"<redacted:{len(value)} chars>"
 
 
 def redact(value: Any) -> Any:
