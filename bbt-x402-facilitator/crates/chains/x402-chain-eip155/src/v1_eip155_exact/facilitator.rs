@@ -62,9 +62,21 @@ pub const X402_EXACT_PERMIT2_PROXY_ADDRESS: Address =
 
 pub fn x402_exact_permit2_proxy_address() -> Address {
     if let Ok(raw) = std::env::var("X402_EXACT_PERMIT2_PROXY_ADDRESS") {
-        Address::from_str(&raw).unwrap_or(X402_EXACT_PERMIT2_PROXY_ADDRESS)
+        Address::from_str(&raw).unwrap_or_else(|_| {
+            panic!(
+                "Invalid X402_EXACT_PERMIT2_PROXY_ADDRESS: {}. Set a valid 0x-prefixed address.",
+                raw
+            )
+        })
     } else {
         X402_EXACT_PERMIT2_PROXY_ADDRESS
+    }
+}
+
+fn permit2_allowance_transfer_enabled() -> bool {
+    match std::env::var("X402_ENABLE_PERMIT2_ALLOWANCE_TRANSFER") {
+        Ok(v) => matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes"),
+        Err(_) => false,
     }
 }
 
@@ -413,7 +425,11 @@ async fn assert_valid_payment<'a, P: Provider>(
             return Err(PaymentVerificationError::InvalidPaymentAmount.into());
         }
 
-        assert_permit2_witness_time(permit2_auth.deadline, permit2_auth.witness.valid_after)?;
+        assert_permit2_witness_time(
+            permit2_auth.deadline,
+            permit2_auth.witness.valid_after,
+            requirements.max_timeout_seconds,
+        )?;
 
         let erc20_contract = IEIP3009::new(permit2_auth.permitted.token, provider);
         assert_enough_balance(&erc20_contract, &permit2_auth.from, amount_required).await?;
@@ -456,6 +472,13 @@ async fn assert_valid_payment<'a, P: Provider>(
             domain,
         })
     } else if let Some(permit2) = payload.payload.permit2.as_ref() {
+        if !permit2_allowance_transfer_enabled() {
+            return Err(PaymentVerificationError::InvalidFormat(
+                "Legacy permit2 payload is disabled; use payload.permit2Authorization witness flow"
+                    .to_string(),
+            )
+            .into());
+        }
         let permit_single = &permit2.permit_single;
         let details = &permit_single.details;
 
@@ -576,6 +599,7 @@ pub fn assert_permit2_time(
 pub fn assert_permit2_witness_time(
     deadline: UnixTimestamp,
     valid_after: UnixTimestamp,
+    max_timeout_seconds: u64,
 ) -> Result<(), PaymentVerificationError> {
     let now = UnixTimestamp::now();
     if deadline < now + 6 {
@@ -583,6 +607,14 @@ pub fn assert_permit2_witness_time(
     }
     if valid_after > now {
         return Err(PaymentVerificationError::Early);
+    }
+    if max_timeout_seconds > 0 {
+        let max_allowed_deadline = now + max_timeout_seconds + 6;
+        if deadline > max_allowed_deadline {
+            return Err(PaymentVerificationError::InvalidFormat(
+                "Permit2 deadline exceeds maxTimeoutSeconds".to_string(),
+            ));
+        }
     }
     Ok(())
 }

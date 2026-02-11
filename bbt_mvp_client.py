@@ -184,8 +184,18 @@ async def main():
     token_address = Web3.to_checksum_address(asset)
     spender = Web3.to_checksum_address(X402_EXACT_PERMIT2_PROXY_ADDRESS)
 
+    max_timeout_raw = accept.get("maxTimeoutSeconds")
+    try:
+        max_timeout_seconds = int(max_timeout_raw) if max_timeout_raw is not None else 60
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(f"Invalid maxTimeoutSeconds in requirements: {max_timeout_raw!r}") from exc
+    if max_timeout_seconds <= 0:
+        raise RuntimeError(
+            f"Invalid maxTimeoutSeconds in requirements: {max_timeout_seconds}"
+        )
+
     now = int(time.time())
-    deadline = now + 3600
+    deadline = now + max_timeout_seconds
     valid_after = max(0, now - 10 * 60)
     nonce = secrets.randbits(256)
     extra = b""  # "0x"
@@ -193,6 +203,7 @@ async def main():
     print(f"Token: {token_address}")
     print(f"Pay to (witness.to): {pay_to}")
     print(f"Amount: {max_amount}")
+    print(f"maxTimeoutSeconds: {max_timeout_seconds}")
     print(f"Chain ID: {CHAIN_ID}")
     print(f"Permit2 proxy spender: {spender}")
     if spender.lower() == DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS.lower():

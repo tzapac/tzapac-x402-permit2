@@ -3,6 +3,7 @@ import base64
 import json
 import logging
 import os
+import time
 from typing import Any
 
 import httpx
@@ -294,11 +295,18 @@ async def _handle_paid_product(
     spender = permit2_auth.get("spender")
     token = permitted.get("token")
     amount_raw = permitted.get("amount")
+    nonce_raw = permit2_auth.get("nonce")
+    deadline_raw = permit2_auth.get("deadline")
+    signature_raw = permit2_payload.get("signature")
 
     witness_to = witness.get("to")
-    if not witness_to:
+    witness_valid_after_raw = witness.get("validAfter")
+    witness_extra_raw = witness.get("extra")
+    if not witness_to or witness_valid_after_raw is None or witness_extra_raw is None:
         return Response(
-            content=json.dumps({"error": "Missing witness.to in permit2Authorization"}),
+            content=json.dumps(
+                {"error": "Missing required witness fields in permit2Authorization"}
+            ),
             status_code=402,
             media_type="application/json",
         )
@@ -321,10 +329,21 @@ async def _handle_paid_product(
             media_type="application/json",
         )
 
-    if not owner or not spender or not token or amount_raw is None:
+    if (
+        not owner
+        or not spender
+        or not token
+        or amount_raw is None
+        or nonce_raw is None
+        or deadline_raw is None
+    ):
         return Response(
-            content=json.dumps({"error": "Incomplete permit2 payload"}),
-            status_code=400,
+            content=json.dumps(
+                {
+                    "error": "Incomplete permit2 payload (missing owner/spender/token/amount/nonce/deadline)",
+                }
+            ),
+            status_code=402,
             media_type="application/json",
         )
     try:
@@ -345,6 +364,51 @@ async def _handle_paid_product(
         return Response(
             content=json.dumps({"error": "Invalid payment amount"}),
             status_code=400,
+            media_type="application/json",
+        )
+
+    try:
+        nonce_value = int(nonce_raw)
+        deadline_value = int(deadline_raw)
+        witness_valid_after = int(witness_valid_after_raw)
+    except (TypeError, ValueError):
+        return Response(
+            content=json.dumps(
+                {"error": "Invalid nonce/deadline/witness.validAfter in permit2Authorization"}
+            ),
+            status_code=402,
+            media_type="application/json",
+        )
+
+    if nonce_value < 0 or deadline_value <= 0 or witness_valid_after < 0:
+        return Response(
+            content=json.dumps({"error": "Invalid permit2Authorization numeric bounds"}),
+            status_code=402,
+            media_type="application/json",
+        )
+
+    if witness_valid_after > deadline_value:
+        return Response(
+            content=json.dumps({"error": "Invalid witness window (validAfter > deadline)"}),
+            status_code=402,
+            media_type="application/json",
+        )
+
+    max_timeout_seconds = int(
+        requirements_for_facilitator.get("maxTimeoutSeconds", "0") or 0
+    )
+    now = int(time.time())
+    if max_timeout_seconds > 0 and deadline_value > (now + max_timeout_seconds + 6):
+        return Response(
+            content=json.dumps({"error": "Permit2 deadline exceeds maxTimeoutSeconds"}),
+            status_code=402,
+            media_type="application/json",
+        )
+
+    if not isinstance(signature_raw, str) or not signature_raw.startswith("0x"):
+        return Response(
+            content=json.dumps({"error": "Invalid signature in permit2 payload"}),
+            status_code=402,
             media_type="application/json",
         )
 
