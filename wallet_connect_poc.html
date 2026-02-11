@@ -403,7 +403,7 @@
             <div class="data-row">
                 <span class="data-label">Facilitator Spender</span>
                 <span class="data-value address">
-                    <input id="spender-input" class="text-input" type="text" placeholder="0x... (signer wallet)" />
+                    <input id="spender-input" class="text-input" type="text" placeholder="0x... (x402 proxy address)" />
                 </span>
             </div>
         </div>
@@ -430,9 +430,7 @@
             <span class="data-label">Gas Payer</span>
             <span class="data-value">
                 <div class="toggle-group">
-                    <button id="gas-client-btn" class="toggle-button">CLIENT PAYS GAS</button>
-                    <button id="gas-store-btn" class="toggle-button">STORE PAYS GAS</button>
-                    <button id="gas-facilitator-btn" class="toggle-button active">FACILITATOR PAYS GAS</button>
+                    <button id="gas-facilitator-btn" class="toggle-button active">FACILITATOR PAYS GAS (TZAPAC)</button>
                 </div>
             </span>
         </div>
@@ -490,35 +488,22 @@
             <div class="guide-block">
                 <div class="guide-title">Store / Server Setup</div>
                 <div class="guide-text">
-                    Run two containers: the store API (paid endpoint) and the store web/proxy (demo UI + /api proxy).
+                    Run the local stack with docker-compose (store API + store web/proxy + facilitator).
                 </div>
                 <ul class="guide-list">
-                    <li>Store API image: ghcr.io/tzapac/tzapac-x402-permit2-store-api:latest</li>
-                    <li>Store web image: ghcr.io/tzapac/tzapac-x402-permit2-store-web:latest</li>
-                    <li>Create a .env file with your store wallet and facilitator URL.</li>
-                    <li>Create a Docker network and run both containers.</li>
+                    <li>Create `.env` with store wallet/private key and RPC details.</li>
+                    <li>Start stack using `docker-compose.wallet-poc.yml`.</li>
+                    <li>Open UI at `http://localhost:9091`.</li>
                 </ul>
                 <pre># .env
-FACILITATOR_URL=http://localhost:9090
-RPC_URL=https://rpc.bubbletez.com
+FACILITATOR_URL=https://exp-faci.bubbletez.com
+RPC_URL=https://YOUR_ETHERLINK_RPC
 SERVER_WALLET=0xYOUR_STORE_WALLET
 STORE_PRIVATE_KEY=0xYOUR_STORE_PRIVATE_KEY
 </pre>
-                <pre>docker network create x402-store || true
-
-docker run -d --name x402-store-api \
-  --network x402-store \
-  --env-file .env \
-  -p 8001:8001 \
-  ghcr.io/tzapac/tzapac-x402-permit2-store-api:latest
-
-docker run -d --name x402-store-web \
-  --network x402-store \
-  -p 9091:80 \
-  ghcr.io/tzapac/tzapac-x402-permit2-store-web:latest
-</pre>
+                <pre>docker compose -f docker-compose.wallet-poc.yml up -d --build</pre>
                 <div class="guide-text">
-                    For local dev, you can also run this stack with docker-compose.wallet-poc.yml.
+                    If you run containers manually, keep the same env values and exposed ports.
                 </div>
             </div>
         </div>
@@ -529,12 +514,11 @@ docker run -d --name x402-store-web \
             <div class="guide-block">
                 <div class="guide-title">Facilitator Setup</div>
                 <div class="guide-text">
-                    Run the Permit2 facilitator that settles payments on-chain.
+                    Facilitator gas mode is the only supported execution path in this Coinbase-aligned branch.
                 </div>
                 <ul class="guide-list">
-                    <li>Facilitator image: ghcr.io/tzapac/tzapac-x402-permit2-facilitator:latest</li>
-                    <li>Create a config file and provide a signer private key.</li>
-                    <li>Run the container and expose port 9090.</li>
+                    <li>The easiest path is running via `docker-compose.wallet-poc.yml`.</li>
+                    <li>For standalone runs, provide a signer private key and RPC endpoint.</li>
                 </ul>
                 <pre># .env
 FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
@@ -548,7 +532,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
       "eip1559": true,
       "signers": ["$FACILITATOR_PRIVATE_KEY"],
       "rpc": [
-        { "http": "https://rpc.bubbletez.com", "rate_limit": 100 }
+        { "http": "https://YOUR_ETHERLINK_RPC", "rate_limit": 100 }
       ]
     }
   },
@@ -562,7 +546,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
   ghcr.io/tzapac/tzapac-x402-permit2-facilitator:latest --config /app/bbt_config.json
 </pre>
                 <div class="guide-text">
-                    For local dev, run the Rust binary with the same config.
+                    Local compose already wires the same facilitator flow.
                 </div>
             </div>
         </div>
@@ -578,6 +562,8 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
     // --- CONSTANTS ---
     const BBT_ADDRESS = "0x7EfE4bdd11237610bcFca478937658bE39F8dfd6";
     const PERMIT2_ADDRESS = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
+    // Etherlink-deployed x402 exact Permit2 proxy (Coinbase-aligned).
+    const DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS = "0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E";
     const ETHERLINK_CHAIN_ID = 42793;
     const ETHERLINK_CHAIN_ID_HEX = "0xA739";
     const RPC_URL = "https://rpc.bubbletez.com";
@@ -628,8 +614,6 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
         payTo: document.getElementById('payto-display'),
         tokenSection: document.getElementById('token-section'),
         tokenToggleBtn: document.getElementById('token-toggle-btn'),
-        gasClientBtn: document.getElementById('gas-client-btn'),
-        gasStoreBtn: document.getElementById('gas-store-btn'),
         gasFacilitatorBtn: document.getElementById('gas-facilitator-btn'),
         disclaimerOverlay: document.getElementById('disclaimer-overlay'),
         disclaimerOkBtn: document.getElementById('disclaimer-ok-btn'),
@@ -682,7 +666,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
     }
 
     async function init() {
-        if (!ui.facilitatorInput.value || ui.facilitatorInput.value.includes("localhost")) {
+        if (!ui.facilitatorInput.value) {
             ui.facilitatorInput.value = DEFAULT_FACILITATOR_URL;
         }
 
@@ -691,8 +675,6 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
         ui.requirementsBtn.addEventListener('click', fetchPaymentRequirements);
         ui.payBtn.addEventListener('click', signAndPay);
         ui.tokenToggleBtn.addEventListener('click', toggleTokenDetails);
-        ui.gasClientBtn.addEventListener('click', () => setGasPayerMode('client'));
-        ui.gasStoreBtn.addEventListener('click', () => setGasPayerMode('store'));
         ui.gasFacilitatorBtn.addEventListener('click', () => setGasPayerMode('facilitator'));
         ui.disclaimerOkBtn.addEventListener('click', () => {
             ui.disclaimerOverlay.classList.add('hidden');
@@ -849,11 +831,12 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
     }
 
     function setGasPayerMode(mode) {
-        gasPayerMode = mode;
-        ui.gasClientBtn.classList.toggle('active', mode === 'client');
-        ui.gasStoreBtn.classList.toggle('active', mode === 'store');
-        ui.gasFacilitatorBtn.classList.toggle('active', mode === 'facilitator');
-        log(`GAS PAYER: ${mode.toUpperCase()}`, "info");
+        gasPayerMode = 'facilitator';
+        ui.gasFacilitatorBtn.classList.add('active');
+        if (mode !== 'facilitator') {
+            log("ONLY FACILITATOR GAS MODE IS ENABLED IN TZAPAC-ALIGNED FLOW", "info");
+        }
+        log("GAS PAYER: FACILITATOR", "info");
     }
 
     // --- CHECK NETWORK ---
@@ -1003,14 +986,46 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
     }
 
     // --- FACILITATOR LINKS ---
+    function isLocalHostname(hostname) {
+        const host = (hostname || "").toLowerCase();
+        return host === "localhost" || host === "127.0.0.1" || host === "::1" || host.endsWith(".local");
+    }
+
+    function normalizeEndpointUrl(raw, fallback) {
+        const candidate = (raw || "").trim() || fallback;
+        if (!candidate) {
+            return null;
+        }
+        try {
+            const url = new URL(candidate);
+            if (url.protocol !== "http:" && url.protocol !== "https:") {
+                return null;
+            }
+            const isLocal = isLocalHostname(url.hostname);
+            if (!isLocal && url.protocol !== "https:") {
+                return null;
+            }
+            if (window.location.protocol === "https:" && url.protocol === "http:" && !isLocal) {
+                return null;
+            }
+            return url.toString().replace(/\/$/, "");
+        } catch (err) {
+            return null;
+        }
+    }
+
     function getFacilitatorUrl() {
-        const raw = ui.facilitatorInput.value.trim();
-        const value = raw.length ? raw : DEFAULT_FACILITATOR_URL;
-        return value.replace(/\/$/, "");
+        return normalizeEndpointUrl(ui.facilitatorInput.value, DEFAULT_FACILITATOR_URL);
     }
 
     async function checkFacilitatorHealth() {
-        const url = `${getFacilitatorUrl()}/health`;
+        const base = getFacilitatorUrl();
+        if (!base) {
+            setFacilitatorStatus(false);
+            log("INVALID FACILITATOR URL. USE HTTPS (OR HTTP FOR LOCALHOST).", "error");
+            return;
+        }
+        const url = `${base}/health`;
         try {
             log(`CHECKING FACILITATOR: ${url}`, "info");
             const resp = await fetch(url);
@@ -1048,7 +1063,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
     }
 
     function getStoreUrl() {
-        return ui.storeInput.value.trim();
+        return normalizeEndpointUrl(ui.storeInput.value, "");
     }
 
     function toBase64(text) {
@@ -1082,32 +1097,20 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
     function getPermit2Token() {
         if (cachedRequirements && cachedRequirements.accepts && cachedRequirements.accepts[0]) {
             const asset = cachedRequirements.accepts[0].asset || "";
-            const token = asset.split("erc20:")[1];
-            if (token) {
-                return token;
+            // In x402 v2, `asset` is the raw token address.
+            if (asset && asset.startsWith("0x") && asset.length === 42) {
+                return asset;
             }
         }
         return BBT_ADDRESS;
     }
 
     function getSpenderForPermit2() {
-        if (gasPayerMode === "client") {
-            return userAddress || null;
-        }
-        if (gasPayerMode === "store") {
-            if (cachedRequirements && cachedRequirements.accepts && cachedRequirements.accepts[0]) {
-                return cachedRequirements.accepts[0].payTo;
-            }
-            return null;
-        }
         const input = ui.spenderInput.value.trim();
         if (input) {
             return input;
         }
-        if (cachedRequirements && cachedRequirements.accepts && cachedRequirements.accepts[0]) {
-            return cachedRequirements.accepts[0].payTo;
-        }
-        return null;
+        return DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS;
     }
 
     function getRequiredAmount() {
@@ -1144,7 +1147,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
     async function fetchPaymentRequirements() {
         const url = getStoreUrl();
         if (!url) {
-            log("STORE URL REQUIRED", "error");
+            log("VALID STORE URL REQUIRED (HTTPS OR LOCALHOST HTTP)", "error");
             return;
         }
 
@@ -1156,9 +1159,9 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
                 return;
             }
 
-            const header = resp.headers.get("x-payment-required");
+            const header = resp.headers.get("payment-required") || resp.headers.get("Payment-Required");
             if (!header) {
-                log("MISSING X-PAYMENT-REQUIRED HEADER", "error");
+                log("MISSING Payment-Required HEADER", "error");
                 return;
             }
 
@@ -1168,6 +1171,13 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
             const accept = decoded.accepts && decoded.accepts[0];
             if (!accept) {
                 log("NO PAYMENT OPTIONS FOUND", "error");
+                return;
+            }
+
+            const assetTransferMethod = accept.extra && accept.extra.assetTransferMethod;
+            if (assetTransferMethod && assetTransferMethod !== "permit2") {
+                log(`UNSUPPORTED assetTransferMethod: ${assetTransferMethod} (expected 'permit2')`, "error");
+                ui.payBtn.disabled = true;
                 return;
             }
 
@@ -1200,16 +1210,22 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
         }
 
         const accept = cachedRequirements.accepts[0];
-        const tokenAddress = accept.asset.split("erc20:")[1];
+        const assetTransferMethod = accept.extra && accept.extra.assetTransferMethod;
+        if (assetTransferMethod && assetTransferMethod !== "permit2") {
+            log(`UNSUPPORTED assetTransferMethod: ${assetTransferMethod} (expected 'permit2')`, "error");
+            return;
+        }
+        const tokenAddress = accept.asset;
         const payTo = accept.payTo;
         const amountRaw = accept.amount || accept.maxAmountRequired;
         const amount = BigInt(amountRaw);
+        const acceptedRequirement = JSON.parse(JSON.stringify(accept));
 
-            const spender = getSpenderForPermit2();
-            if (!spender) {
-                log("SPENDER REQUIRED. CLICK CHECK /HEALTH OR SET GAS PAYER MODE.", "error");
-                return;
-            }
+        const spender = getSpenderForPermit2();
+        if (!spender) {
+            log("SPENDER REQUIRED. CLICK CHECK /HEALTH OR ENTER PROXY ADDRESS.", "error");
+            return;
+        }
 
         try {
             const decimals = await bbtContract.decimals();
@@ -1219,101 +1235,95 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
                 return;
             }
 
-            const permit2Abi = [
-                "function allowance(address owner,address token,address spender) view returns (uint160 amount,uint48 expiration,uint48 nonce)",
-                "function permit(address owner, tuple(tuple(address token,uint160 amount,uint48 expiration,uint48 nonce) details,address spender,uint256 sigDeadline) permitSingle, bytes signature)",
-                "function transferFrom(address from,address to,uint160 amount,address token)"
-            ];
-            const permit2 = new ethers.Contract(PERMIT2_ADDRESS, permit2Abi, signer);
-            const allowanceData = await permit2.allowance(userAddress, tokenAddress, spender);
-            const nonce = allowanceData[2];
-
-            const now = Math.floor(Date.now() / 1000);
-            const expiration = BigInt(now + 3600);
-            const sigDeadline = BigInt(now + 3600);
-
             const domain = {
                 name: "Permit2",
                 chainId: ETHERLINK_CHAIN_ID,
                 verifyingContract: PERMIT2_ADDRESS
             };
 
+            let payload;
+            // Coinbase x402 flow in this branch uses facilitator gas only.
+            const now = Math.floor(Date.now() / 1000);
+            const deadline = BigInt(now + 3600);
+            const validAfter = BigInt(Math.max(0, now - 600));
+            const nonce = BigInt(ethers.hexlify(ethers.randomBytes(32)));
+
             const types = {
-                PermitDetails: [
-                    { name: "token", type: "address" },
-                    { name: "amount", type: "uint160" },
-                    { name: "expiration", type: "uint48" },
-                    { name: "nonce", type: "uint48" }
-                ],
-                PermitSingle: [
-                    { name: "details", type: "PermitDetails" },
+                PermitWitnessTransferFrom: [
+                    { name: "permitted", type: "TokenPermissions" },
                     { name: "spender", type: "address" },
-                    { name: "sigDeadline", type: "uint256" }
+                    { name: "nonce", type: "uint256" },
+                    { name: "deadline", type: "uint256" },
+                    { name: "witness", type: "Witness" }
+                ],
+                TokenPermissions: [
+                    { name: "token", type: "address" },
+                    { name: "amount", type: "uint256" }
+                ],
+                Witness: [
+                    { name: "to", type: "address" },
+                    { name: "validAfter", type: "uint256" },
+                    { name: "extra", type: "bytes" }
                 ]
             };
 
             const value = {
-                details: {
+                permitted: {
                     token: tokenAddress,
-                    amount,
-                    expiration,
-                    nonce
+                    amount
                 },
                 spender,
-                sigDeadline
+                nonce,
+                deadline,
+                witness: {
+                    to: payTo,
+                    validAfter,
+                    extra: "0x"
+                }
             };
 
-            log("SIGNING PERMIT2...", "info");
+            log("SIGNING PERMIT2 (WITNESS)...", "info");
             const signature = await signer.signTypedData(domain, types, value);
 
-            const payload = {
+            payload = {
                 x402Version: 2,
                 scheme: "exact",
                 network: "eip155:42793",
+                accepted: acceptedRequirement,
                 payload: {
-                    permit2: {
-                        owner: userAddress,
-                        permitSingle: {
-                            details: {
-                                token: tokenAddress,
-                                amount: amount.toString(),
-                                expiration: Number(expiration),
-                                nonce: Number(nonce)
-                            },
-                            spender,
-                            sigDeadline: Number(sigDeadline)
-                        },
-                        signature
+                    signature,
+                    permit2Authorization: {
+                        from: userAddress,
+                        permitted: { token: tokenAddress, amount: amount.toString() },
+                        spender,
+                        nonce: nonce.toString(),
+                        deadline: deadline.toString(),
+                        witness: {
+                            to: payTo,
+                            validAfter: validAfter.toString(),
+                            extra: "0x"
+                        }
                     }
                 }
             };
 
             const header = toBase64(JSON.stringify(payload));
 
-            log(`PERMIT2 SIGNATURE: ${signature}`, "success");
-            log(`PAYLOAD JSON: ${JSON.stringify(payload, null, 2)}`, "info");
-            log(`X-PAYMENT (base64): ${header}`, "info");
+            log("PERMIT2 SIGNATURE CREATED", "success");
+            log(`PAYLOAD READY (base64 length=${header.length})`, "info");
 
             const headers = {
-                "X-PAYMENT": header,
+                "Payment-Signature": header,
                 "X-GAS-PAYER": gasPayerMode
             };
-
-            if (gasPayerMode === "client") {
-                log("SUBMITTING PERMIT2 (CLIENT GAS)...", "info");
-                const permitTx = await permit2.permit(userAddress, value, signature);
-                await permitTx.wait();
-                log(`PERMIT TX: ${permitTx.hash}`, "success");
-
-                log("SUBMITTING TRANSFERFROM (CLIENT GAS)...", "info");
-                const transferTx = await permit2.transferFrom(userAddress, payTo, amount, tokenAddress);
-                await transferTx.wait();
-                log(`TRANSFER TX: ${transferTx.hash}`, "success");
-                headers["X-PAYMENT-TX"] = transferTx.hash;
+            const storeUrl = getStoreUrl();
+            if (!storeUrl) {
+                log("VALID STORE URL REQUIRED (HTTPS OR LOCALHOST HTTP)", "error");
+                return;
             }
 
-            log("SENDING X-PAYMENT...", "info");
-            const resp = await fetch(getStoreUrl(), {
+            log("SENDING Payment-Signature...", "info");
+            const resp = await fetch(storeUrl, {
                 headers
             });
 

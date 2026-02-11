@@ -47,6 +47,15 @@ pub struct ExactEvmPayload {
     /// Optional Permit2 payload (used instead of ERC-3009 authorization).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub permit2: Option<Permit2Payload>,
+
+    /// Optional Permit2 payload (SignatureTransfer: PermitWitnessTransferFrom).
+    ///
+    /// This is the Coinbase x402-style Permit2 flow where:
+    /// - The user signs an EIP-712 PermitWitnessTransferFrom message
+    /// - The `spender` is an x402 Permit2 proxy contract (not the facilitator)
+    /// - The proxy enforces `witness.to == payTo` on-chain
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub permit2_authorization: Option<Permit2Authorization>,
 }
 
 /// EIP-712 structured data for ERC-3009 transfer authorization.
@@ -107,6 +116,44 @@ pub struct Permit2Details {
     pub amount: U256,
     pub expiration: u64,
     pub nonce: u64,
+}
+
+/// Permit2 authorization payload (SignatureTransfer: PermitWitnessTransferFrom).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Permit2Authorization {
+    /// Signer/owner authorizing the transfer.
+    pub from: Address,
+
+    /// Token and amount authorized for transfer.
+    pub permitted: Permit2TokenPermissions,
+
+    /// Must be the x402 Permit2 proxy address (not the facilitator).
+    pub spender: Address,
+
+    /// Permit2 signature nonce (uint256).
+    pub nonce: U256,
+
+    /// Permit2 signature deadline (unix seconds).
+    pub deadline: UnixTimestamp,
+
+    /// Witness data enforced by the x402 Permit2 proxy.
+    pub witness: Permit2Witness,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Permit2TokenPermissions {
+    pub token: Address,
+    pub amount: U256,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Permit2Witness {
+    pub to: Address,
+    pub valid_after: UnixTimestamp,
+    pub extra: Bytes,
 }
 
 /// Type alias for V1 payment requirements with EVM-specific types.
@@ -171,5 +218,40 @@ sol!(
         PermitDetails details;
         address spender;
         uint256 sigDeadline;
+    }
+);
+
+// Permit2 SignatureTransfer types (PermitWitnessTransferFrom).
+#[cfg(any(feature = "facilitator", feature = "client"))]
+sol!(
+    /// Solidity-compatible struct for Permit2 `TokenPermissions` (SignatureTransfer).
+    #[derive(Serialize, Deserialize)]
+    struct TokenPermissions {
+        address token;
+        uint256 amount;
+    }
+);
+
+#[cfg(any(feature = "facilitator", feature = "client"))]
+sol!(
+    /// Solidity-compatible struct for x402 witness data (SignatureTransfer).
+    #[derive(Serialize, Deserialize)]
+    struct Witness {
+        address to;
+        uint256 validAfter;
+        bytes extra;
+    }
+);
+
+#[cfg(any(feature = "facilitator", feature = "client"))]
+sol!(
+    /// Solidity-compatible struct for Permit2 `PermitWitnessTransferFrom` (SignatureTransfer).
+    #[derive(Serialize, Deserialize)]
+    struct PermitWitnessTransferFrom {
+        TokenPermissions permitted;
+        address spender;
+        uint256 nonce;
+        uint256 deadline;
+        Witness witness;
     }
 );

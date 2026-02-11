@@ -200,6 +200,7 @@ pub async fn sign_erc3009_authorization<S: SignerLike + Sync>(
         signature: Some(Bytes::from(signature.as_bytes().to_vec())),
         authorization: Some(authorization),
         permit2: None,
+        permit2_authorization: None,
     })
 }
 

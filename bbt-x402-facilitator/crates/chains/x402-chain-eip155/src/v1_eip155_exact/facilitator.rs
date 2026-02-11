@@ -50,6 +50,24 @@ pub const VALIDATOR_ADDRESS: Address = address!("0xdAcD51A54883eb67D95FAEb2BBfdC
 /// Permit2 contract address (canonical CREATE2 deployment).
 pub const PERMIT2_ADDRESS: Address = address!("0x000000000022D473030F116dDEE9F6B43aC78BA3");
 
+/// Default x402 Permit2 proxy address for the "exact" scheme.
+///
+/// Coinbase's x402 Permit2 flow uses a proxy as the `spender` in the signed message.
+/// The proxy enforces `witness.to == payTo` on-chain (so the facilitator can't redirect funds).
+///
+/// Note: the proxy may not be deployed on all chains. For this PoC, the address can be
+/// overridden via the `X402_EXACT_PERMIT2_PROXY_ADDRESS` environment variable.
+pub const X402_EXACT_PERMIT2_PROXY_ADDRESS: Address =
+    address!("0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E");
+
+pub fn x402_exact_permit2_proxy_address() -> Address {
+    if let Ok(raw) = std::env::var("X402_EXACT_PERMIT2_PROXY_ADDRESS") {
+        Address::from_str(&raw).unwrap_or(X402_EXACT_PERMIT2_PROXY_ADDRESS)
+    } else {
+        X402_EXACT_PERMIT2_PROXY_ADDRESS
+    }
+}
+
 impl<P> X402SchemeFacilitatorBuilder<P> for V1Eip155Exact
 where
     P: Eip155MetaTransactionProvider + ChainProviderOps + Send + Sync + 'static,
@@ -130,6 +148,11 @@ where
                 payment,
                 domain,
             } => verify_payment_permit2(self.provider.inner(), &contract, &payment, &domain).await?,
+            PaymentContext::Permit2Witness {
+                contract,
+                payment,
+                domain,
+            } => verify_payment_permit2_witness(self.provider.inner(), &contract, &payment, &domain).await?,
         };
 
         Ok(v1::VerifyResponse::valid(payer.to_string()).into())
@@ -173,6 +196,14 @@ where
                     settlement,
                 )
             }
+            PaymentContext::Permit2Witness {
+                contract,
+                payment,
+                domain,
+            } => (
+                payment.from,
+                settle_payment_permit2_witness(&self.provider, &contract, &payment, &domain).await?,
+            ),
         };
         Ok(v1::SettleResponse::Success {
             payer: payer.to_string(),
@@ -253,6 +284,33 @@ pub struct Permit2Payment {
     pub transfer_amount: U256,
 }
 
+/// Coinbase-style Permit2 payment using SignatureTransfer (PermitWitnessTransferFrom).
+#[derive(Debug)]
+pub struct Permit2WitnessPayment {
+    /// Signer/owner authorizing the transfer.
+    pub from: Address,
+    /// The x402 Permit2 proxy address (spender in the signed message).
+    pub spender: Address,
+    /// Token address being authorized.
+    pub token: Address,
+    /// Permitted amount (uint256).
+    pub amount: U256,
+    /// Permit2 nonce (uint256).
+    pub nonce: U256,
+    /// Signature deadline timestamp.
+    pub deadline: UnixTimestamp,
+    /// Witness destination (must equal payment requirements pay_to).
+    pub pay_to: Address,
+    /// Lower time bound (payment invalid before this time).
+    pub valid_after: UnixTimestamp,
+    /// Extra witness bytes.
+    pub extra: Bytes,
+    /// Raw signature bytes.
+    pub signature: Bytes,
+    /// Amount to transfer for the settlement (exact).
+    pub transfer_amount: U256,
+}
+
 #[derive(Debug)]
 enum PaymentContext<'a, P: Provider> {
     Eip3009 {
@@ -263,6 +321,11 @@ enum PaymentContext<'a, P: Provider> {
     Permit2 {
         contract: IPermit2::IPermit2Instance<&'a P>,
         payment: Permit2Payment,
+        domain: Eip712Domain,
+    },
+    Permit2Witness {
+        contract: X402ExactPermit2Proxy::X402ExactPermit2ProxyInstance<&'a P>,
+        payment: Permit2WitnessPayment,
         domain: Eip712Domain,
     },
 }
@@ -284,6 +347,15 @@ sol!(
     IPermit2,
     "abi/IPermit2.json"
 );
+
+sol! {
+    #[allow(missing_docs)]
+    #[allow(clippy::too_many_arguments)]
+    #[derive(Debug)]
+    #[sol(rpc)]
+    X402ExactPermit2Proxy,
+    "abi/X402ExactPermit2Proxy.json"
+}
 
 sol! {
     #[allow(missing_docs)]
@@ -319,7 +391,71 @@ async fn assert_valid_payment<'a, P: Provider>(
     if requirements_chain_id != chain_id {
         return Err(PaymentVerificationError::ChainIdMismatch.into());
     }
-    if let Some(permit2) = payload.payload.permit2.as_ref() {
+    if let Some(permit2_auth) = payload.payload.permit2_authorization.as_ref() {
+        let proxy_address = x402_exact_permit2_proxy_address();
+
+        // Static checks to align with Coinbase's Permit2 witness proxy flow.
+        if permit2_auth.permitted.token != requirements.asset {
+            return Err(PaymentVerificationError::AssetMismatch.into());
+        }
+        if permit2_auth.spender != proxy_address {
+            return Err(PaymentVerificationError::InvalidFormat(
+                "permit2Authorization.spender must be the x402 Permit2 proxy".to_string(),
+            )
+            .into());
+        }
+        if permit2_auth.witness.to != requirements.pay_to {
+            return Err(PaymentVerificationError::RecipientMismatch.into());
+        }
+
+        let amount_required = requirements.max_amount_required;
+        if permit2_auth.permitted.amount != amount_required {
+            return Err(PaymentVerificationError::InvalidPaymentAmount.into());
+        }
+
+        assert_permit2_witness_time(permit2_auth.deadline, permit2_auth.witness.valid_after)?;
+
+        let erc20_contract = IEIP3009::new(permit2_auth.permitted.token, provider);
+        assert_enough_balance(&erc20_contract, &permit2_auth.from, amount_required).await?;
+
+        // Permit2 SignatureTransfer still requires ERC20 approval for Permit2.
+        let allowance = erc20_contract
+            .allowance(permit2_auth.from, PERMIT2_ADDRESS)
+            .call()
+            .await
+            .map_err(|e| PaymentVerificationError::TransactionSimulation(e.to_string()))?;
+        if allowance < amount_required {
+            return Err(PaymentVerificationError::TransactionSimulation(
+                "Permit2 ERC20 allowance is insufficient".to_string(),
+            )
+            .into());
+        }
+
+        let signature = payload.payload.signature.clone().ok_or_else(|| {
+            PaymentVerificationError::InvalidFormat("Missing signature".to_string())
+        })?;
+
+        let domain = assert_permit2_witness_domain(chain);
+        let contract = X402ExactPermit2Proxy::new(proxy_address, provider);
+        let payment = Permit2WitnessPayment {
+            from: permit2_auth.from,
+            spender: permit2_auth.spender,
+            token: permit2_auth.permitted.token,
+            amount: permit2_auth.permitted.amount,
+            nonce: permit2_auth.nonce,
+            deadline: permit2_auth.deadline,
+            pay_to: permit2_auth.witness.to,
+            valid_after: permit2_auth.witness.valid_after,
+            extra: permit2_auth.witness.extra.clone(),
+            signature,
+            transfer_amount: amount_required,
+        };
+        Ok(PaymentContext::Permit2Witness {
+            contract,
+            payment,
+            domain,
+        })
+    } else if let Some(permit2) = payload.payload.permit2.as_ref() {
         let permit_single = &permit2.permit_single;
         let details = &permit_single.details;
 
@@ -436,6 +572,30 @@ pub fn assert_permit2_time(
     Ok(())
 }
 
+#[cfg_attr(feature = "telemetry", instrument(skip_all, err))]
+pub fn assert_permit2_witness_time(
+    deadline: UnixTimestamp,
+    valid_after: UnixTimestamp,
+) -> Result<(), PaymentVerificationError> {
+    let now = UnixTimestamp::now();
+    if deadline < now + 6 {
+        return Err(PaymentVerificationError::Expired);
+    }
+    if valid_after > now {
+        return Err(PaymentVerificationError::Early);
+    }
+    Ok(())
+}
+
+pub fn assert_permit2_witness_domain(chain: &Eip155ChainReference) -> Eip712Domain {
+    // Coinbase-style Permit2 typed data domain: name + chainId + verifyingContract (no version).
+    eip712_domain! {
+        name: "Permit2",
+        chain_id: chain.inner(),
+        verifying_contract: PERMIT2_ADDRESS,
+    }
+}
+
 pub fn assert_permit2_domain(chain: &Eip155ChainReference) -> Eip712Domain {
     eip712_domain! {
         name: "Permit2",
@@ -480,6 +640,27 @@ fn build_permit2_single_call(
         spender: payment.spender,
         sigDeadline: U256::from(payment.sig_deadline),
     })
+}
+
+fn build_permit2_proxy_permit(
+    payment: &Permit2WitnessPayment,
+) -> X402ExactPermit2Proxy::PermitTransferFrom {
+    X402ExactPermit2Proxy::PermitTransferFrom {
+        permitted: X402ExactPermit2Proxy::TokenPermissions {
+            token: payment.token,
+            amount: payment.amount,
+        },
+        nonce: payment.nonce,
+        deadline: U256::from(payment.deadline.as_secs()),
+    }
+}
+
+fn build_permit2_proxy_witness(payment: &Permit2WitnessPayment) -> X402ExactPermit2Proxy::Witness {
+    X402ExactPermit2Proxy::Witness {
+        to: payment.pay_to,
+        validAfter: U256::from(payment.valid_after.as_secs()),
+        extra: payment.extra.clone(),
+    }
 }
 
 /// Constructs the correct EIP-712 domain for signature verification.
@@ -581,7 +762,7 @@ pub fn assert_enough_value(
     sent: &U256,
     max_amount_required: &U256,
 ) -> Result<(), PaymentVerificationError> {
-    if sent < max_amount_required {
+    if sent != max_amount_required {
         Err(PaymentVerificationError::InvalidPaymentAmount)
     } else {
         Ok(())
@@ -1087,6 +1268,105 @@ pub async fn verify_payment_permit2<P: Provider>(
     Ok(payer)
 }
 
+pub async fn verify_payment_permit2_witness<P: Provider>(
+    provider: &P,
+    contract: &X402ExactPermit2Proxy::X402ExactPermit2ProxyInstance<&P>,
+    payment: &Permit2WitnessPayment,
+    eip712_domain: &Eip712Domain,
+) -> Result<Address, Eip155ExactError> {
+    let payer = payment.from;
+
+    // Build EIP-712 prehash for EIP-6492 classification/validation.
+    let permit_witness_transfer_from = types::PermitWitnessTransferFrom {
+        permitted: types::TokenPermissions {
+            token: payment.token,
+            amount: payment.amount,
+        },
+        spender: payment.spender,
+        nonce: payment.nonce,
+        deadline: U256::from(payment.deadline.as_secs()),
+        witness: types::Witness {
+            to: payment.pay_to,
+            validAfter: U256::from(payment.valid_after.as_secs()),
+            extra: payment.extra.clone(),
+        },
+    };
+    let eip712_hash = permit_witness_transfer_from.eip712_signing_hash(eip712_domain);
+
+    let structured_signature: StructuredSignature = StructuredSignature::try_from_bytes(
+        payment.signature.clone(),
+        payer,
+        &eip712_hash,
+    )?;
+
+    let permit = build_permit2_proxy_permit(payment);
+    let witness = build_permit2_proxy_witness(payment);
+
+    match structured_signature {
+        StructuredSignature::EIP6492 { inner, original, .. } => {
+            // Validate wrapper (may deploy wallet), then simulate proxy settle with inner signature.
+            let validator6492 = Validator6492::new(VALIDATOR_ADDRESS, &provider);
+            let is_valid_signature_call =
+                validator6492.isValidSigWithSideEffects(payer, eip712_hash, original);
+            let settle_call = contract.settle(permit, payer, witness, inner);
+
+            let aggregate3 = provider
+                .multicall()
+                .add(is_valid_signature_call)
+                .add(settle_call);
+            let aggregate3_call = aggregate3.aggregate3();
+
+            #[cfg(feature = "telemetry")]
+            let (is_valid_signature_result, settle_result) = aggregate3_call
+                .instrument(tracing::info_span!(
+                    "call_x402_exact_permit2_proxy_settle_6492",
+                    owner = %payer,
+                    token = %payment.token,
+                    amount = %payment.transfer_amount,
+                    to = %payment.pay_to,
+                    otel.kind = "client",
+                ))
+                .await?;
+            #[cfg(not(feature = "telemetry"))]
+            let (is_valid_signature_result, settle_result) = aggregate3_call.await?;
+
+            let is_valid_signature_result = is_valid_signature_result
+                .map_err(|e| PaymentVerificationError::InvalidSignature(e.to_string()))?;
+            if !is_valid_signature_result {
+                return Err(PaymentVerificationError::InvalidSignature(
+                    "Chain reported signature to be invalid".to_string(),
+                )
+                .into());
+            }
+            settle_result
+                .map_err(|e| PaymentVerificationError::TransactionSimulation(e.to_string()))?;
+        }
+        _ => {
+            // For EOA + EIP-1271, simulate proxy settle directly with provided signature bytes.
+            let settle_call = contract.settle(permit, payer, witness, payment.signature.clone());
+            let settle_fut = settle_call.call().into_future();
+            #[cfg(feature = "telemetry")]
+            settle_fut
+                .instrument(tracing::info_span!(
+                    "call_x402_exact_permit2_proxy_settle",
+                    owner = %payer,
+                    token = %payment.token,
+                    amount = %payment.transfer_amount,
+                    to = %payment.pay_to,
+                    otel.kind = "client",
+                ))
+                .await
+                .map_err(|e| PaymentVerificationError::TransactionSimulation(e.to_string()))?;
+            #[cfg(not(feature = "telemetry"))]
+            settle_fut
+                .await
+                .map_err(|e| PaymentVerificationError::TransactionSimulation(e.to_string()))?;
+        }
+    }
+
+    Ok(payer)
+}
+
 pub async fn settle_payment<P, E>(
     provider: &P,
     contract: &IEIP3009::IEIP3009Instance<&P::Inner>,
@@ -1359,6 +1639,52 @@ where
         Err(Eip155ExactError::TransactionReverted(
             transfer_receipt.transaction_hash,
         ))
+    }
+}
+
+pub async fn settle_payment_permit2_witness<P, E>(
+    provider: &P,
+    contract: &X402ExactPermit2Proxy::X402ExactPermit2ProxyInstance<&P::Inner>,
+    payment: &Permit2WitnessPayment,
+    eip712_domain: &Eip712Domain,
+) -> Result<TxHash, Eip155ExactError>
+where
+    P: Eip155MetaTransactionProvider<Error = E>,
+    Eip155ExactError: From<E>,
+{
+    let _ = eip712_domain;
+
+    let permit = build_permit2_proxy_permit(payment);
+    let witness = build_permit2_proxy_witness(payment);
+    let settle_tx = contract.settle(permit, payment.from, witness, payment.signature.clone());
+
+    let tx_fut = Eip155MetaTransactionProvider::send_transaction(
+        provider,
+        MetaTransaction {
+            to: settle_tx.target(),
+            calldata: settle_tx.calldata().clone(),
+            confirmations: 1,
+        },
+    );
+
+    #[cfg(feature = "telemetry")]
+    let receipt = tx_fut
+        .instrument(tracing::info_span!(
+            "send_x402_exact_permit2_proxy_settle",
+            owner = %payment.from,
+            token = %payment.token,
+            amount = %payment.transfer_amount,
+            to = %payment.pay_to,
+            otel.kind = "client",
+        ))
+        .await?;
+    #[cfg(not(feature = "telemetry"))]
+    let receipt = tx_fut.await?;
+
+    if receipt.status() {
+        Ok(receipt.transaction_hash)
+    } else {
+        Err(Eip155ExactError::TransactionReverted(receipt.transaction_hash))
     }
 }
 

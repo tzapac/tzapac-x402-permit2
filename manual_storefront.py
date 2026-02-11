@@ -14,14 +14,16 @@ def health():
 
 @app.get("/api/weather")
 async def weather(request: Request):
-    payment_signature = request.headers.get("PAYMENT-SIGNATURE") or request.headers.get("X-PAYMENT-SIGNATURE")
+    payment_signature = request.headers.get("Payment-Signature") or request.headers.get(
+        "payment-signature"
+    )
     
     if not payment_signature:
         return JSONResponse(
             status_code=402,
             content={"error": "Payment required"},
             headers={
-                "PAYMENT-REQUIRED": "eyJuZXR3b3JrIjoiZWlwMTU1OjQyNzkzIiwic2NoZW1lIjoiZXhhY3QiLCJwcmljZSI6IiQwLjAxIiwicGF5X3RvIjoiMHg4MUM1NENCNzY5MDAxNmIyYjBjMzAxN2E0OTkxNzgzOTY0NjAxYmQ5In0="
+                "Payment-Required": "eyJuZXR3b3JrIjoiZWlwMTU1OjQyNzkzIiwic2NoZW1lIjoiZXhhY3QiLCJwcmljZSI6IiQwLjAxIiwicGF5X3RvIjoiMHg4MUM1NENCNzY5MDAxNmIyYjBjMzAxN2E0OTkxNzgzOTY0NjAxYmQ5In0="
             }
         )
     

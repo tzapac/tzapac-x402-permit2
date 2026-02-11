@@ -3,66 +3,44 @@ import asyncio
 import base64
 import json
 import os
+import secrets
 import time
 
 import httpx
 from dotenv import load_dotenv
-from eth_account import Account
-from web3 import Web3
 from eth_abi.abi import encode
+from eth_account import Account
 from eth_account._utils.signing import sign_message_hash
+from web3 import Web3
 
 load_dotenv()
 
 SERVER_URL = os.getenv("SERVER_URL", "http://localhost:8001")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
-RPC_URL = os.getenv("NODE_URL", os.getenv("RPC_URL", "https://rpc.bubbletez.com"))
+RPC_URL = os.getenv("NODE_URL") or os.getenv("RPC_URL")
 
-PERMIT2_ADDRESS = "0x000000000022D473030F116dDEE9F6B43aC78BA3"
-CHAIN_ID = 42793
+PERMIT2_ADDRESS = os.getenv(
+    "PERMIT2_ADDRESS", "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+)
+CHAIN_ID = int(os.getenv("CHAIN_ID", "42793"))
+
+# Coinbase x402 vanity address. Not deployed on all chains.
+DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS = "0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E"
+X402_EXACT_PERMIT2_PROXY_ADDRESS = os.getenv(
+    "X402_EXACT_PERMIT2_PROXY_ADDRESS",
+    DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS,
+)
 
 if not PRIVATE_KEY:
     raise ValueError("PRIVATE_KEY required in .env")
+if not RPC_URL:
+    raise ValueError("RPC_URL or NODE_URL required")
 
 account = Account.from_key(PRIVATE_KEY)
 print(f"Client wallet: {account.address}")
 
 
-def get_permit2_nonce(w3: Web3, owner: str, token: str, spender: str) -> int:
-    permit2_abi = [
-        {
-            "inputs": [
-                {"internalType": "address", "name": "owner", "type": "address"},
-                {"internalType": "address", "name": "token", "type": "address"},
-                {"internalType": "address", "name": "spender", "type": "address"},
-            ],
-            "name": "allowance",
-            "outputs": [
-                {"internalType": "uint160", "name": "amount", "type": "uint160"},
-                {"internalType": "uint48", "name": "expiration", "type": "uint48"},
-                {"internalType": "uint48", "name": "nonce", "type": "uint48"},
-            ],
-            "stateMutability": "view",
-            "type": "function",
-        }
-    ]
-    permit2 = w3.eth.contract(
-        address=Web3.to_checksum_address(PERMIT2_ADDRESS),
-        abi=permit2_abi,
-    )
-    _, _, nonce = permit2.functions.allowance(owner, token, spender).call()
-    return int(nonce)
-
-
-def sign_permit2_with_domain_separator(
-    w3: Web3,
-    token_address: str,
-    spender: str,
-    amount: int,
-    expiration: int,
-    nonce: int,
-    sig_deadline: int,
-) -> str:
+def _permit2_domain_separator(w3: Web3) -> bytes:
     permit2 = w3.eth.contract(
         address=Web3.to_checksum_address(PERMIT2_ADDRESS),
         abi=[
@@ -75,45 +53,76 @@ def sign_permit2_with_domain_separator(
             }
         ],
     )
-    domain_separator = permit2.functions.DOMAIN_SEPARATOR().call()
+    return permit2.functions.DOMAIN_SEPARATOR().call()
 
-    details_typehash = Web3.keccak(
-        text="PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)"
+
+def sign_permit2_witness_transfer(
+    w3: Web3,
+    token_address: str,
+    spender: str,
+    amount: int,
+    nonce: int,
+    deadline: int,
+    pay_to: str,
+    valid_after: int,
+    extra: bytes,
+) -> str:
+    """Sign Permit2 PermitWitnessTransferFrom (Coinbase x402 model 3 style)."""
+    domain_separator = _permit2_domain_separator(w3)
+
+    token_permissions_typehash = Web3.keccak(
+        text="TokenPermissions(address token,uint256 amount)"
     )
-    single_typehash = Web3.keccak(
+    witness_typehash = Web3.keccak(text="Witness(address to,uint256 validAfter,bytes extra)")
+
+    # Dependencies must be appended in alphabetical order after the primary type:
+    # TokenPermissions < Witness
+    permit_typehash = Web3.keccak(
         text=(
-            "PermitSingle(PermitDetails details,address spender,uint256 sigDeadline)"
-            "PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)"
+            "PermitWitnessTransferFrom(TokenPermissions permitted,address spender,uint256 nonce,uint256 deadline,Witness witness)"
+            "TokenPermissions(address token,uint256 amount)"
+            "Witness(address to,uint256 validAfter,bytes extra)"
         )
     )
 
-    details_hash = Web3.keccak(
+    token_permissions_hash = Web3.keccak(
         encode(
-            ["bytes32", "address", "uint160", "uint48", "uint48"],
+            ["bytes32", "address", "uint256"],
             [
-                details_typehash,
+                token_permissions_typehash,
                 Web3.to_checksum_address(token_address),
                 amount,
-                expiration,
-                nonce,
+            ],
+        )
+    )
+
+    witness_hash = Web3.keccak(
+        encode(
+            ["bytes32", "address", "uint256", "bytes32"],
+            [
+                witness_typehash,
+                Web3.to_checksum_address(pay_to),
+                valid_after,
+                Web3.keccak(extra),
             ],
         )
     )
 
     struct_hash = Web3.keccak(
         encode(
-            ["bytes32", "bytes32", "address", "uint256"],
+            ["bytes32", "bytes32", "address", "uint256", "uint256", "bytes32"],
             [
-                single_typehash,
-                details_hash,
+                permit_typehash,
+                token_permissions_hash,
                 Web3.to_checksum_address(spender),
-                sig_deadline,
+                nonce,
+                deadline,
+                witness_hash,
             ],
         )
     )
 
     digest = Web3.keccak(b"\x19\x01" + domain_separator + struct_hash)
-
     _, _, _, signature = sign_message_hash(account._key_obj, digest)
     return signature.hex()
 
@@ -121,6 +130,15 @@ def sign_permit2_with_domain_separator(
 async def main():
     endpoint = f"{SERVER_URL}/api/weather"
     w3 = Web3(Web3.HTTPProvider(RPC_URL))
+    if not w3.is_connected():
+        raise RuntimeError("RPC not connected")
+    rpc_chain_id = int(w3.eth.chain_id)
+    if rpc_chain_id != CHAIN_ID:
+        raise RuntimeError(
+            f"CHAIN_ID mismatch: configured {CHAIN_ID}, RPC reports {rpc_chain_id}"
+        )
+    if not w3.eth.get_code(Web3.to_checksum_address(PERMIT2_ADDRESS)):
+        raise RuntimeError(f"No code deployed at PERMIT2_ADDRESS={PERMIT2_ADDRESS}")
 
     print("=" * 60)
     print("STEP 1: Request without payment (expect 402)")
@@ -136,89 +154,123 @@ async def main():
             print(f"Body: {resp.text}")
             return
 
-        payment_required_b64 = resp.headers.get("x-payment-required")
+        payment_required_b64 = resp.headers.get("Payment-Required") or resp.headers.get(
+            "payment-required"
+        )
         if not payment_required_b64:
-            print("No X-PAYMENT-REQUIRED header!")
+            print("No Payment-Required header!")
             return
 
         payment_required = json.loads(base64.b64decode(payment_required_b64))
-        print(f"\nDecoded X-PAYMENT-REQUIRED:")
+        print("\nDecoded Payment-Required:")
         print(json.dumps(payment_required, indent=2))
 
     print("\n" + "=" * 60)
-    print("STEP 2: Create Permit2 payment payload")
+    print("STEP 2: Create Permit2 (PermitWitnessTransferFrom) payment payload")
     print("=" * 60)
 
     accept = payment_required["accepts"][0]
+    extra = accept.get("extra") or {}
+    asset_transfer_method = extra.get("assetTransferMethod")
+    if asset_transfer_method and asset_transfer_method != "permit2":
+        raise RuntimeError(
+            f"Unsupported assetTransferMethod={asset_transfer_method!r}; this PoC client only supports 'permit2'."
+        )
     asset = accept["asset"]
     pay_to = Web3.to_checksum_address(accept["payTo"])
-    max_amount = int(accept.get("amount") or accept.get("maxAmountRequired"))
-    network = accept["network"]
+    amount_raw = accept.get("amount") or accept.get("maxAmountRequired")
+    max_amount = int(amount_raw)
 
-    token_address = Web3.to_checksum_address(asset.split("erc20:")[-1])
-
-    facilitator_wallet = os.getenv("FACILITATOR_WALLET")
-    spender = Web3.to_checksum_address(facilitator_wallet) if facilitator_wallet else pay_to
-    print(f"Permit2 spender: {spender}")
+    token_address = Web3.to_checksum_address(asset)
+    spender = Web3.to_checksum_address(X402_EXACT_PERMIT2_PROXY_ADDRESS)
 
     now = int(time.time())
-    sig_deadline = now + 3600
-    expiration = now + 3600
-    nonce = get_permit2_nonce(w3, account.address, token_address, spender)
+    deadline = now + 3600
+    valid_after = max(0, now - 10 * 60)
+    nonce = secrets.randbits(256)
+    extra = b""  # "0x"
 
     print(f"Token: {token_address}")
-    print(f"Pay to: {pay_to}")
-    print(f"Amount: {max_amount} wei")
+    print(f"Pay to (witness.to): {pay_to}")
+    print(f"Amount: {max_amount}")
     print(f"Chain ID: {CHAIN_ID}")
-    print(f"Permit2 nonce: {nonce}")
+    print(f"Permit2 proxy spender: {spender}")
+    if spender.lower() == DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS.lower():
+        print(
+            "NOTE: Using default Etherlink proxy address. Override via "
+            "X402_EXACT_PERMIT2_PROXY_ADDRESS if needed."
+        )
+    print(f"Nonce: {nonce}")
+    print(f"Deadline: {deadline}")
 
-    signature = sign_permit2_with_domain_separator(
+    signature = sign_permit2_witness_transfer(
         w3=w3,
         token_address=token_address,
         spender=spender,
         amount=max_amount,
-        expiration=expiration,
         nonce=nonce,
-        sig_deadline=sig_deadline,
+        deadline=deadline,
+        pay_to=pay_to,
+        valid_after=valid_after,
+        extra=extra,
     )
 
     payment_payload = {
         "x402Version": 2,
-        "scheme": "exact",
-        "network": "eip155:42793",
+        "accepted": accept,
+        "resource": payment_required.get("resource"),
         "payload": {
-            "permit2": {
-                "owner": account.address,
-                "permitSingle": {
-                    "details": {
-                        "token": token_address,
-                        "amount": max_amount,
-                        "expiration": expiration,
-                        "nonce": nonce,
-                    },
-                    "spender": spender,
-                    "sigDeadline": sig_deadline,
+            "signature": f"0x{signature}",
+            "permit2Authorization": {
+                "from": account.address,
+                "permitted": {"token": token_address, "amount": str(max_amount)},
+                "spender": spender,
+                "nonce": str(nonce),
+                "deadline": str(deadline),
+                "witness": {
+                    "to": pay_to,
+                    "validAfter": str(valid_after),
+                    "extra": "0x",
                 },
-                "signature": f"0x{signature}",
-            }
+            },
         },
     }
 
-    print(f"\nPayment payload:")
-    print(json.dumps(payment_payload, indent=2))
-
     payment_header = base64.b64encode(json.dumps(payment_payload).encode()).decode()
+    print("\nPayment payload prepared (redacted):")
+    print(
+        json.dumps(
+            {
+                "x402Version": payment_payload["x402Version"],
+                "accepted": payment_payload["accepted"],
+                "payload": {
+                    "permit2Authorization": payment_payload["payload"]["permit2Authorization"],
+                    "signature": "[REDACTED]",
+                },
+                "paymentSignatureLength": len(payment_header),
+            },
+            indent=2,
+        )
+    )
 
     print("\n" + "=" * 60)
     print("STEP 3: Send request WITH payment")
     print("=" * 60)
 
     async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.get(endpoint, headers={"X-PAYMENT": payment_header})
+        resp = await client.get(
+            endpoint,
+            headers={
+                "Payment-Signature": payment_header,
+            },
+        )
         print(f"Status: {resp.status_code}")
         print(f"Headers: {dict(resp.headers)}")
-        print(f"\nResponse body:")
-        print(json.dumps(resp.json(), indent=2))
+        print("\nResponse body:")
+        try:
+            print(json.dumps(resp.json(), indent=2))
+        except Exception:
+            print(resp.text)
 
     print("\n" + "=" * 60)
     print("PROOF COMPLETE")

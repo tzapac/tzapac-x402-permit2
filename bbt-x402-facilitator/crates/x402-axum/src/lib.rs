@@ -82,7 +82,7 @@
 //! let app: Router = Router::new().route(
 //!     "/protected",
 //!     get(my_handler).layer(
-//!         x402.with_dynamic_price(|headers, uri, base_url| {
+//!         x402.with_dynamic_price({ let bbt = bbt.clone(); move |headers, uri, base_url| {
 //!             // Compute price based on request context
 //!             let is_premium = headers
 //!                 .get("X-User-Tier")
@@ -91,10 +91,11 @@
 //!                 .unwrap_or(false);
 //!
 //!             let amount = if is_premium { "0.005" } else { "0.01" };
+//!             let bbt = bbt.clone();
 //!             async move {
 //!                 vec![V1Eip155Exact::price_tag(address!("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"), bbt.parse(amount).unwrap())]
 //!             }
-//!         })
+//!         }})
 //!     ),
 //! );
 //!

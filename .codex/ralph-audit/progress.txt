@@ -1,0 +1,9 @@
+- [ ] AUDIT-001: Protocol + Header/Wire Format (PoC Python + Wallet UI)
+- [ ] AUDIT-002: Solidity Proxy (Permit2 Witness) + Verification Artifacts
+- [ ] AUDIT-003: Rust Facilitator (Permit2 Settlement + Invariants)
+- [ ] AUDIT-004: Docker/Compose/Nginx Stack + Networking/Origin Config
+- [ ] AUDIT-005: Playbook Safety + Role Separation + Funding/Topups
+- [ ] AUDIT-006: Docs Accuracy (README + Comparison + Feature Matrix)
+- [ ] AUDIT-007: Secrets/Env Handling + Logging Risk
+- [ ] AUDIT-008: Dead Code / Drifted Scripts / Unused Files
+

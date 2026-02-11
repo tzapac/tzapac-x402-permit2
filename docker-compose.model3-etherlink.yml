@@ -7,12 +7,13 @@ services:
     container_name: bbt-x402-facilitator
     restart: unless-stopped
     ports:
-      - "9090:9090"
+      - 9090:9090
     env_file:
       - .env.multitest
     environment:
       RUST_LOG: info
       X402_CONFIG: /app/bbt_config.json
+      # Etherlink-deployed x402 exact Permit2 proxy (Coinbase-aligned spender).
       X402_EXACT_PERMIT2_PROXY_ADDRESS: 0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E
       # Trust pin for the proxy runtime bytecode we deployed on Etherlink.
       X402_EXACT_PERMIT2_PROXY_CODEHASH_ALLOWLIST: 0x73020ff18bfd4eaba45de17760ad433063ed6267a8371ef54a39083a14180366
@@ -31,12 +32,14 @@ services:
       - .env.multitest
     environment:
       FACILITATOR_URL: http://facilitator:9090
+      # Match the facilitator proxy address for local testing.
       X402_EXACT_PERMIT2_PROXY_ADDRESS: 0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E
       PUBLIC_BASE_URL: https://exp-store.bubbletez.com
     command:
       - bash
       - -lc
       - |
+        # Prefer STORE_ADDRESS if provided, otherwise fall back to SERVER_WALLET.
         export SERVER_WALLET=$${STORE_ADDRESS:-$${SERVER_WALLET}}
         python bbt_mvp_server.py
     healthcheck:
@@ -61,7 +64,7 @@ services:
       store-api:
         condition: service_healthy
     ports:
-      - "9091:80"
+      - 9091:80
     volumes:
       - ./wallet_connect_poc.html:/usr/share/nginx/html/index.html:ro
       - ./nginx.wallet-poc.conf:/etc/nginx/conf.d/default.conf:ro
