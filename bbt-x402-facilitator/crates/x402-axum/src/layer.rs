@@ -106,7 +106,8 @@ impl X402Middleware<Arc<FacilitatorClient>> {
     ///
     /// Panics if the facilitator URL is invalid.
     pub fn new(url: &str) -> Self {
-        let facilitator = FacilitatorClient::try_from(url).expect("Invalid facilitator URL");
+        let facilitator = FacilitatorClient::try_from(url)
+            .unwrap_or_else(|err| panic!("Invalid facilitator URL '{}': {}", url, err));
         Self {
             facilitator: Arc::new(facilitator),
             base_url: None,

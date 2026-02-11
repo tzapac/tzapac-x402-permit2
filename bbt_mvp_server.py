@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import base64
+import copy
 import json
 import logging
 import os
@@ -280,7 +281,7 @@ async def _handle_paid_product(
             media_type="application/json",
         )
 
-    requirements_for_facilitator = dict(requirements)
+    requirements_for_facilitator = copy.deepcopy(requirements)
 
     if not isinstance(payment_payload, dict):
         return Response(
@@ -297,7 +298,7 @@ async def _handle_paid_product(
                     "error": "Missing accepted requirements in payment payload (x402 v2)",
                 }
             ),
-            status_code=402,
+            status_code=400,
             media_type="application/json",
         )
 
@@ -350,7 +351,7 @@ async def _handle_paid_product(
             content=json.dumps(
                 {"error": "Missing required witness fields in permit2Authorization"}
             ),
-            status_code=402,
+            status_code=400,
             media_type="application/json",
         )
     if not _same_address(witness_to, pay_to):
@@ -386,7 +387,7 @@ async def _handle_paid_product(
                     "error": "Incomplete permit2 payload (missing owner/spender/token/amount/nonce/deadline)",
                 }
             ),
-            status_code=402,
+            status_code=400,
             media_type="application/json",
         )
     try:
@@ -419,21 +420,21 @@ async def _handle_paid_product(
             content=json.dumps(
                 {"error": "Invalid nonce/deadline/witness.validAfter in permit2Authorization"}
             ),
-            status_code=402,
+            status_code=400,
             media_type="application/json",
         )
 
     if nonce_value < 0 or deadline_value <= 0 or witness_valid_after < 0:
         return Response(
             content=json.dumps({"error": "Invalid permit2Authorization numeric bounds"}),
-            status_code=402,
+            status_code=400,
             media_type="application/json",
         )
 
     if witness_valid_after > deadline_value:
         return Response(
             content=json.dumps({"error": "Invalid witness window (validAfter > deadline)"}),
-            status_code=402,
+            status_code=400,
             media_type="application/json",
         )
 
@@ -444,14 +445,14 @@ async def _handle_paid_product(
     if max_timeout_seconds > 0 and deadline_value > (now + max_timeout_seconds + 6):
         return Response(
             content=json.dumps({"error": "Permit2 deadline exceeds maxTimeoutSeconds"}),
-            status_code=402,
+            status_code=400,
             media_type="application/json",
         )
 
     if not isinstance(signature_raw, str) or not signature_raw.startswith("0x"):
         return Response(
             content=json.dumps({"error": "Invalid signature in permit2 payload"}),
-            status_code=402,
+            status_code=400,
             media_type="application/json",
         )
 

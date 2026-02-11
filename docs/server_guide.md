@@ -13,7 +13,7 @@ This guide documents how the store API server in this repo performs x402 gating 
 The server validates before calling facilitator:
 
 - payment payload is valid base64 JSON
-- `accepted` exists and exactly matches offered requirements
+- `accepted` exists and matches settlement-critical offered requirements
 - `permit2Authorization` exists
 - `witness.to == payTo`
 - `spender == X402_EXACT_PERMIT2_PROXY_ADDRESS`

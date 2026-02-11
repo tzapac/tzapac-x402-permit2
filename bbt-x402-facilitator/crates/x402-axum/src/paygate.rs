@@ -83,9 +83,23 @@ impl ResourceInfoBuilder {
     pub fn as_resource_info(&self, base_url: Option<&Url>, req: &Request) -> v2::ResourceInfo {
         let url = self.url.clone().unwrap_or_else(|| {
             let mut url = base_url.cloned().unwrap_or_else(|| {
-                let host = req.headers().get("host").and_then(|h| h.to_str().ok()).unwrap_or("localhost");
-                let origin = format!("http://{}", host);
-                let url = Url::parse(&origin).unwrap_or_else(|_| Url::parse("http://localhost").unwrap());
+                let host = req
+                    .headers()
+                    .get("x-forwarded-host")
+                    .or_else(|| req.headers().get("host"))
+                    .and_then(|h| h.to_str().ok())
+                    .unwrap_or("invalid.local");
+                let scheme = req
+                    .headers()
+                    .get("x-forwarded-proto")
+                    .and_then(|v| v.to_str().ok())
+                    .map(|v| v.trim().to_ascii_lowercase())
+                    .filter(|v| v == "http" || v == "https")
+                    .unwrap_or_else(|| "https".to_string());
+                let origin = format!("{}://{}", scheme, host);
+                let url = Url::parse(&origin).unwrap_or_else(|_| {
+                    Url::parse("https://invalid.local").expect("static fallback URL is valid")
+                });
                 #[cfg(feature = "telemetry")]
                 tracing::warn!(
                     "X402Middleware base_url is not configured; using {url} as origin for resource resolution"

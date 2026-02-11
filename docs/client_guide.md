@@ -63,3 +63,4 @@ Expected behavior:
 - `Unsupported assetTransferMethod`: server requirement is not Permit2.
 - `Permit2 ERC20 allowance is insufficient`: run approve first.
 - `Recipient mismatch` / `Payment amount mismatch`: payload fields diverge from accepted requirements.
+- `RPC_URL and NODE_URL are both set but differ`: set only `RPC_URL` or make both identical.

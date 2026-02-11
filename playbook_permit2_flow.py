@@ -46,7 +46,11 @@ SERVER_URL = os.getenv(
     "http://localhost:9091" if AUTO_STACK else "http://localhost:8001",
 )
 FACILITATOR_URL = os.getenv("FACILITATOR_URL", "http://localhost:9090")
-RPC_URL = os.getenv("RPC_URL") or os.getenv("NODE_URL")
+RPC_URL = os.getenv("RPC_URL")
+NODE_URL = os.getenv("NODE_URL")
+if RPC_URL and NODE_URL and RPC_URL != NODE_URL:
+    raise RuntimeError("RPC_URL and NODE_URL are both set but differ; set only RPC_URL")
+RPC_URL = RPC_URL or NODE_URL
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 # Optional: used to top-up gas / tokens for the active PRIVATE_KEY wallet.
 FUNDING_PRIVATE_KEY = os.getenv("FUNDING_PRIVATE_KEY")

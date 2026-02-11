@@ -19,6 +19,7 @@ Create `.env`:
 
 ```bash
 FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
+X402_CORS_ALLOWED_ORIGINS=https://YOUR_STORE_HOST,http://localhost:9091
 ```
 
 Create `bbt_config.json`:
@@ -66,6 +67,7 @@ Set these consistently across server + facilitator stack:
 
 - `X402_EXACT_PERMIT2_PROXY_ADDRESS`
 - `X402_EXACT_PERMIT2_PROXY_CODEHASH_ALLOWLIST` (recommended)
+- `X402_CORS_ALLOWED_ORIGINS` (recommended allowlist for browser-origin traffic)
 
 If these differ, settlement will fail due to spender/proxy checks.
 

@@ -118,7 +118,7 @@
 //! - **[`X402Middleware::with_price_tag`]** sets the assets and amounts accepted for payment (static pricing).
 //! - **[`X402Middleware::with_dynamic_price`]** sets a callback for dynamic pricing based on request context.
 //! - **[`X402Middleware::with_base_url`]** sets the base URL for computing full resource URLs.
-//!   If not set, defaults to `http://localhost/` (avoid in production).
+//!   If not set, derives from forwarded/host headers and falls back to `https://invalid.local` (set `with_base_url` in production).
 //! - **[`X402Middleware::with_supported_cache_ttl`]** configures the TTL for caching facilitator capabilities.
 //! - **[`X402LayerBuilder::with_description`]** is optional but helps the payer understand what is being paid for.
 //! - **[`X402LayerBuilder::with_mime_type`]** sets the MIME type of the protected resource (default: `application/json`).

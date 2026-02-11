@@ -178,9 +178,11 @@ This deployer creates `x402ExactPermit2Proxy` and calls `initialize(permit2)` im
 - `bbt_mvp_server.py` explorer links are configurable via `EXPLORER_TX_BASE_URL` (default: Etherlink explorer).
 - `bbt_mvp_server.py` enforces Coinbase-style witness flow and facilitator gas only (legacy client/store gas branches are removed).
 - `playbook_permit2_flow.py` requires explicit `RPC_URL` (legacy alias: `NODE_URL`).
+- `bbt_mvp_client.py` and `playbook_permit2_flow.py` fail fast if both `RPC_URL` and `NODE_URL` are set to different values.
 - `playbook_permit2_flow.py` validates chain-id consistency and verifies deployed code exists at both `PERMIT2_ADDRESS` and `X402_EXACT_PERMIT2_PROXY_ADDRESS`.
 - `playbook_permit2_flow.py` uses bounded Permit2 approvals (exact required amount).
 - Funding top-ups are opt-in with `ALLOW_FUNDING_TOPUPS=1`.
+- Facilitator CORS defaults to an explicit allowlist via `X402_CORS_ALLOWED_ORIGINS` (set `*` only if intentionally public).
 
 ## Notes
 

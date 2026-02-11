@@ -26,11 +26,13 @@
 //! - `HOST` - Server bind address (default: `0.0.0.0`)
 //! - `PORT` - Server port (default: `9090`)
 //! - `CONFIG` - Path to configuration file (default: `config.json`)
+//! - `X402_CORS_ALLOWED_ORIGINS` - comma-separated CORS allowlist, or `*` to allow all
 //! - `OTEL_*` - OpenTelemetry configuration (when `telemetry` feature enabled)
 
 use axum::Router;
-use axum::http::Method;
+use axum::http::{HeaderValue, Method};
 use dotenvy::dotenv;
+use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::cors;
@@ -47,6 +49,43 @@ use x402_facilitator_local::util::Telemetry;
 
 use crate::config::Config;
 
+fn build_cors_layer() -> Result<cors::CorsLayer, io::Error> {
+    let raw = std::env::var("X402_CORS_ALLOWED_ORIGINS").unwrap_or_else(|_| {
+        "http://localhost:9091,http://127.0.0.1:9091,https://exp-store.bubbletez.com"
+            .to_string()
+    });
+
+    let base = cors::CorsLayer::new()
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_headers(cors::Any);
+
+    if raw.trim() == "*" {
+        return Ok(base.allow_origin(cors::Any));
+    }
+
+    let origins: Vec<HeaderValue> = raw
+        .split(',')
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .map(HeaderValue::from_str)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("invalid X402_CORS_ALLOWED_ORIGINS: {e}"),
+            )
+        })?;
+
+    if origins.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "X402_CORS_ALLOWED_ORIGINS is empty",
+        ));
+    }
+
+    Ok(base.allow_origin(origins))
+}
+
 /// Initializes the x402 facilitator server.
 ///
 /// - Loads `.env` variables.
@@ -58,7 +97,7 @@ use crate::config::Config;
 pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize rustls crypto provider (ring)
     rustls::crypto::CryptoProvider::install_default(rustls::crypto::ring::default_provider())
-        .expect("Failed to initialize rustls crypto provider");
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("failed to initialize rustls crypto provider: {e:?}")))?;
 
     // Load .env variables
     dotenv().ok();
@@ -94,12 +133,7 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let http_endpoints = Router::new().merge(handlers::routes().with_state(axum_state));
     #[cfg(feature = "telemetry")]
     let http_endpoints = http_endpoints.layer(telemetry_layer);
-    let http_endpoints = http_endpoints.layer(
-        cors::CorsLayer::new()
-            .allow_origin(cors::Any)
-            .allow_methods([Method::GET, Method::POST])
-            .allow_headers(cors::Any),
-    );
+    let http_endpoints = http_endpoints.layer(build_cors_layer()?);
 
     let addr = SocketAddr::new(config.host(), config.port());
     #[cfg(feature = "telemetry")]

@@ -17,7 +17,11 @@ load_dotenv()
 
 SERVER_URL = os.getenv("SERVER_URL", "http://localhost:8001")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
-RPC_URL = os.getenv("RPC_URL") or os.getenv("NODE_URL")
+RPC_URL = os.getenv("RPC_URL")
+NODE_URL = os.getenv("NODE_URL")
+if RPC_URL and NODE_URL and RPC_URL != NODE_URL:
+    raise ValueError("RPC_URL and NODE_URL are both set but differ; set only RPC_URL")
+RPC_URL = RPC_URL or NODE_URL
 
 PERMIT2_ADDRESS = os.getenv(
     "PERMIT2_ADDRESS", "0x000000000022D473030F116dDEE9F6B43aC78BA3"
