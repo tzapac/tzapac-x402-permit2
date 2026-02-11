@@ -34,3 +34,23 @@ After deployment, verify all of the following:
 
 For this project’s deployed Etherlink proxy, initialization has already been completed and verified.
 The initialization race concern applies to future deployments if atomic deploy+initialize is not used.
+
+## Deferred / Accepted Items (No-Redeploy Decision)
+
+To avoid introducing new contract ownership risk, we are **not** redeploying the proxy for low-severity contract-level enhancements at this stage.
+
+Deferred items:
+
+1. Event enrichment (`Settled` / `SettledWithPermit` with indexed fields).
+2. Additional witness type-string guardrails beyond current runtime checks.
+
+Reason:
+
+- Both items are improvements, not blockers for the current Coinbase-aligned Permit2 witness flow.
+- Implementing item 1 requires contract changes and redeployment.
+- We prefer to avoid replacing the currently verified, Coinbase-equivalent proxy code path unless Coinbase deploys an official Etherlink proxy.
+
+Responsibility boundary (important):
+
+- The deployed Etherlink proxy address `0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E` is operator-deployed in this project.
+- Even with exact source/bytecode equivalence to Coinbase’s implementation, operational responsibility remains with this deployment/operator until Coinbase deploys and operates their own Etherlink proxy.

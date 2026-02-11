@@ -1,6 +1,6 @@
 # Coinbase (Permit2 Proxy) vs This Repo (Etherlink Beta)
 
-Branch: `codex/coinbase-align-tzapac`
+Branch: `main`
 
 ## Executive Summary
 
@@ -129,3 +129,21 @@ What differs in this Beta:
 
 Header note:
 - This repo now uses x402 v2 header names (`Payment-Required`, `Payment-Signature`) and does not rely on legacy `X-PAYMENT-*` transport headers.
+
+## Deferred Items (No-Redeploy Policy)
+
+For this Etherlink Beta, we are intentionally deferring contract-redeploy changes:
+
+1. Adding richer indexed proxy events for observability.
+2. Additional witness type-string hardening beyond current validation path.
+
+Why deferred:
+
+- These are low-severity hardening enhancements, not functional blockers.
+- Event enrichment requires a new proxy deployment and address migration.
+- Current policy is to keep the verified Coinbase-equivalent proxy behavior unchanged unless Coinbase deploys an official Etherlink proxy.
+
+Responsibility clarification:
+
+- Current Etherlink proxy is deployed by this project and remains this operator’s responsibility.
+- If Coinbase later deploys and operates an official Etherlink proxy, migration can be handled primarily by changing the configured proxy address.
