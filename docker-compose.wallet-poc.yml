@@ -55,4 +55,5 @@ services:
       - ./wallet_connect_poc.html:/usr/share/nginx/html/index.html:ro
       - ./wallet_connect_poc.css:/usr/share/nginx/html/wallet_connect_poc.css:ro
       - ./wallet_connect_poc.js:/usr/share/nginx/html/wallet_connect_poc.js:ro
+      - ./favicon.ico:/usr/share/nginx/html/favicon.ico:ro
       - ./nginx.wallet-poc.conf:/etc/nginx/conf.d/default.conf:ro
