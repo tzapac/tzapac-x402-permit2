@@ -33,6 +33,7 @@ Core:
 - `BBT_TOKEN`
 - `X402_EXACT_PERMIT2_PROXY_ADDRESS`
 - `PUBLIC_BASE_URL`
+- `EXPLORER_TX_BASE_URL` (optional override for tx links in responses)
 
 Safety/limits:
 

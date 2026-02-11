@@ -13,7 +13,7 @@ This guide covers browser and script clients for the Coinbase-aligned Permit2 fl
 Set at minimum:
 
 - `PRIVATE_KEY`
-- `RPC_URL` (or `NODE_URL`)
+- `RPC_URL` (legacy alias: `NODE_URL`)
 - `CHAIN_ID` (42793 for Etherlink)
 - `SERVER_URL`
 - `PERMIT2_ADDRESS`

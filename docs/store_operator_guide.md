@@ -13,8 +13,7 @@ This guide explains how to run an x402 store, accept a token of your choice, and
 
 ```bash
 docker pull ghcr.io/tzapac/tzapac-x402-permit2-store-api:latest
-docker pull ghcr.io/tzapac/tzapac-x402-permit2-store-web:latest
-
+# Optional: build/pull bbt-store-web only if you use a custom web-image compose.
 cp .env.example .env.multitest
 # edit .env.multitest
 

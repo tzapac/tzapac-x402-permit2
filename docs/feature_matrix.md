@@ -11,7 +11,7 @@ Legend: ✓ = supported in-repo, ✗ = not supported, ~ = partially supported (s
 | EVM asset transfer: EIP-3009 (`transferWithAuthorization`) | ✓ | ~ | Facilitator supports it, but this Beta demo stack is wired to Permit2. |
 | EVM asset transfer: Permit2 (Exact proxy + witness) | ✓ | ✓ | Coinbase vanity proxy is not deployed on Etherlink; we deploy the same code at a different address. |
 | Permit2 "upto" proxy address + ABI | ✓ | ✗ | Coinbase publishes an `upto` proxy address/ABI; this repo focuses on `exact`. |
-| Client routing via `extra.assetTransferMethod` | ✓ | ✗ | Coinbase SDKs route `eip3009` vs `permit2` based on requirements; this Beta client is Permit2-only. |
+| Client routing via `extra.assetTransferMethod` | ✓ | ~ | Coinbase SDKs route `eip3009` vs `permit2`; this Beta client validates and supports `permit2` only. |
 | Server signaling via `extra.assetTransferMethod="permit2"` | ✓ | ✓ | Used to force Permit2 when EIP-3009 is not applicable. |
 | Facilitator pays settlement gas (default model) | ✓ | ✓ | Coinbase-aligned model: user signs, facilitator submits tx and pays gas. |
 | Client pays gas mode (client submits on-chain txs) | ✗ | ✗ | Removed from the Beta frontend; not part of Coinbase model. |

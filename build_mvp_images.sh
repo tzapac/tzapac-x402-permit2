@@ -21,4 +21,4 @@ if [[ "${BUILD_STORE_WEB:-0}" == "1" ]]; then
     .
 fi
 
-echo "Done (images aligned with docker-compose files)."
+echo "Done (core images built for docker-compose; optional store-web image is not used by default compose files)."

@@ -31,6 +31,7 @@ X402_EXACT_PERMIT2_PROXY_ADDRESS = os.getenv(
     "0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E",
 )
 NETWORK = os.getenv("NETWORK", "eip155:42793").strip()
+EXPLORER_TX_BASE_URL = os.getenv("EXPLORER_TX_BASE_URL", "https://explorer.etherlink.com/tx").strip()
 MAX_PAYMENT_SIGNATURE_B64_BYTES = int(
     os.getenv("MAX_PAYMENT_SIGNATURE_B64_BYTES", "16384")
 )
@@ -138,6 +139,12 @@ def _resource_url(request: Request, path: str) -> str:
         return f"{PUBLIC_BASE_URL.rstrip('/')}" + normalized_path
     return f"{_public_base_from_headers(request)}" + normalized_path
 
+
+def _explorer_url(tx_hash: str | None) -> str | None:
+    if not tx_hash:
+        return None
+    base = EXPLORER_TX_BASE_URL.rstrip("/")
+    return f"{base}/{tx_hash}"
 
 
 def _payment_required(
@@ -556,7 +563,7 @@ async def _handle_paid_product(
         "txHash": tx_hash,
         "gasPayer": gas_payer,
         "network": NETWORK,
-        "explorer": f"https://explorer.etherlink.com/tx/{tx_hash}" if tx_hash else None,
+        "explorer": _explorer_url(tx_hash),
         "productId": product["id"],
     }
     x_payment_response = base64.b64encode(
@@ -569,7 +576,7 @@ async def _handle_paid_product(
             "productId": product["id"],
             "payment_settled": True,
             "txHash": tx_hash,
-            "explorer": f"https://explorer.etherlink.com/tx/{tx_hash}" if tx_hash else None,
+            "explorer": _explorer_url(tx_hash),
         }
     )
 

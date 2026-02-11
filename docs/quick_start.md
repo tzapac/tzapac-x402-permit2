@@ -18,7 +18,7 @@ cp .env.example .env
 
 Set at minimum:
 
-- `RPC_URL` (or `NODE_URL`) to a working Etherlink endpoint
+- `RPC_URL` (legacy alias: `NODE_URL`) to a working Etherlink endpoint
 - `CHAIN_ID=42793`
 - `SERVER_WALLET` or `STORE_PRIVATE_KEY`
 - `X402_EXACT_PERMIT2_PROXY_ADDRESS=0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E`

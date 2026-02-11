@@ -38,6 +38,7 @@ Optional hosted endpoints (if your deployment exposes them):
 - `wallet_connect_poc.js`: externalized demo logic (CSP-safe, no inline script block)
 - `docker-compose.wallet-poc.yml`: local stack wiring (facilitator + store-api + storefront proxy)
 - `bbt-x402-facilitator/bbt_config.multitest.json`: facilitator runtime config for Etherlink multitest
+- `build_mvp_images.sh`: convenience image builder for facilitator/store-api; optional `bbt-store-web` image is not used by default compose files
 - `docs/quick_start.md`: quick setup and run guide, with links to deeper docs
 - `docs/bbt_token_reference.md`: BBT example token details used by this Beta
 - `bbt_client.py`, `bbt_storefront.py`, `manual_payment_test.py`, `sdk_payment_proof.py`: deprecated compatibility wrappers that redirect to supported v2 flows
@@ -174,8 +175,9 @@ This deployer creates `x402ExactPermit2Proxy` and calls `initialize(permit2)` im
 - `bbt_mvp_server.py` no longer falls back to a hard-coded payout address. One of `SERVER_WALLET`, `STORE_ADDRESS`, or `STORE_PRIVATE_KEY` must be set.
 - `bbt_mvp_server.py` validates that the signed payment token equals the required `asset`.
 - `bbt_mvp_server.py` emits `Payment-Required.resource.url` dynamically from `PUBLIC_BASE_URL` (if set) or the incoming request base URL.
+- `bbt_mvp_server.py` explorer links are configurable via `EXPLORER_TX_BASE_URL` (default: Etherlink explorer).
 - `bbt_mvp_server.py` enforces Coinbase-style witness flow and facilitator gas only (legacy client/store gas branches are removed).
-- `playbook_permit2_flow.py` requires explicit `RPC_URL`/`NODE_URL`.
+- `playbook_permit2_flow.py` requires explicit `RPC_URL` (legacy alias: `NODE_URL`).
 - `playbook_permit2_flow.py` validates chain-id consistency and verifies deployed code exists at both `PERMIT2_ADDRESS` and `X402_EXACT_PERMIT2_PROXY_ADDRESS`.
 - `playbook_permit2_flow.py` uses bounded Permit2 approvals (exact required amount).
 - Funding top-ups are opt-in with `ALLOW_FUNDING_TOPUPS=1`.

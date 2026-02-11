@@ -17,7 +17,7 @@ load_dotenv()
 
 SERVER_URL = os.getenv("SERVER_URL", "http://localhost:8001")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
-RPC_URL = os.getenv("NODE_URL") or os.getenv("RPC_URL")
+RPC_URL = os.getenv("RPC_URL") or os.getenv("NODE_URL")
 
 PERMIT2_ADDRESS = os.getenv(
     "PERMIT2_ADDRESS", "0x000000000022D473030F116dDEE9F6B43aC78BA3"
@@ -34,7 +34,7 @@ X402_EXACT_PERMIT2_PROXY_ADDRESS = os.getenv(
 if not PRIVATE_KEY:
     raise ValueError("PRIVATE_KEY required in .env")
 if not RPC_URL:
-    raise ValueError("RPC_URL or NODE_URL required")
+    raise ValueError("RPC_URL required (NODE_URL is accepted as legacy alias)")
 
 account = Account.from_key(PRIVATE_KEY)
 print(f"Client wallet: {account.address}")

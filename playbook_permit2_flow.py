@@ -46,7 +46,7 @@ SERVER_URL = os.getenv(
     "http://localhost:9091" if AUTO_STACK else "http://localhost:8001",
 )
 FACILITATOR_URL = os.getenv("FACILITATOR_URL", "http://localhost:9090")
-RPC_URL = os.getenv("NODE_URL") or os.getenv("RPC_URL")
+RPC_URL = os.getenv("RPC_URL") or os.getenv("NODE_URL")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 # Optional: used to top-up gas / tokens for the active PRIVATE_KEY wallet.
 FUNDING_PRIVATE_KEY = os.getenv("FUNDING_PRIVATE_KEY")
@@ -253,10 +253,6 @@ def _child_env() -> dict[str, str]:
     env["BBT_TOKEN"] = BBT_TOKEN
     env["X402_EXACT_PERMIT2_PROXY_ADDRESS"] = X402_EXACT_PERMIT2_PROXY_ADDRESS
     return env
-
-
-def _find_tx_hashes(output: str) -> list[str]:
-    return TX_RE.findall(output)
 
 
 def _decode_transfer_log(log: dict) -> tuple[str, str, int] | None:
@@ -469,7 +465,7 @@ def _ensure_native_topup(w3: Web3, to_addr: str, min_balance_wei: int, chain_id:
         f"sending {topup} wei from {funder_addr}"
     )
 
-    nonce = w3.eth.get_transaction_count(funder_addr)
+    nonce = w3.eth.get_transaction_count(funder_addr, "pending")
     fee_params = _build_fee_params(w3)
     tx = {
         "from": funder_addr,
@@ -524,7 +520,7 @@ def _ensure_bbt_topup(w3: Web3, token_address: str, to_addr: str, min_amount: in
     )
 
     token = w3.eth.contract(address=Web3.to_checksum_address(token_address), abi=ERC20_ABI)
-    nonce = w3.eth.get_transaction_count(funder_addr)
+    nonce = w3.eth.get_transaction_count(funder_addr, "pending")
     fee_params = _build_fee_params(w3)
     tx = token.functions.transfer(to_addr, amount).build_transaction(
         {
@@ -566,7 +562,7 @@ def _ensure_erc20_allowance_to_permit2(
         return
 
     print("Approving Permit2 allowance (exact required amount)...")
-    nonce = w3.eth.get_transaction_count(owner)
+    nonce = w3.eth.get_transaction_count(owner, "pending")
 
     fee_params = _build_fee_params(w3)
     tx = token.functions.approve(permit2, int(required_amount)).build_transaction(
@@ -637,7 +633,7 @@ async def main() -> int:
         print("ERROR: PRIVATE_KEY missing (set env var or .env/.env.multitest)")
         return 1
     if not RPC_URL:
-        print("ERROR: RPC_URL missing (set RPC_URL or NODE_URL)")
+        print("ERROR: RPC_URL missing (NODE_URL accepted as legacy alias)")
         return 1
 
     account = Account.from_key(PRIVATE_KEY)
