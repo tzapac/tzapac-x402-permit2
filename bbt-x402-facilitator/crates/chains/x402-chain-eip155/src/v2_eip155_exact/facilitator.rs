@@ -278,7 +278,11 @@ async fn assert_valid_payment<'a, P: Provider>(
             return Err(PaymentVerificationError::InvalidPaymentAmount.into());
         }
 
-        assert_permit2_witness_time(permit2_auth.deadline, permit2_auth.witness.valid_after)?;
+        assert_permit2_witness_time(
+            permit2_auth.deadline,
+            permit2_auth.witness.valid_after,
+            accepted.max_timeout_seconds,
+        )?;
 
         let erc20_contract = IEIP3009::new(asset_address, provider);
         assert_enough_balance(&erc20_contract, &permit2_auth.from, amount_required_u256).await?;
