@@ -3,6 +3,7 @@ import base64
 import json
 import logging
 import os
+import re
 import time
 from typing import Any
 
@@ -29,7 +30,7 @@ X402_EXACT_PERMIT2_PROXY_ADDRESS = os.getenv(
     "X402_EXACT_PERMIT2_PROXY_ADDRESS",
     "0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E",
 )
-NETWORK = "eip155:42793"
+NETWORK = os.getenv("NETWORK", "eip155:42793").strip()
 MAX_PAYMENT_SIGNATURE_B64_BYTES = int(
     os.getenv("MAX_PAYMENT_SIGNATURE_B64_BYTES", "16384")
 )
@@ -64,6 +65,10 @@ BBT_TOKEN = _to_checksum(BBT_TOKEN, "BBT_TOKEN")
 X402_EXACT_PERMIT2_PROXY_ADDRESS = _to_checksum(
     X402_EXACT_PERMIT2_PROXY_ADDRESS, "X402_EXACT_PERMIT2_PROXY_ADDRESS"
 )
+if not re.match(r"^eip155:\d+$", NETWORK):
+    raise RuntimeError(
+        f"Invalid NETWORK value: {NETWORK!r}. Expected format eip155:<chainId>"
+    )
 
 def _payment_requirements(amount_wei: str) -> dict[str, Any]:
     return {
