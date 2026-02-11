@@ -14,6 +14,8 @@ services:
       RUST_LOG: info
       X402_CONFIG: /app/bbt_config.json
       X402_EXACT_PERMIT2_PROXY_ADDRESS: 0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E
+      # Trust pin for the proxy runtime bytecode we deployed on Etherlink.
+      X402_EXACT_PERMIT2_PROXY_CODEHASH_ALLOWLIST: 0x73020ff18bfd4eaba45de17760ad433063ed6267a8371ef54a39083a14180366
     volumes:
       - ./bbt-x402-facilitator/bbt_config.multitest.json:/app/bbt_config.json:ro
 

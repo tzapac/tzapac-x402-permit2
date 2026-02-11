@@ -190,11 +190,8 @@ async def _fetch_payment_required() -> dict:
             raise RuntimeError(
                 f"Expected 402 from {endpoint}, got {resp.status_code}: {resp.text}"
             )
-        required_b64 = (
-            resp.headers.get("payment-required")
-            or resp.headers.get("Payment-Required")
-            or resp.headers.get("x-payment-required")
-            or resp.headers.get("X-PAYMENT-REQUIRED")
+        required_b64 = resp.headers.get("Payment-Required") or resp.headers.get(
+            "payment-required"
         )
         if not required_b64:
             raise RuntimeError("Missing Payment-Required header")
@@ -436,12 +433,11 @@ def _ensure_erc20_allowance_to_permit2(
         print("Allowance OK; no approve needed.")
         return
 
-    print("Approving Permit2 allowance...")
-    max_uint = (1 << 256) - 1
+    print("Approving Permit2 allowance (exact required amount)...")
     nonce = w3.eth.get_transaction_count(owner)
 
     fee_params = _build_fee_params(w3)
-    tx = token.functions.approve(permit2, max_uint).build_transaction(
+    tx = token.functions.approve(permit2, int(required_amount)).build_transaction(
         {
             "from": owner,
             "nonce": nonce,
@@ -458,7 +454,7 @@ def _ensure_erc20_allowance_to_permit2(
     receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=180)
     if receipt.get("status") != 1:
         raise RuntimeError("approve() transaction failed")
-    print(f"Approve tx: {tx_hash.hex()}")
+    print(f"Approve tx: {tx_hash.hex()} (amount={required_amount})")
 
 
 def _get_transfer_receipt(w3: Web3, tx_hash: str) -> dict:

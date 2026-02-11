@@ -48,18 +48,18 @@ async def root():
 
 @app.get("/api/weather")
 async def weather(request: Request):
-    payment_header = request.headers.get("X-PAYMENT") or request.headers.get(
-        "x-payment"
+    payment_header = request.headers.get("Payment-Signature") or request.headers.get(
+        "payment-signature"
     )
 
     if not payment_header:
         payload = base64.b64encode(json.dumps(PAYMENT_REQUIRED).encode()).decode()
         return Response(
             content=json.dumps(
-                {"error": "Payment Required", "message": "Send X-PAYMENT header"}
+                {"error": "Payment Required", "message": "Send Payment-Signature header"}
             ),
             status_code=402,
-            headers={"X-PAYMENT-REQUIRED": payload},
+            headers={"Payment-Required": payload},
             media_type="application/json",
         )
 
@@ -145,7 +145,7 @@ async def weather(request: Request):
             }
         ),
         status_code=200,
-        headers={"X-PAYMENT-RESPONSE": x_payment_response},
+        headers={"X-Payment-Response": x_payment_response},
         media_type="application/json",
     )
 

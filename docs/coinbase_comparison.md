@@ -1,6 +1,6 @@
 # Coinbase (Permit2 Proxy) vs This Repo (Etherlink PoC)
 
-Branch: `codex/coinbase-align`
+Branch: `codex/coinbase-align-tzapac`
 
 ## Executive Summary
 
@@ -20,7 +20,7 @@ Coinbase (spec intent):
 
 This repo (current PoC):
 - `x402Version: 2`
-- `PaymentRequired` is returned in the `Payment-Required` response header as base64 JSON (and also in legacy `X-PAYMENT-REQUIRED`).
+- `PaymentRequired` is returned in the `Payment-Required` response header as base64 JSON.
 - `accepts[]` includes the same structural fields.
 - `asset` is encoded as the raw token address (matching x402 v2 types).
 - `resource` is a top-level object (matching x402 v2 types).
@@ -77,10 +77,12 @@ Coinbase intended deployment model:
 
 This repo:
 - Etherlink proxy address is `0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E`.
+- This proxy was deployed by us (not Coinbase), so trust is anchored to our deployment and operational controls.
 - The address must be set consistently across:
   - facilitator runtime
   - client signing (because it is part of the signed message as `spender`)
 - Mechanism: `X402_EXACT_PERMIT2_PROXY_ADDRESS`.
+- Facilitator runtime can pin bytecode hash with `X402_EXACT_PERMIT2_PROXY_CODEHASH_ALLOWLIST`.
 - Store/UI defaults are locked to facilitator-gas Coinbase flow (`ALLOW_LEGACY_GAS_MODES=0` unless explicitly overridden).
 
 ## Not Implemented Here (Compared to Coinbase Specs)
@@ -123,5 +125,5 @@ What differs in this PoC:
 - token address and proxy address differ from Coinbase's deployments per chain
 - no sponsored-approval extensions / bundling pipeline
 
-Back-compat note (PoC):
-- This repo still accepts legacy PoC header names (`X-PAYMENT-REQUIRED`, `X-PAYMENT`) in addition to the x402 v2 header names (`Payment-Required`, `Payment-Signature`).
+Header note:
+- This repo now uses x402 v2 header names (`Payment-Required`, `Payment-Signature`) and does not rely on legacy `X-PAYMENT-*` transport headers.

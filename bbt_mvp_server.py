@@ -100,12 +100,8 @@ def _payment_required(request: Request) -> dict:
 
 def _get_payment_header(request: Request) -> str | None:
     # V2 spec: Payment-Signature
-    return (
-        request.headers.get("Payment-Signature")
-        or request.headers.get("payment-signature")
-        # Legacy PoC: X-PAYMENT
-        or request.headers.get("X-PAYMENT")
-        or request.headers.get("x-payment")
+    return request.headers.get("Payment-Signature") or request.headers.get(
+        "payment-signature"
     )
 
 
@@ -416,13 +412,12 @@ async def weather(request: Request):
             content=json.dumps(
                 {
                     "error": "Payment Required",
-                    "message": "Send Payment-Signature (or legacy X-PAYMENT) header",
+                    "message": "Send Payment-Signature header",
                 }
             ),
             status_code=402,
             # V2: Payment-Required (base64 encoded PaymentRequired JSON)
-            # Also set the legacy header for backward compatibility with this PoC tooling.
-            headers={"Payment-Required": payload, "X-PAYMENT-REQUIRED": payload},
+            headers={"Payment-Required": payload},
             media_type="application/json",
         )
 
@@ -604,12 +599,12 @@ async def weather(request: Request):
                 status_code=402,
                 media_type="application/json",
             )
-        payment_tx = request.headers.get("X-PAYMENT-TX") or request.headers.get(
-            "x-payment-tx"
+        payment_tx = request.headers.get("Payment-Tx") or request.headers.get(
+            "payment-tx"
         )
         if not payment_tx:
             return Response(
-                content=json.dumps({"error": "Missing X-PAYMENT-TX header"}),
+                content=json.dumps({"error": "Missing Payment-Tx header"}),
                 status_code=400,
                 media_type="application/json",
             )
@@ -769,11 +764,8 @@ async def weather(request: Request):
             }
         ),
         status_code=200,
-        # Match x402-axum's header name; also keep the legacy uppercase variant.
-        headers={
-            "X-Payment-Response": x_payment_response,
-            "X-PAYMENT-RESPONSE": x_payment_response,
-        },
+        # Match x402-axum's response header name.
+        headers={"X-Payment-Response": x_payment_response},
         media_type="application/json",
     )
 

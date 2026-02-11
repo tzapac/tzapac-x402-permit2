@@ -39,7 +39,7 @@ Local Docker setup (from this repo):
 2. Store returns `402 Payment Required` with `Payment-Required` containing x402 requirements (base64 JSON, x402 v2).
 3. Client signs payment data and sends `Payment-Signature` (base64 JSON payload) to the same endpoint.
 4. Settlement uses facilitator-gas mode (Coinbase-style witness flow; `X-GAS-PAYER` resolves to facilitator).
-5. Server verifies/settles payment and returns `200` plus `X-PAYMENT-RESPONSE` with tx metadata.
+5. Server verifies/settles payment and returns `200` plus `X-Payment-Response` with tx metadata.
 6. Response includes an Etherlink explorer link for the settlement transaction.
 
 ## Why Permit2 (and not EIP-3009 here)
@@ -119,6 +119,7 @@ This branch aligns the Etherlink Permit2 flow with Coinbase's design for the x40
 - x402 Exact Permit2 Proxy (Etherlink, deployed for this PoC): `0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E`
 
 The Etherlink proxy was deployed from the same verified Coinbase proxy source (as seen on Base Sepolia); only the deployed address differs on Etherlink.
+This proxy deployment was performed by us (not Coinbase), so there is an explicit trust assumption in our deployment and operational controls.
 
 It is verified on Etherlink Blockscout as an **exact-match** Solidity source verification (contract `x402ExactPermit2Proxy`).
 
@@ -128,10 +129,11 @@ Set `X402_EXACT_PERMIT2_PROXY_ADDRESS` to the proxy address above in:
 
 If Coinbase deploys their official x402 Permit2 proxy to Etherlink, integration should reduce to **changing only** `X402_EXACT_PERMIT2_PROXY_ADDRESS` to the Coinbase-deployed address. The payload format, settlement call, and on-chain protections remain the same.
 
-For additional hardening, the facilitator now supports optional proxy bytecode allowlisting via:
+For proxy trust hardening, facilitator verify/settle supports proxy bytecode hash pinning via:
 - `X402_EXACT_PERMIT2_PROXY_CODEHASH_ALLOWLIST` (comma-separated `0x...` keccak256 bytecode hashes)
 
-If set, facilitator verify/settle rejects Permit2 witness payments unless the configured proxy code hash matches one of these values.
+This stack pins the deployed Etherlink proxy runtime hash by default:
+- `0x73020ff18bfd4eaba45de17760ad433063ed6267a8371ef54a39083a14180366`
 
 ### Local Coinbase Stack
 
@@ -160,7 +162,7 @@ This deployer creates `x402ExactPermit2Proxy` and calls `initialize(permit2)` im
 - `bbt_mvp_server.py` defaults to Coinbase-style witness flow and facilitator gas only (`ALLOW_LEGACY_GAS_MODES=0`).
 - `playbook_permit2_flow.py` requires explicit `RPC_URL`/`NODE_URL`.
 - `playbook_permit2_flow.py` validates chain-id consistency and verifies deployed code exists at both `PERMIT2_ADDRESS` and `X402_EXACT_PERMIT2_PROXY_ADDRESS`.
-- `playbook_permit2_flow.py` defaults to bounded approvals (`APPROVAL_MODE=exact`); set `APPROVAL_MODE=infinite` to opt in to max allowance.
+- `playbook_permit2_flow.py` uses bounded Permit2 approvals (exact required amount).
 - Funding top-ups are opt-in with `ALLOW_FUNDING_TOPUPS=1`.
 
 ## Notes

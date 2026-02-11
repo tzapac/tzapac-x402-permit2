@@ -94,13 +94,15 @@ async def main():
             print(f"Body: {resp.text}")
             return
 
-        payment_required_b64 = resp.headers.get("x-payment-required")
+        payment_required_b64 = resp.headers.get("Payment-Required") or resp.headers.get(
+            "payment-required"
+        )
         if not payment_required_b64:
-            print("No X-PAYMENT-REQUIRED header!")
+            print("No Payment-Required header!")
             return
 
         payment_required = json.loads(base64.b64decode(payment_required_b64))
-        print(f"\nDecoded X-PAYMENT-REQUIRED:")
+        print(f"\nDecoded Payment-Required:")
         print(json.dumps(payment_required, indent=2))
 
     print("\n" + "=" * 60)
@@ -171,7 +173,9 @@ async def main():
     print("=" * 60)
 
     async with httpx.AsyncClient() as client:
-        resp = await client.get(endpoint, headers={"X-PAYMENT": payment_header})
+        resp = await client.get(
+            endpoint, headers={"Payment-Signature": payment_header}
+        )
         print(f"Status: {resp.status_code}")
         print(f"Headers: {dict(resp.headers)}")
         print(f"\nResponse body:")

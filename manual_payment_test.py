@@ -35,14 +35,14 @@ async def manual_x402_flow():
             print("ERROR: Expected 402 Payment Required")
             return
 
-        payment_required = resp.headers.get("PAYMENT-REQUIRED") or resp.headers.get(
-            "X-PAYMENT-REQUIRED"
+        payment_required = resp.headers.get("Payment-Required") or resp.headers.get(
+            "payment-required"
         )
         if not payment_required:
-            print("ERROR: No PAYMENT-REQUIRED header found")
+            print("ERROR: No Payment-Required header found")
             return
 
-        print(f"PAYMENT-REQUIRED header (first 50 chars): {payment_required[:50]}...")
+        print(f"Payment-Required header (first 50 chars): {payment_required[:50]}...")
 
         try:
             requirements_bytes = base64.b64decode(payment_required)
@@ -77,10 +77,10 @@ async def manual_x402_flow():
             ).encode()
         ).decode()
 
-        print(f"\n=== Step 3: Send PAYMENT-SIGNATURE header ===")
+        print(f"\n=== Step 3: Send Payment-Signature header ===")
         resp2 = await http.get(
             f"{STOREFRONT_URL}/api/weather",
-            headers={"PAYMENT-SIGNATURE": payment_signature_b64},
+            headers={"Payment-Signature": payment_signature_b64},
         )
 
         print(f"\nStatus: {resp2.status_code}")

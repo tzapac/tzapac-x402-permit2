@@ -5,7 +5,7 @@ Legend: ✓ = supported in-repo, ✗ = not supported, ~ = partially supported (s
 | Feature | Coinbase `coinbase/x402` | This repo (`tzapac-x402-permit2`, Etherlink PoC) | Notes |
 |---|---:|---:|---|
 | x402 v2 transport (`Payment-Required`, `Payment-Signature`) | ✓ | ✓ | Both use base64-encoded JSON headers. |
-| Backward-compatible legacy headers (`X-PAYMENT-*`) | ✓ | ✓ | This repo keeps legacy header support for the PoC. |
+| Backward-compatible legacy headers (`X-PAYMENT-*`) | ✓ | ✗ | This repo now uses canonical x402 v2 header names only. |
 | Exact scheme (EVM) | ✓ | ✓ | "exact" is implemented in both. |
 | Exact scheme (Solana/SVM) | ✓ | ✗ | Coinbase repo ships SVM mechanisms and paywall templates. |
 | EVM asset transfer: EIP-3009 (`transferWithAuthorization`) | ✓ | ~ | Facilitator supports it, but this PoC demo stack is wired to Permit2. |
@@ -24,4 +24,3 @@ Legend: ✓ = supported in-repo, ✗ = not supported, ~ = partially supported (s
 | Atomic bundling / private RPC settlement for sponsored approvals | ✗ | ✗ | Etherlink RPC endpoints tested do not expose bundle/private-tx methods (e.g. `eth_sendBundle`). |
 | Multi-language SDKs (Go/TS/Python/Java) | ✓ | ✗ | This repo is a focused PoC + Rust facilitator fork, not a full SDK suite. |
 | End-to-end integration tests in repo | ✓ | ✓ | Coinbase has `e2e/`; this repo has a Playbook that runs real txs against Etherlink. |
-

@@ -141,8 +141,8 @@ async def main():
             print(f"Body: {resp.text}")
             return
 
-        payment_required_b64 = resp.headers.get("payment-required") or resp.headers.get(
-            "x-payment-required"
+        payment_required_b64 = resp.headers.get("Payment-Required") or resp.headers.get(
+            "payment-required"
         )
         if not payment_required_b64:
             print("No Payment-Required header!")
@@ -248,10 +248,7 @@ async def main():
         resp = await client.get(
             endpoint,
             headers={
-                # V2 spec header name:
                 "Payment-Signature": payment_header,
-                # Legacy PoC compatibility:
-                "X-PAYMENT": payment_header,
             },
         )
         print(f"Status: {resp.status_code}")

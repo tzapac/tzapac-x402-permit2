@@ -1141,7 +1141,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
                 return;
             }
 
-            const header = resp.headers.get("payment-required") || resp.headers.get("x-payment-required");
+            const header = resp.headers.get("payment-required") || resp.headers.get("Payment-Required");
             if (!header) {
                 log("MISSING Payment-Required HEADER", "error");
                 return;
@@ -1295,10 +1295,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
             log(`PAYLOAD READY (base64 length=${header.length})`, "info");
 
             const headers = {
-                // V2 spec header name:
                 "Payment-Signature": header,
-                // Legacy PoC compatibility:
-                "X-PAYMENT": header,
                 "X-GAS-PAYER": gasPayerMode
             };
 
