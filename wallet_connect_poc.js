@@ -555,13 +555,26 @@
         if (!item || typeof item !== "object") {
             return null;
         }
+
         const raw = (item.url || item.path || "").toString().trim();
+        const fallbackPathRaw = (item.path || "").toString().trim();
+        const fallbackPath = fallbackPathRaw ? (fallbackPathRaw.startsWith("/") ? fallbackPathRaw : `/${fallbackPathRaw}`) : null;
+
         if (!raw) {
+            return fallbackPath ? normalizeEndpointUrl(`${baseUrl}${fallbackPath}`, "") : null;
+        }
+
+        if (raw.startsWith("http://") || raw.startsWith("https://")) {
+            const normalizedAbsolute = normalizeEndpointUrl(raw, "");
+            if (normalizedAbsolute) {
+                return normalizedAbsolute;
+            }
+            if (fallbackPath) {
+                return normalizeEndpointUrl(`${baseUrl}${fallbackPath}`, "");
+            }
             return null;
         }
-        if (raw.startsWith("http://") || raw.startsWith("https://")) {
-            return normalizeEndpointUrl(raw, "");
-        }
+
         const normalizedPath = raw.startsWith("/") ? raw : `/${raw}`;
         return normalizeEndpointUrl(`${baseUrl}${normalizedPath}`, "");
     }

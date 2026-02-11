@@ -114,11 +114,30 @@ PRODUCTS: dict[str, dict[str, Any]] = {
 DEFAULT_PRODUCT_ID = "weather"
 
 
+def _public_base_from_headers(request: Request) -> str:
+    forwarded_proto = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip().lower()
+    forwarded_host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(",")[0].strip()
+
+    if forwarded_proto not in ("http", "https"):
+        cf_visitor = (request.headers.get("cf-visitor") or "").lower()
+        if '"scheme":"https"' in cf_visitor:
+            forwarded_proto = "https"
+        elif '"scheme":"http"' in cf_visitor:
+            forwarded_proto = "http"
+
+    if forwarded_host and forwarded_proto in ("http", "https"):
+        return f"{forwarded_proto}://{forwarded_host}"
+    if forwarded_host:
+        return f"{request.url.scheme}://{forwarded_host}"
+    return str(request.base_url).rstrip("/")
+
+
 def _resource_url(request: Request, path: str) -> str:
     normalized_path = path if path.startswith("/") else f"/{path}"
     if PUBLIC_BASE_URL:
-        return f"{PUBLIC_BASE_URL.rstrip('/')}{normalized_path}"
-    return f"{str(request.base_url).rstrip('/')}{normalized_path}"
+        return f"{PUBLIC_BASE_URL.rstrip('/')}" + normalized_path
+    return f"{_public_base_from_headers(request)}" + normalized_path
+
 
 
 def _payment_required(
