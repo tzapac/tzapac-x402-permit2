@@ -5,3 +5,9 @@
 - Extracted: 2026-02-10 02:33:50 UTC
 
 Files extracted from BaseScan's verified 'Standard JSON-Input' listing.
+
+## Deployment Safety Note
+
+`x402BasePermit2Proxy.initialize(address)` is one-time but externally callable.
+To avoid deploy/init race conditions on fresh deployments, use
+`x402ExactPermit2ProxyFactory.sol` so deploy + initialize happen in a single transaction.
