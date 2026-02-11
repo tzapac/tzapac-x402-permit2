@@ -451,7 +451,7 @@
             <button id="health-btn">1. CHECK /HEALTH</button>
             <button id="requirements-btn">2. GET PAYMENT</button>
             <button id="approve-btn" class="hidden">3. APPROVE PERMIT2</button>
-            <button id="pay-btn" disabled>4. SIGN & PAY 0.01 BBT</button>
+            <button id="pay-btn" disabled>4. SIGN & PAY</button>
         </div>
 
         <!-- Console -->
@@ -1107,6 +1107,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
         ui.amount.innerText = "--";
         ui.payTo.innerText = "--";
         ui.payBtn.disabled = true;
+        ui.payBtn.innerText = "4. SIGN & PAY";
     }
 
     function getStoreBaseUrl() {
@@ -1311,6 +1312,40 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
         }
     }
 
+    function _trimFormattedAmount(value) {
+        if (!value.includes(".")) {
+            return value;
+        }
+        const trimmed = value.replace(/0+$/, "").replace(/\.$/, "");
+        return trimmed || "0";
+    }
+
+    function getPaymentDisplay(accept) {
+        const raw = accept && (accept.amount || accept.maxAmountRequired);
+        const symbol = (accept && accept.extra && accept.extra.name) || "TOKEN";
+        if (!raw) {
+            return { amountText: "--", symbolText: symbol, buttonText: "4. SIGN & PAY" };
+        }
+
+        let amountText = raw.toString();
+        try {
+            const decimalsRaw =
+                accept &&
+                accept.extra &&
+                (accept.extra.decimals ?? accept.extra.assetDecimals ?? accept.extra.tokenDecimals);
+            const decimals = Number.isFinite(Number(decimalsRaw)) ? Number(decimalsRaw) : 18;
+            amountText = _trimFormattedAmount(ethers.formatUnits(BigInt(raw.toString()), decimals));
+        } catch (err) {
+            amountText = raw.toString();
+        }
+
+        return {
+            amountText,
+            symbolText: symbol,
+            buttonText: `4. SIGN & PAY ${amountText} ${symbol}`,
+        };
+    }
+
     function updateApproveButton(erc20Allowance) {
         const required = getRequiredAmount();
         const hasAllowance = erc20Allowance > 0n;
@@ -1332,6 +1367,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
             log("VALID STORE URL REQUIRED (HTTPS OR LOCALHOST HTTP)", "error");
             return;
         }
+        clearPaymentState();
 
         try {
             log(`REQUESTING PAYMENT REQUIREMENTS: ${url}`, "info");
@@ -1363,12 +1399,13 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
                 return;
             }
 
-            const amount = accept.amount || accept.maxAmountRequired;
             const payTo = accept.payTo;
+            const display = getPaymentDisplay(accept);
 
-            ui.amount.innerText = amount ? amount.toString() : "--";
+            ui.amount.innerText = display.amountText;
             ui.payTo.innerText = payTo || "--";
             ui.payBtn.disabled = false;
+            ui.payBtn.innerText = display.buttonText;
 
             if (signer) {
                 await loadTokenData();
