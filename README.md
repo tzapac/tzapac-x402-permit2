@@ -1,6 +1,6 @@
 # tzapac-x402
 
-Etherlink-focused **x402 proof of concept** demonstrating paid API access with a custom facilitator and storefront flow for a specific BBT token.
+Etherlink-focused **x402 Beta** demonstrating paid API access with a custom facilitator and storefront flow for a specific BBT token.
 
 This project showcases an end-to-end x402 payment flow on Etherlink (`eip155:42793`) using:
 - a facilitator (`bbt-x402-facilitator`)
@@ -48,7 +48,7 @@ The Rust facilitator in `bbt-x402-facilitator` supports both:
 - **EIP-3009** (`transferWithAuthorization`)
 - **Permit2** (via an x402 Permit2 proxy)
 
-This PoC demo flow uses **Permit2** because the example token used here (BBT) is not wired as an EIP-3009 token in this setup.
+This Beta demo flow uses **Permit2** because the example token used here (BBT) is not wired as an EIP-3009 token in this setup.
 
 ### Example: EIP-3009 (transferWithAuthorization)
 
@@ -116,10 +116,10 @@ This branch aligns the Etherlink Permit2 flow with Coinbase's design for the x40
 ### Etherlink Addresses
 
 - Canonical Permit2 (Etherlink): `0x000000000022D473030F116dDEE9F6B43aC78BA3`
-- x402 Exact Permit2 Proxy (Etherlink, deployed for this PoC): `0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E`
+- x402 Exact Permit2 Proxy (Etherlink, deployed for this Beta): `0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E`
 
 Prerequisite:
-- Permit2 must be deployed at `PERMIT2_ADDRESS` on the target chain. In this PoC it defaults to the canonical Permit2 address above, but it is configurable via `PERMIT2_ADDRESS`.
+- Permit2 must be deployed at `PERMIT2_ADDRESS` on the target chain. In this Beta it defaults to the canonical Permit2 address above, but it is configurable via `PERMIT2_ADDRESS`.
 
 The Etherlink proxy was deployed from the same verified Coinbase proxy source (as seen on Base Sepolia); only the deployed address differs on Etherlink.
 This proxy deployment was performed by us (not Coinbase), so there is an explicit trust assumption in our deployment and operational controls.
@@ -171,5 +171,5 @@ This deployer creates `x402ExactPermit2Proxy` and calls `initialize(permit2)` im
 
 ## Notes
 
-- This is a proof-of-concept repository, not a hardened production deployment.
+- This is a Beta repository, not a hardened production deployment.
 - Secrets must be provided via local env files (for example, `.env` / `.env.multitest`) and should never be committed.

@@ -55,7 +55,7 @@ pub const PERMIT2_ADDRESS: Address = address!("0x000000000022D473030F116dDEE9F6B
 /// Coinbase's x402 Permit2 flow uses a proxy as the `spender` in the signed message.
 /// The proxy enforces `witness.to == payTo` on-chain (so the facilitator can't redirect funds).
 ///
-/// Note: the proxy may not be deployed on all chains. For this PoC, the address can be
+/// Note: the proxy may not be deployed on all chains. For this Beta stack, the address can be
 /// overridden via the `X402_EXACT_PERMIT2_PROXY_ADDRESS` environment variable.
 pub const X402_EXACT_PERMIT2_PROXY_ADDRESS: Address =
     address!("0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E");

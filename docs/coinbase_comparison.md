@@ -1,4 +1,4 @@
-# Coinbase (Permit2 Proxy) vs This Repo (Etherlink PoC)
+# Coinbase (Permit2 Proxy) vs This Repo (Etherlink Beta)
 
 Branch: `codex/coinbase-align-tzapac`
 
@@ -18,7 +18,7 @@ Coinbase (spec intent):
 - `resource` is a top-level object describing the paid URL and content metadata.
 - `extra.assetTransferMethod = "permit2"` signals the Permit2 flow.
 
-This repo (current PoC):
+This repo (current Beta):
 - `x402Version: 2`
 - `PaymentRequired` is returned in the `Payment-Required` response header as base64 JSON.
 - `accepts[]` includes the same structural fields.
@@ -100,7 +100,7 @@ This repo:
 - Assumes the user already has Permit2 allowance set (or can set it themselves).
 
 Nuance:
-- The deployed proxy contract source includes `settleWithPermit(...)`, which can combine an EIP-2612 `permit()` + Permit2 witness settlement in a single on-chain call for tokens that support EIP-2612. This PoC does not currently wire a client/facilitator flow that uses that method.
+- The deployed proxy contract source includes `settleWithPermit(...)`, which can combine an EIP-2612 `permit()` + Permit2 witness settlement in a single on-chain call for tokens that support EIP-2612. This Beta does not currently wire a client/facilitator flow that uses that method.
 
 ### Atomic bundling / ordering guarantees
 
@@ -111,7 +111,7 @@ Coinbase specs require an atomic bundle for the sponsored-approval flow to avoid
 
 This repo:
 - Does not implement a bundling mechanism.
-- The Etherlink public RPC endpoint `https://node.mainnet.etherlink.com` does not expose common bundle/private-transaction RPC methods (for example `eth_sendBundle`, `mev_sendBundle`, `eth_sendPrivateTransaction`), so this PoC does not attempt to support atomic multi-tx bundling via RPC.
+- The Etherlink public RPC endpoint `https://node.mainnet.etherlink.com` does not expose common bundle/private-transaction RPC methods (for example `eth_sendBundle`, `mev_sendBundle`, `eth_sendPrivateTransaction`), so this Beta does not attempt to support atomic multi-tx bundling via RPC.
 
 ## Practical Consequence
 
@@ -123,7 +123,7 @@ What stays the same:
 - settlement call (`proxy.settle`)
 - on-chain witness enforcement
 
-What differs in this PoC:
+What differs in this Beta:
 - token address and proxy address differ from Coinbase's deployments per chain
 - no sponsored-approval extensions / bundling pipeline
 

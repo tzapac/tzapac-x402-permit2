@@ -7,9 +7,9 @@ This glossary documents the x402 fields and endpoints your facilitator integrati
 - `GET /health`: liveness check.
 - `GET /supported`: capabilities (versions/schemes/networks/signers).
 - `POST /settle`: settle a payment on-chain.
-- `POST /verify`: optional pre-check endpoint (supported by facilitator, not required by this PoC server flow).
+- `POST /verify`: optional pre-check endpoint (supported by facilitator, not required by this Beta server flow).
 
-## Request/response headers in this PoC
+## Request/response headers in this Beta
 
 - `Payment-Required`: base64-encoded x402 v2 requirements (from server on `402`).
 - `Payment-Signature`: base64-encoded x402 v2 payment payload (from client on retry).
@@ -84,7 +84,7 @@ Facilitator may return either:
 - `{"txHash": "0x..."}`
 - or `{"transaction": {"hash": "0x..."}, ...}`
 
-The PoC server extracts either form and returns it to the client.
+The Beta server extracts either form and returns it to the client.
 
 ## Common integration errors
 

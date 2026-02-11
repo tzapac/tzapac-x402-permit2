@@ -144,6 +144,19 @@
             text-transform: uppercase;
             letter-spacing: 2px;
             font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .beta-badge {
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+            letter-spacing: 1px;
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 2px 6px;
+            line-height: 1.2;
         }
 
         .status-indicator {
@@ -370,7 +383,7 @@
 
 <div class="container">
     <header>
-        <h1>x402</h1>
+        <h1>x402 <span class="beta-badge">BETA</span></h1>
         <div class="status-indicator">
             <div id="status-dot" class="status-dot"></div>
             <span id="status-text">OFFLINE</span>
