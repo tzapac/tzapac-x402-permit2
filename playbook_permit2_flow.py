@@ -25,6 +25,7 @@ import sys
 import time
 from dataclasses import dataclass
 from typing import Optional
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
 from dotenv import load_dotenv
@@ -51,20 +52,29 @@ PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 FUNDING_PRIVATE_KEY = os.getenv("FUNDING_PRIVATE_KEY")
 
 CHAIN_ID = int(os.getenv("CHAIN_ID", "0"))
-BBT_TOKEN = os.getenv("BBT_TOKEN", "0x7EfE4bdd11237610bcFca478937658bE39F8dfd6")
+DEFAULT_BBT_TOKEN = "0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"
+BBT_TOKEN = os.getenv("BBT_TOKEN", DEFAULT_BBT_TOKEN)
 MIN_NATIVE_BALANCE_WEI = int(os.getenv("MIN_NATIVE_BALANCE_WEI", str(10**15)))  # 0.001 native
 MIN_BBT_BALANCE = int(os.getenv("MIN_BBT_BALANCE", "0"))
 
+DEFAULT_PERMIT2_ADDRESS = "0x000000000022D473030F116dDEE9F6B43aC78BA3"
 PERMIT2_ADDRESS = os.getenv(
     "PERMIT2_ADDRESS",
-    "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+    DEFAULT_PERMIT2_ADDRESS,
 )
 
 # Etherlink-deployed x402 exact Permit2 proxy (Coinbase model 3 spender).
+DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS = "0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E"
 X402_EXACT_PERMIT2_PROXY_ADDRESS = os.getenv(
     "X402_EXACT_PERMIT2_PROXY_ADDRESS",
-    "0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E",
+    DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS,
 )
+ALLOW_FUNDING_TOPUPS = os.getenv("ALLOW_FUNDING_TOPUPS", "0") == "1"
+FUNDING_CHAIN_ALLOWLIST = {
+    int(v.strip())
+    for v in os.getenv("FUNDING_CHAIN_ALLOWLIST", "42793").split(",")
+    if v.strip()
+}
 
 TRANSFER_EVENT_SIG = Web3.keccak(text="Transfer(address,address,uint256)").hex()
 TX_RE = re.compile(r"0x[a-fA-F0-9]{64}")
@@ -134,6 +144,96 @@ def _print_header(title: str) -> None:
     print("\n" + "=" * 72)
     print(title)
     print("=" * 72)
+
+
+def _redact_rpc_url(url: str) -> str:
+    if not url:
+        return url
+    try:
+        parsed = urlsplit(url)
+    except Exception:
+        return "***"
+    query = parse_qsl(parsed.query, keep_blank_values=True)
+    redacted_query = urlencode([(k, "***") for (k, _v) in query], doseq=True)
+    host = parsed.hostname or ""
+    if parsed.port:
+        host = f"{host}:{parsed.port}"
+    return urlunsplit((parsed.scheme, host, parsed.path, redacted_query, parsed.fragment))
+
+
+def _assert_chain_safety(chain_id: int) -> None:
+    if chain_id == 42793:
+        return
+    required_explicit = (
+        "BBT_TOKEN",
+        "PERMIT2_ADDRESS",
+        "X402_EXACT_PERMIT2_PROXY_ADDRESS",
+    )
+    missing = [k for k in required_explicit if not os.getenv(k)]
+    if missing:
+        raise RuntimeError(
+            "Non-Etherlink run requires explicit env vars: "
+            + ", ".join(missing)
+        )
+
+
+def _extract_client_payload_preview(output: str) -> Optional[dict]:
+    marker = "Payment payload prepared (redacted):"
+    idx = output.find(marker)
+    if idx < 0:
+        return None
+    tail = output[idx + len(marker) :]
+    start = tail.find("{")
+    if start < 0:
+        return None
+    depth = 0
+    end = None
+    for i, ch in enumerate(tail[start:]):
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                end = start + i + 1
+                break
+    if end is None:
+        return None
+    try:
+        return json.loads(tail[start:end])
+    except Exception:
+        return None
+
+
+def _assert_client_payload_invariants(
+    output: str, expected_spender: str, expected_to: str, expected_amount: int
+) -> None:
+    preview = _extract_client_payload_preview(output)
+    if not isinstance(preview, dict):
+        raise RuntimeError("Could not parse client payment payload preview from output")
+    auth = (
+        preview.get("payload", {})
+        .get("permit2Authorization", {})
+    )
+    spender = auth.get("spender")
+    witness_to = (auth.get("witness") or {}).get("to")
+    permitted_amount = (auth.get("permitted") or {}).get("amount")
+
+    if not spender or spender.lower() != expected_spender.lower():
+        raise RuntimeError(
+            f"Client payload spender mismatch: expected {expected_spender}, got {spender}"
+        )
+    if not witness_to or witness_to.lower() != expected_to.lower():
+        raise RuntimeError(
+            f"Client payload witness.to mismatch: expected {expected_to}, got {witness_to}"
+        )
+    try:
+        amount = int(permitted_amount)
+    except Exception as exc:
+        raise RuntimeError("Client payload has invalid permitted.amount") from exc
+    if amount != int(expected_amount):
+        raise RuntimeError(
+            f"Client payload amount mismatch: expected {expected_amount}, got {amount}"
+        )
 
 
 def _docker_compose(args: list[str]) -> None:
@@ -346,6 +446,13 @@ def _erc20_balance(w3: Web3, token_address: str, owner: str) -> int:
 def _ensure_native_topup(w3: Web3, to_addr: str, min_balance_wei: int, chain_id: int) -> None:
     if not FUNDING_PRIVATE_KEY:
         return
+    if not ALLOW_FUNDING_TOPUPS:
+        print("Funding wallet configured, but top-ups are disabled (ALLOW_FUNDING_TOPUPS != 1).")
+        return
+    if chain_id not in FUNDING_CHAIN_ALLOWLIST:
+        raise RuntimeError(
+            f"Refusing native top-up on chain {chain_id}; allowed chains={sorted(FUNDING_CHAIN_ALLOWLIST)}"
+        )
 
     current = _native_balance(w3, to_addr)
     if current >= int(min_balance_wei):
@@ -386,6 +493,13 @@ def _ensure_native_topup(w3: Web3, to_addr: str, min_balance_wei: int, chain_id:
 def _ensure_bbt_topup(w3: Web3, token_address: str, to_addr: str, min_amount: int, chain_id: int) -> None:
     if min_amount <= 0 or not FUNDING_PRIVATE_KEY:
         return
+    if not ALLOW_FUNDING_TOPUPS:
+        print("Funding wallet configured, but top-ups are disabled (ALLOW_FUNDING_TOPUPS != 1).")
+        return
+    if chain_id not in FUNDING_CHAIN_ALLOWLIST:
+        raise RuntimeError(
+            f"Refusing token top-up on chain {chain_id}; allowed chains={sorted(FUNDING_CHAIN_ALLOWLIST)}"
+        )
 
     to_addr = Web3.to_checksum_address(to_addr)
     current = _erc20_balance(w3, token_address, to_addr)
@@ -531,7 +645,7 @@ async def main() -> int:
     _print_header("ENV")
     print(f"SERVER_URL: {SERVER_URL}")
     print(f"FACILITATOR_URL: {FACILITATOR_URL}")
-    print(f"RPC_URL: {RPC_URL}")
+    print(f"RPC_URL: {_redact_rpc_url(RPC_URL)}")
     print(f"CHAIN_ID: {CHAIN_ID if CHAIN_ID else '(auto from RPC)'}")
     print(f"Client wallet: {account.address}")
     if FUNDING_PRIVATE_KEY:
@@ -544,6 +658,7 @@ async def main() -> int:
     _print_header("CHECKS")
     rpc_chain_id = _check_rpc(w3)
     tx_chain_id = CHAIN_ID or rpc_chain_id
+    _assert_chain_safety(tx_chain_id)
     os.environ["CHAIN_ID"] = str(tx_chain_id)
     _assert_code_exists(w3, PERMIT2_ADDRESS, "PERMIT2_ADDRESS")
     _assert_code_exists(
@@ -640,6 +755,13 @@ async def main() -> int:
         if AUTO_STACK and not KEEP_STACK:
             _docker_compose(["down", "-v"])
         return 1
+
+    _assert_client_payload_invariants(
+        output=output,
+        expected_spender=Web3.to_checksum_address(X402_EXACT_PERMIT2_PROXY_ADDRESS),
+        expected_to=pay_to,
+        expected_amount=amount,
+    )
 
     transfer_tx = _extract_transfer_tx(output)
     if not transfer_tx:
