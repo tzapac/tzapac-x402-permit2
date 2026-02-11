@@ -23,7 +23,7 @@ PERMIT2_ADDRESS = "0x000000000022D473030F116dDEE9F6B43aC78BA3"
 CHAIN_ID = 42793
 
 # Coinbase x402 vanity address. Not deployed on all chains.
-DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS = "0x4020615294c913F045dc10f0a5cdEbd86c280001"
+DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS = "0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E"
 X402_EXACT_PERMIT2_PROXY_ADDRESS = os.getenv(
     "X402_EXACT_PERMIT2_PROXY_ADDRESS",
     DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS,
@@ -184,8 +184,8 @@ async def main():
     print(f"Permit2 proxy spender: {spender}")
     if spender.lower() == DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS.lower():
         print(
-            "NOTE: Using Coinbase vanity proxy address; it must be deployed on this chain "
-            "or overridden via X402_EXACT_PERMIT2_PROXY_ADDRESS"
+            "NOTE: Using default Etherlink proxy address. Override via "
+            "X402_EXACT_PERMIT2_PROXY_ADDRESS if needed."
         )
     print(f"Nonce: {nonce}")
     print(f"Deadline: {deadline}")
@@ -223,10 +223,22 @@ async def main():
         },
     }
 
-    print("\nPayment payload:")
-    print(json.dumps(payment_payload, indent=2))
-
     payment_header = base64.b64encode(json.dumps(payment_payload).encode()).decode()
+    print("\nPayment payload prepared (redacted):")
+    print(
+        json.dumps(
+            {
+                "x402Version": payment_payload["x402Version"],
+                "accepted": payment_payload["accepted"],
+                "payload": {
+                    "permit2Authorization": payment_payload["payload"]["permit2Authorization"],
+                    "signature": "[REDACTED]",
+                },
+                "paymentSignatureLength": len(payment_header),
+            },
+            indent=2,
+        )
+    )
 
     print("\n" + "=" * 60)
     print("STEP 3: Send request WITH payment")

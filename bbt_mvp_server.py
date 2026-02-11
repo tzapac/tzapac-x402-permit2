@@ -19,12 +19,20 @@ http_client = httpx.AsyncClient(timeout=120.0)
 logger = get_logger("bbt_mvp_server")
 
 FACILITATOR_URL = os.getenv("FACILITATOR_URL", "http://localhost:9090")
-DEFAULT_SERVER_WALLET = "0xA6e868Cd44C7643Fb4Ca9E2D0D66B13f403B488F"
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").strip()
 SERVER_WALLET_ENV = os.getenv("SERVER_WALLET")
 STORE_ADDRESS_ENV = os.getenv("STORE_ADDRESS")
 STORE_PRIVATE_KEY_ENV = os.getenv("STORE_PRIVATE_KEY")
-BBT_TOKEN = "0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"
-PERMIT2_ADDRESS = "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+BBT_TOKEN = os.getenv("BBT_TOKEN", "0x7EfE4bdd11237610bcFca478937658bE39F8dfd6")
+PERMIT2_ADDRESS = os.getenv(
+    "PERMIT2_ADDRESS",
+    "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+)
+X402_EXACT_PERMIT2_PROXY_ADDRESS = os.getenv(
+    "X402_EXACT_PERMIT2_PROXY_ADDRESS",
+    "0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E",
+)
+ALLOW_LEGACY_GAS_MODES = os.getenv("ALLOW_LEGACY_GAS_MODES", "0") == "1"
 NETWORK = "eip155:42793"
 RPC_URL = os.getenv("RPC_URL") or os.getenv("NODE_URL") or "https://rpc.bubbletez.com"
 
@@ -35,17 +43,29 @@ def _resolve_server_wallet() -> str:
     if STORE_ADDRESS_ENV:
         return STORE_ADDRESS_ENV
     if STORE_PRIVATE_KEY_ENV:
-        try:
-            return Web3().eth.account.from_key(STORE_PRIVATE_KEY_ENV).address
-        except Exception:
-            return DEFAULT_SERVER_WALLET
-    return DEFAULT_SERVER_WALLET
+        return Web3().eth.account.from_key(STORE_PRIVATE_KEY_ENV).address
+    raise RuntimeError(
+        "Missing payout wallet config: set SERVER_WALLET, STORE_ADDRESS, or STORE_PRIVATE_KEY"
+    )
 
 
-try:
-    SERVER_WALLET = Web3.to_checksum_address(_resolve_server_wallet())
-except Exception:
-    SERVER_WALLET = DEFAULT_SERVER_WALLET
+def _to_checksum(raw: str, field_name: str) -> str:
+    try:
+        return Web3.to_checksum_address(raw)
+    except Exception as exc:
+        raise RuntimeError(f"Invalid {field_name}: {raw}") from exc
+
+
+def _same_address(a: str, b: str) -> bool:
+    return str(a).lower() == str(b).lower()
+
+
+SERVER_WALLET = _to_checksum(_resolve_server_wallet(), "server wallet")
+BBT_TOKEN = _to_checksum(BBT_TOKEN, "BBT_TOKEN")
+PERMIT2_ADDRESS = _to_checksum(PERMIT2_ADDRESS, "PERMIT2_ADDRESS")
+X402_EXACT_PERMIT2_PROXY_ADDRESS = _to_checksum(
+    X402_EXACT_PERMIT2_PROXY_ADDRESS, "X402_EXACT_PERMIT2_PROXY_ADDRESS"
+)
 
 PAYMENT_REQUIREMENTS = {
     "scheme": "exact",
@@ -59,18 +79,23 @@ PAYMENT_REQUIREMENTS = {
     "extra": {"name": "BBT", "version": "1", "assetTransferMethod": "permit2"},
 }
 
-PAYMENT_RESOURCE = {
-    "description": "Weather data access",
-    "mimeType": "application/json",
-    "url": "http://localhost:8001/api/weather",
-}
+def _resource_url(request: Request) -> str:
+    if PUBLIC_BASE_URL:
+        return f"{PUBLIC_BASE_URL.rstrip('/')}/api/weather"
+    return f"{str(request.base_url).rstrip('/')}/api/weather"
 
-PAYMENT_REQUIRED = {
-    "x402Version": 2,
-    "accepts": [PAYMENT_REQUIREMENTS],
-    "resource": PAYMENT_RESOURCE,
-    "error": None,
-}
+
+def _payment_required(request: Request) -> dict:
+    return {
+        "x402Version": 2,
+        "accepts": [PAYMENT_REQUIREMENTS],
+        "resource": {
+            "description": "Weather data access",
+            "mimeType": "application/json",
+            "url": _resource_url(request),
+        },
+        "error": None,
+    }
 
 
 def _get_payment_header(request: Request) -> str | None:
@@ -386,7 +411,7 @@ async def weather(request: Request):
     gas_payer = gas_payer_header.lower() if gas_payer_header else "auto"
 
     if not payment_header:
-        payload = base64.b64encode(json.dumps(PAYMENT_REQUIRED).encode()).decode()
+        payload = base64.b64encode(json.dumps(_payment_required(request)).encode()).decode()
         return Response(
             content=json.dumps(
                 {
@@ -474,7 +499,13 @@ async def weather(request: Request):
         amount_raw = permitted.get("amount")
 
         witness_to = witness.get("to")
-        if witness_to and str(witness_to).lower() != str(pay_to).lower():
+        if not witness_to:
+            return Response(
+                content=json.dumps({"error": "Missing witness.to in permit2Authorization"}),
+                status_code=402,
+                media_type="application/json",
+            )
+        if not _same_address(witness_to, pay_to):
             return Response(
                 content=json.dumps(
                     {"error": "Recipient mismatch (witness.to must equal payTo)"}
@@ -482,7 +513,27 @@ async def weather(request: Request):
                 status_code=402,
                 media_type="application/json",
             )
+        if not _same_address(spender, X402_EXACT_PERMIT2_PROXY_ADDRESS):
+            return Response(
+                content=json.dumps(
+                    {
+                        "error": "Invalid spender for witness flow (must be configured x402 proxy)",
+                    }
+                ),
+                status_code=402,
+                media_type="application/json",
+            )
     elif kind == "allowance":
+        if not ALLOW_LEGACY_GAS_MODES:
+            return Response(
+                content=json.dumps(
+                    {
+                        "error": "Permit2 allowance flow is disabled in Coinbase mode",
+                    }
+                ),
+                status_code=402,
+                media_type="application/json",
+            )
         permit2 = permit2_payload.get("permit2", {}) or {}
         permit_single = permit2.get("permitSingle", {}) or {}
         details = permit_single.get("details", {}) or {}
@@ -522,7 +573,19 @@ async def weather(request: Request):
             media_type="application/json",
         )
 
-    if gas_payer not in {"facilitator", "store", "client", "auto"}:
+    required_asset = requirements_for_facilitator.get("asset")
+    if not required_asset or not _same_address(token, required_asset):
+        return Response(
+            content=json.dumps({"error": "Payment asset mismatch"}),
+            status_code=402,
+            media_type="application/json",
+        )
+
+    allowed_modes = {"facilitator", "auto"}
+    if ALLOW_LEGACY_GAS_MODES:
+        allowed_modes.update({"store", "client"})
+
+    if gas_payer not in allowed_modes:
         return Response(
             content=json.dumps({"error": "Invalid gas payer mode"}),
             status_code=400,
@@ -530,17 +593,12 @@ async def weather(request: Request):
         )
 
     if gas_payer == "auto":
-        if str(spender).lower() == str(owner).lower():
-            gas_payer = "client"
-        elif str(spender).lower() == str(pay_to).lower():
-            gas_payer = "store"
-        else:
-            gas_payer = "facilitator"
+        gas_payer = "facilitator"
 
     logger.info("Gas payer mode: %s", gas_payer)
 
     if gas_payer == "client":
-        if str(spender).lower() != str(owner).lower():
+        if not _same_address(spender, owner):
             return Response(
                 content=json.dumps({"error": "Client gas requires spender=owner"}),
                 status_code=402,
@@ -574,7 +632,7 @@ async def weather(request: Request):
 
         tx_hash = payment_tx
     elif gas_payer == "store":
-        if str(spender).lower() != str(pay_to).lower():
+        if not _same_address(spender, pay_to):
             return Response(
                 content=json.dumps({"error": "Store gas requires spender=payTo"}),
                 status_code=402,

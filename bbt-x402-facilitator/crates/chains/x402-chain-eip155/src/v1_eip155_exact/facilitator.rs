@@ -58,7 +58,7 @@ pub const PERMIT2_ADDRESS: Address = address!("0x000000000022D473030F116dDEE9F6B
 /// Note: the proxy may not be deployed on all chains. For this PoC, the address can be
 /// overridden via the `X402_EXACT_PERMIT2_PROXY_ADDRESS` environment variable.
 pub const X402_EXACT_PERMIT2_PROXY_ADDRESS: Address =
-    address!("0x4020615294c913F045dc10f0a5cdEbd86c280001");
+    address!("0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E");
 
 pub fn x402_exact_permit2_proxy_address() -> Address {
     if let Ok(raw) = std::env::var("X402_EXACT_PERMIT2_PROXY_ADDRESS") {
@@ -762,7 +762,7 @@ pub fn assert_enough_value(
     sent: &U256,
     max_amount_required: &U256,
 ) -> Result<(), PaymentVerificationError> {
-    if sent < max_amount_required {
+    if sent != max_amount_required {
         Err(PaymentVerificationError::InvalidPaymentAmount)
     } else {
         Ok(())

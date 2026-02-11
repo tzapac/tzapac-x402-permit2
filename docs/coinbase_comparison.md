@@ -57,7 +57,7 @@ Coinbase:
 
 This repo:
 - Same: tokens move client -> payTo.
-- Facilitator pays gas (when using facilitator-gas mode).
+- Facilitator pays gas (the default and enforced mode in this Coinbase-aligned branch).
 
 ## On-Chain Enforcement Comparison
 
@@ -81,6 +81,7 @@ This repo:
   - facilitator runtime
   - client signing (because it is part of the signed message as `spender`)
 - Mechanism: `X402_EXACT_PERMIT2_PROXY_ADDRESS`.
+- Store/UI defaults are locked to facilitator-gas Coinbase flow (`ALLOW_LEGACY_GAS_MODES=0` unless explicitly overridden).
 
 ## Not Implemented Here (Compared to Coinbase Specs)
 

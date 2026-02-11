@@ -38,13 +38,9 @@ Local Docker setup (from this repo):
 1. Client requests `GET /api/weather`.
 2. Store returns `402 Payment Required` with `Payment-Required` containing x402 requirements (base64 JSON, x402 v2).
 3. Client signs payment data and sends `Payment-Signature` (base64 JSON payload) to the same endpoint.
-4. Settlement mode is selected by `X-GAS-PAYER` (`client`, `store`, `facilitator`, or `auto`).
-5. Server verifies/settles payment and returns `200` plus `X-Payment-Response` with tx metadata.
+4. Settlement uses facilitator-gas mode (Coinbase-style witness flow; `X-GAS-PAYER` resolves to facilitator).
+5. Server verifies/settles payment and returns `200` plus `X-PAYMENT-RESPONSE` with tx metadata.
 6. Response includes an Etherlink explorer link for the settlement transaction.
-
-Notes:
-- For backward compatibility with earlier PoC tooling, the store API also accepts legacy `X-PAYMENT` / `X-PAYMENT-REQUIRED` headers.
-- The store API also emits the legacy uppercase response header `X-PAYMENT-RESPONSE` alongside `X-Payment-Response`.
 
 ## Why Permit2 (and not EIP-3009 here)
 
@@ -132,6 +128,11 @@ Set `X402_EXACT_PERMIT2_PROXY_ADDRESS` to the proxy address above in:
 
 If Coinbase deploys their official x402 Permit2 proxy to Etherlink, integration should reduce to **changing only** `X402_EXACT_PERMIT2_PROXY_ADDRESS` to the Coinbase-deployed address. The payload format, settlement call, and on-chain protections remain the same.
 
+For additional hardening, the facilitator now supports optional proxy bytecode allowlisting via:
+- `X402_EXACT_PERMIT2_PROXY_CODEHASH_ALLOWLIST` (comma-separated `0x...` keccak256 bytecode hashes)
+
+If set, facilitator verify/settle rejects Permit2 witness payments unless the configured proxy code hash matches one of these values.
+
 ### Local Coinbase Stack
 
 This repo includes a dedicated compose file that pins the Etherlink proxy address:
@@ -141,7 +142,26 @@ This repo includes a dedicated compose file that pins the Etherlink proxy addres
 Run:
 
 - `docker compose -f docker-compose.model3-etherlink.yml up -d --build`
-- `AUTO_STACK=0 ./.venv/bin/python playbook_permit2_flow.py` (or `AUTO_STACK=1` to let the playbook bring up the compose stack)
+- `RPC_URL=<your_rpc> CHAIN_ID=42793 AUTO_STACK=0 ./.venv/bin/python playbook_permit2_flow.py` (or `AUTO_STACK=1` to let the playbook bring up the compose stack)
+
+### Proxy Deployment Safety
+
+The upstream Coinbase proxy uses a one-time `initialize(address permit2)` call. To avoid deploy/init race conditions on fresh deployments, use atomic deploy+initialize in one transaction via:
+
+- `contracts/x402ExactPermit2ProxyFactory.sol`
+
+This deployer creates `x402ExactPermit2Proxy` and calls `initialize(permit2)` immediately before returning the proxy address.
+
+### Server and Playbook Safety Defaults
+
+- `bbt_mvp_server.py` no longer falls back to a hard-coded payout address. One of `SERVER_WALLET`, `STORE_ADDRESS`, or `STORE_PRIVATE_KEY` must be set.
+- `bbt_mvp_server.py` validates that the signed payment token equals the required `asset`.
+- `bbt_mvp_server.py` emits `Payment-Required.resource.url` dynamically from `PUBLIC_BASE_URL` (if set) or the incoming request base URL.
+- `bbt_mvp_server.py` defaults to Coinbase-style witness flow and facilitator gas only (`ALLOW_LEGACY_GAS_MODES=0`).
+- `playbook_permit2_flow.py` requires explicit `RPC_URL`/`NODE_URL`.
+- `playbook_permit2_flow.py` validates chain-id consistency and verifies deployed code exists at both `PERMIT2_ADDRESS` and `X402_EXACT_PERMIT2_PROXY_ADDRESS`.
+- `playbook_permit2_flow.py` defaults to bounded approvals (`APPROVAL_MODE=exact`); set `APPROVAL_MODE=infinite` to opt in to max allowance.
+- Funding top-ups are opt-in with `ALLOW_FUNDING_TOPUPS=1`.
 
 ## Notes
 

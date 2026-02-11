@@ -151,10 +151,20 @@ async def main():
         },
     }
 
-    print(f"\nPayment payload:")
-    print(json.dumps(payment_payload, indent=2))
-
     payment_header = base64.b64encode(json.dumps(payment_payload).encode()).decode()
+    print("\nPayment payload prepared (redacted):")
+    print(
+        json.dumps(
+            {
+                "x402Version": payment_payload.get("x402Version"),
+                "scheme": payment_payload.get("scheme"),
+                "network": payment_payload.get("network"),
+                "payload": {"signature": "[REDACTED]"},
+                "paymentHeaderLength": len(payment_header),
+            },
+            indent=2,
+        )
+    )
 
     print("\n" + "=" * 60)
     print("STEP 3: Send request WITH payment")
