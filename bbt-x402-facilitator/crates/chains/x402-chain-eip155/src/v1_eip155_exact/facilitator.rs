@@ -10,7 +10,7 @@
 //! - Smart wallet deployment for counterfactual signatures
 
 use alloy_contract::SolCallBuilder;
-use alloy_primitives::{Address, B256, Bytes, Signature, TxHash, U160, U256, address, hex};
+use alloy_primitives::{Address, B256, Bytes, Signature, TxHash, U160, U256, address, hex, keccak256};
 use alloy_primitives::aliases::U48;
 use alloy_provider::bindings::IMulticall3;
 use alloy_provider::{
@@ -78,6 +78,33 @@ fn permit2_allowance_transfer_enabled() -> bool {
         Ok(v) => matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes"),
         Err(_) => false,
     }
+}
+
+fn parse_proxy_codehash_allowlist() -> Result<Option<Vec<B256>>, PaymentVerificationError> {
+    let Ok(raw) = std::env::var("X402_EXACT_PERMIT2_PROXY_CODEHASH_ALLOWLIST") else {
+        return Ok(None);
+    };
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return Ok(None);
+    }
+    let mut hashes = Vec::new();
+    for token in raw.split(',') {
+        let t = token.trim();
+        if t.is_empty() {
+            continue;
+        }
+        let parsed = B256::from_str(t).map_err(|_| {
+            PaymentVerificationError::InvalidFormat(
+                "Invalid X402_EXACT_PERMIT2_PROXY_CODEHASH_ALLOWLIST entry".to_string(),
+            )
+        })?;
+        hashes.push(parsed);
+    }
+    if hashes.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(hashes))
 }
 
 impl<P> X402SchemeFacilitatorBuilder<P> for V1Eip155Exact
@@ -405,6 +432,7 @@ async fn assert_valid_payment<'a, P: Provider>(
     }
     if let Some(permit2_auth) = payload.payload.permit2_authorization.as_ref() {
         let proxy_address = x402_exact_permit2_proxy_address();
+        assert_proxy_codehash_allowed(provider, &proxy_address).await?;
 
         // Static checks to align with Coinbase's Permit2 witness proxy flow.
         if permit2_auth.permitted.token != requirements.asset {
@@ -1130,6 +1158,34 @@ async fn is_contract_deployed<P: Provider>(
     #[cfg(not(feature = "telemetry"))]
     let bytes = bytes_fut.await?;
     Ok(!bytes.is_empty())
+}
+
+async fn assert_proxy_codehash_allowed<P: Provider>(
+    provider: &P,
+    address: &Address,
+) -> Result<(), Eip155ExactError> {
+    let Some(allowlist) = parse_proxy_codehash_allowlist()? else {
+        return Ok(());
+    };
+    let code = provider
+        .get_code_at(*address)
+        .into_future()
+        .await
+        .map_err(Eip155ExactError::Transport)?;
+    if code.is_empty() {
+        return Err(PaymentVerificationError::InvalidFormat(
+            "x402 proxy address has no deployed code".to_string(),
+        )
+        .into());
+    }
+    let codehash = keccak256(code);
+    if !allowlist.iter().any(|v| *v == codehash) {
+        return Err(PaymentVerificationError::InvalidFormat(
+            "x402 proxy codehash is not in allowlist".to_string(),
+        )
+        .into());
+    }
+    Ok(())
 }
 
 pub async fn verify_payment<P: Provider>(
