@@ -397,7 +397,7 @@
             <div class="data-row">
                 <span class="data-label">Facilitator URL</span>
                 <span class="data-value address">
-                    <input id="facilitator-input" class="text-input" type="text" value="https://exp-faci.bubbletez.com" />
+                    <input id="facilitator-input" class="text-input" type="text" value="http://localhost:9090" />
                 </span>
             </div>
             <div class="data-row">
@@ -413,7 +413,7 @@
             <div class="data-row">
                 <span class="data-label">Store API URL</span>
                 <span class="data-value address">
-                    <input id="store-input" class="text-input" type="text" value="https://exp-store.bubbletez.com/api/weather" />
+                    <input id="store-input" class="text-input" type="text" value="http://localhost:9091/api/weather" />
                 </span>
             </div>
             <div class="data-row">
@@ -581,7 +581,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
     const ETHERLINK_CHAIN_ID = 42793;
     const ETHERLINK_CHAIN_ID_HEX = "0xA739";
     const RPC_URL = "https://rpc.bubbletez.com";
-    const DEFAULT_FACILITATOR_URL = "https://exp-faci.bubbletez.com";
+    const DEFAULT_FACILITATOR_URL = "http://localhost:9090";
     const ETHERS_CDN_URLS = [
         "https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js",
         "https://unpkg.com/ethers@6.13.4/dist/ethers.umd.min.js"
@@ -680,7 +680,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
     }
 
     async function init() {
-        if (!ui.facilitatorInput.value || ui.facilitatorInput.value.includes("localhost")) {
+        if (!ui.facilitatorInput.value) {
             ui.facilitatorInput.value = DEFAULT_FACILITATOR_URL;
         }
 
@@ -1000,14 +1000,46 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
     }
 
     // --- FACILITATOR LINKS ---
+    function isLocalHostname(hostname) {
+        const host = (hostname || "").toLowerCase();
+        return host === "localhost" || host === "127.0.0.1" || host === "::1" || host.endsWith(".local");
+    }
+
+    function normalizeEndpointUrl(raw, fallback) {
+        const candidate = (raw || "").trim() || fallback;
+        if (!candidate) {
+            return null;
+        }
+        try {
+            const url = new URL(candidate);
+            if (url.protocol !== "http:" && url.protocol !== "https:") {
+                return null;
+            }
+            const isLocal = isLocalHostname(url.hostname);
+            if (!isLocal && url.protocol !== "https:") {
+                return null;
+            }
+            if (window.location.protocol === "https:" && url.protocol === "http:" && !isLocal) {
+                return null;
+            }
+            return url.toString().replace(/\/$/, "");
+        } catch (err) {
+            return null;
+        }
+    }
+
     function getFacilitatorUrl() {
-        const raw = ui.facilitatorInput.value.trim();
-        const value = raw.length ? raw : DEFAULT_FACILITATOR_URL;
-        return value.replace(/\/$/, "");
+        return normalizeEndpointUrl(ui.facilitatorInput.value, DEFAULT_FACILITATOR_URL);
     }
 
     async function checkFacilitatorHealth() {
-        const url = `${getFacilitatorUrl()}/health`;
+        const base = getFacilitatorUrl();
+        if (!base) {
+            setFacilitatorStatus(false);
+            log("INVALID FACILITATOR URL. USE HTTPS (OR HTTP FOR LOCALHOST).", "error");
+            return;
+        }
+        const url = `${base}/health`;
         try {
             log(`CHECKING FACILITATOR: ${url}`, "info");
             const resp = await fetch(url);
@@ -1045,7 +1077,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
     }
 
     function getStoreUrl() {
-        return ui.storeInput.value.trim();
+        return normalizeEndpointUrl(ui.storeInput.value, "");
     }
 
     function toBase64(text) {
@@ -1129,7 +1161,7 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
     async function fetchPaymentRequirements() {
         const url = getStoreUrl();
         if (!url) {
-            log("STORE URL REQUIRED", "error");
+            log("VALID STORE URL REQUIRED (HTTPS OR LOCALHOST HTTP)", "error");
             return;
         }
 
@@ -1298,9 +1330,14 @@ FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
                 "Payment-Signature": header,
                 "X-GAS-PAYER": gasPayerMode
             };
+            const storeUrl = getStoreUrl();
+            if (!storeUrl) {
+                log("VALID STORE URL REQUIRED (HTTPS OR LOCALHOST HTTP)", "error");
+                return;
+            }
 
             log("SENDING Payment-Signature...", "info");
-            const resp = await fetch(getStoreUrl(), {
+            const resp = await fetch(storeUrl, {
                 headers
             });
 

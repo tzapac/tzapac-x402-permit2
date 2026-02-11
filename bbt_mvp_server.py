@@ -34,7 +34,11 @@ X402_EXACT_PERMIT2_PROXY_ADDRESS = os.getenv(
 )
 ALLOW_LEGACY_GAS_MODES = os.getenv("ALLOW_LEGACY_GAS_MODES", "0") == "1"
 NETWORK = "eip155:42793"
-RPC_URL = os.getenv("RPC_URL") or os.getenv("NODE_URL") or "https://rpc.bubbletez.com"
+RPC_URL = os.getenv("RPC_URL") or os.getenv("NODE_URL")
+MAX_PAYMENT_SIGNATURE_B64_BYTES = int(
+    os.getenv("MAX_PAYMENT_SIGNATURE_B64_BYTES", "16384")
+)
+MAX_SETTLE_RESPONSE_BYTES = int(os.getenv("MAX_SETTLE_RESPONSE_BYTES", "65536"))
 
 
 def _resolve_server_wallet() -> str:
@@ -207,6 +211,8 @@ ERC20_ABI = [
 
 
 def _get_web3() -> Web3:
+    if not RPC_URL:
+        raise RuntimeError("RPC_URL or NODE_URL is required for on-chain verification")
     return Web3(Web3.HTTPProvider(RPC_URL))
 
 
@@ -422,7 +428,10 @@ async def weather(request: Request):
         )
 
     try:
-        payment_payload = json.loads(base64.b64decode(payment_header))
+        if len(payment_header) > MAX_PAYMENT_SIGNATURE_B64_BYTES:
+            raise ValueError("Payment-Signature header too large")
+        decoded_payload = base64.b64decode(payment_header, validate=True)
+        payment_payload = json.loads(decoded_payload)
         log_json(logger, logging.DEBUG, "Received payment payload", payment_payload)
     except Exception as e:
         logger.warning("Invalid payment header: %s", e)
@@ -550,6 +559,16 @@ async def weather(request: Request):
             status_code=400,
             media_type="application/json",
         )
+    try:
+        owner = _to_checksum(owner, "payment owner")
+        spender = _to_checksum(spender, "payment spender")
+        token = _to_checksum(token, "payment token")
+    except RuntimeError as exc:
+        return Response(
+            content=json.dumps({"error": str(exc)}),
+            status_code=400,
+            media_type="application/json",
+        )
 
     try:
         required_amount = int(requirements_for_facilitator.get("amount", "0"))
@@ -665,12 +684,21 @@ async def weather(request: Request):
                 f"{FACILITATOR_URL}/settle",
                 json=settle_request,
             )
-            settle_data = settle_resp.json()
-            if isinstance(settle_data, str):
+            settle_bytes = settle_resp.content or b""
+            if len(settle_bytes) > MAX_SETTLE_RESPONSE_BYTES:
+                return Response(
+                    content=json.dumps({"error": "Settlement response too large"}),
+                    status_code=502,
+                    media_type="application/json",
+                )
+            settle_text = settle_bytes.decode("utf-8", errors="replace")
+            try:
+                settle_data = settle_resp.json()
+            except Exception:
                 try:
-                    settle_data = json.loads(settle_data)
+                    settle_data = json.loads(settle_text)
                 except json.JSONDecodeError:
-                    settle_data = {"raw": settle_data}
+                    settle_data = {"raw": settle_text}
 
             if not isinstance(settle_data, dict):
                 return Response(
@@ -703,33 +731,14 @@ async def weather(request: Request):
                 )
 
             tx_hash = None
-            if isinstance(settle_data, dict):
-                tx_hash = settle_data.get("txHash")
-                if not tx_hash:
-                    transaction = settle_data.get("transaction")
-                    if isinstance(transaction, dict):
-                        tx_hash = transaction.get("hash")
-                    elif isinstance(transaction, str):
-                        if transaction.startswith("0x") and len(transaction) == 66:
-                            tx_hash = transaction
-            elif isinstance(settle_data, str):
-                try:
-                    parsed = json.loads(settle_data)
-                    if isinstance(parsed, dict):
-                        tx_hash = parsed.get("txHash")
-                        if not tx_hash:
-                            transaction = parsed.get("transaction")
-                            if isinstance(transaction, dict):
-                                tx_hash = transaction.get("hash")
-                            elif isinstance(transaction, str):
-                                if (
-                                    transaction.startswith("0x")
-                                    and len(transaction) == 66
-                                ):
-                                    tx_hash = transaction
-                except json.JSONDecodeError:
-                    if settle_data.startswith("0x") and len(settle_data) == 66:
-                        tx_hash = settle_data
+            tx_hash = settle_data.get("txHash")
+            if not tx_hash:
+                transaction = settle_data.get("transaction")
+                if isinstance(transaction, dict):
+                    tx_hash = transaction.get("hash")
+                elif isinstance(transaction, str):
+                    if transaction.startswith("0x") and len(transaction) == 66:
+                        tx_hash = transaction
 
         except Exception as e:
             logger.exception("Facilitator error: %s", e)

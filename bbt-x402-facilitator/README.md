@@ -116,6 +116,20 @@ Prebuilt Docker images are available at [GitHub Container Registry](https://gith
 docker run -v $(pwd)/config.json:/app/config.json -p 9090:9090 ghcr.io/x402-rs/x402-facilitator
 ```
 
+### Etherlink PoC Runtime Notes (This Repo)
+
+For this repository's Etherlink PoC stack, facilitator runtime is wired via
+`Dockerfile.bbt` / compose and requires explicit proxy configuration:
+
+- `X402_EXACT_PERMIT2_PROXY_ADDRESS=0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E`
+- `X402_EXACT_PERMIT2_PROXY_CODEHASH_ALLOWLIST=0x73020ff18bfd4eaba45de17760ad433063ed6267a8371ef54a39083a14180366`
+
+The PoC composes this as:
+
+```shell
+docker compose -f docker-compose.model3-etherlink.yml up -d --build
+```
+
 ### Build Your Own
 
 For custom facilitator implementations, see the [Build Your Own Facilitator](./docs/build-your-own-facilitator.md) guide.

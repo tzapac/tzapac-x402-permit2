@@ -118,10 +118,14 @@ This branch aligns the Etherlink Permit2 flow with Coinbase's design for the x40
 - Canonical Permit2 (Etherlink): `0x000000000022D473030F116dDEE9F6B43aC78BA3`
 - x402 Exact Permit2 Proxy (Etherlink, deployed for this PoC): `0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E`
 
+Prerequisite:
+- Permit2 must be deployed at `PERMIT2_ADDRESS` on the target chain. In this PoC it defaults to the canonical Permit2 address above, but it is configurable via `PERMIT2_ADDRESS`.
+
 The Etherlink proxy was deployed from the same verified Coinbase proxy source (as seen on Base Sepolia); only the deployed address differs on Etherlink.
 This proxy deployment was performed by us (not Coinbase), so there is an explicit trust assumption in our deployment and operational controls.
 
-It is verified on Etherlink Blockscout as an **exact-match** Solidity source verification (contract `x402ExactPermit2Proxy`).
+It is verified on Etherlink Blockscout as an **exact-match** Solidity source verification (contract `x402ExactPermit2Proxy`):
+- https://explorer.etherlink.com/address/0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E#code
 
 Set `X402_EXACT_PERMIT2_PROXY_ADDRESS` to the proxy address above in:
 - the facilitator container/runtime

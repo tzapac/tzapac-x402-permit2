@@ -1,4 +1,4 @@
-"""X402 BBT Client - Test payment flow on Etherlink."""
+"""Legacy SDK client example (not the Coinbase-aligned Permit2 witness path)."""
 
 import asyncio
 import os
@@ -10,7 +10,7 @@ from x402.mechanisms.evm.exact.register import register_exact_evm_client
 
 load_dotenv()
 
-STOREFRONT_URL = os.getenv("STOREFRONT_URL", "http://localhost:8000")
+STOREFRONT_URL = os.getenv("STOREFRONT_URL", "http://localhost:9091")
 ETHERLINK_CHAIN = "eip155:42793"
 BBT_TOKEN_ADDRESS = "0x7EfE4bdd11237610bcFca478937658bE39F8dfd6"
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")

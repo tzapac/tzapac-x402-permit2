@@ -17,10 +17,12 @@ load_dotenv()
 
 SERVER_URL = os.getenv("SERVER_URL", "http://localhost:8001")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
-RPC_URL = os.getenv("NODE_URL", os.getenv("RPC_URL", "https://rpc.bubbletez.com"))
+RPC_URL = os.getenv("NODE_URL") or os.getenv("RPC_URL")
 
-PERMIT2_ADDRESS = "0x000000000022D473030F116dDEE9F6B43aC78BA3"
-CHAIN_ID = 42793
+PERMIT2_ADDRESS = os.getenv(
+    "PERMIT2_ADDRESS", "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+)
+CHAIN_ID = int(os.getenv("CHAIN_ID", "42793"))
 
 # Coinbase x402 vanity address. Not deployed on all chains.
 DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS = "0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E"
@@ -31,6 +33,8 @@ X402_EXACT_PERMIT2_PROXY_ADDRESS = os.getenv(
 
 if not PRIVATE_KEY:
     raise ValueError("PRIVATE_KEY required in .env")
+if not RPC_URL:
+    raise ValueError("RPC_URL or NODE_URL required")
 
 account = Account.from_key(PRIVATE_KEY)
 print(f"Client wallet: {account.address}")
@@ -126,6 +130,15 @@ def sign_permit2_witness_transfer(
 async def main():
     endpoint = f"{SERVER_URL}/api/weather"
     w3 = Web3(Web3.HTTPProvider(RPC_URL))
+    if not w3.is_connected():
+        raise RuntimeError("RPC not connected")
+    rpc_chain_id = int(w3.eth.chain_id)
+    if rpc_chain_id != CHAIN_ID:
+        raise RuntimeError(
+            f"CHAIN_ID mismatch: configured {CHAIN_ID}, RPC reports {rpc_chain_id}"
+        )
+    if not w3.eth.get_code(Web3.to_checksum_address(PERMIT2_ADDRESS)):
+        raise RuntimeError(f"No code deployed at PERMIT2_ADDRESS={PERMIT2_ADDRESS}")
 
     print("=" * 60)
     print("STEP 1: Request without payment (expect 402)")

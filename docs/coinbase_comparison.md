@@ -78,11 +78,13 @@ Coinbase intended deployment model:
 This repo:
 - Etherlink proxy address is `0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E`.
 - This proxy was deployed by us (not Coinbase), so trust is anchored to our deployment and operational controls.
+- Blockscout verification (exact match): `https://explorer.etherlink.com/address/0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E#code`.
 - The address must be set consistently across:
   - facilitator runtime
   - client signing (because it is part of the signed message as `spender`)
 - Mechanism: `X402_EXACT_PERMIT2_PROXY_ADDRESS`.
 - Facilitator runtime can pin bytecode hash with `X402_EXACT_PERMIT2_PROXY_CODEHASH_ALLOWLIST`.
+- Permit2 deployment is a chain prerequisite; in this repo it is configurable via `PERMIT2_ADDRESS`.
 - Store/UI defaults are locked to facilitator-gas Coinbase flow (`ALLOW_LEGACY_GAS_MODES=0` unless explicitly overridden).
 
 ## Not Implemented Here (Compared to Coinbase Specs)

@@ -21,7 +21,10 @@ services:
       - ./bbt-x402-facilitator/bbt_config.multitest.json:/app/bbt_config.json:ro
 
   store-api:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: Dockerfile.store-api
+    image: bbt-store-api:latest
     container_name: bbt-store-api
     restart: unless-stopped
     working_dir: /app
@@ -38,22 +41,29 @@ services:
       - -lc
       - |
         # Prefer STORE_ADDRESS if provided, otherwise fall back to SERVER_WALLET.
-        export SERVER_WALLET=${STORE_ADDRESS:-${SERVER_WALLET}}
-        pip install --no-cache-dir fastapi uvicorn httpx python-dotenv web3
+        export SERVER_WALLET=$${STORE_ADDRESS:-$${SERVER_WALLET}}
         python bbt_mvp_server.py
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/', timeout=2).read()"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     volumes:
       - ./bbt_mvp_server.py:/app/bbt_mvp_server.py:ro
       - ./logging_utils.py:/app/logging_utils.py:ro
-    ports:
-      - 8001:8001
+    expose:
+      - "8001"
 
   store-proxy:
     image: nginx:1.27
     container_name: bbt-store-proxy
     restart: unless-stopped
     depends_on:
-      - facilitator
-      - store-api
+      facilitator:
+        condition: service_started
+      store-api:
+        condition: service_healthy
     ports:
       - 9091:80
     volumes:

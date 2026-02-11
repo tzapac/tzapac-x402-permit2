@@ -35,14 +35,22 @@ from web3 import Web3
 load_dotenv()
 load_dotenv(".env.multitest", override=False)
 
-SERVER_URL = os.getenv("SERVER_URL", "http://localhost:8001")
+AUTO_STACK = os.getenv("AUTO_STACK", "0") == "1"
+KEEP_STACK = os.getenv("KEEP_STACK", "0") == "1"
+COMPOSE_FILE = os.getenv("COMPOSE_FILE", "docker-compose.model3-etherlink.yml")
+FORCE_SERVER_RESTART = os.getenv("FORCE_SERVER_RESTART", "0") == "1"
+
+SERVER_URL = os.getenv(
+    "SERVER_URL",
+    "http://localhost:9091" if AUTO_STACK else "http://localhost:8001",
+)
 FACILITATOR_URL = os.getenv("FACILITATOR_URL", "http://localhost:9090")
-RPC_URL = os.getenv("NODE_URL", os.getenv("RPC_URL", "https://rpc.bubbletez.com"))
+RPC_URL = os.getenv("NODE_URL") or os.getenv("RPC_URL")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 # Optional: used to top-up gas / tokens for the active PRIVATE_KEY wallet.
 FUNDING_PRIVATE_KEY = os.getenv("FUNDING_PRIVATE_KEY")
 
-CHAIN_ID = int(os.getenv("CHAIN_ID", "42793"))
+CHAIN_ID = int(os.getenv("CHAIN_ID", "0"))
 BBT_TOKEN = os.getenv("BBT_TOKEN", "0x7EfE4bdd11237610bcFca478937658bE39F8dfd6")
 MIN_NATIVE_BALANCE_WEI = int(os.getenv("MIN_NATIVE_BALANCE_WEI", str(10**15)))  # 0.001 native
 MIN_BBT_BALANCE = int(os.getenv("MIN_BBT_BALANCE", "0"))
@@ -57,11 +65,6 @@ X402_EXACT_PERMIT2_PROXY_ADDRESS = os.getenv(
     "X402_EXACT_PERMIT2_PROXY_ADDRESS",
     "0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E",
 )
-
-AUTO_STACK = os.getenv("AUTO_STACK", "0") == "1"
-KEEP_STACK = os.getenv("KEEP_STACK", "0") == "1"
-COMPOSE_FILE = os.getenv("COMPOSE_FILE", "docker-compose.model3-etherlink.yml")
-FORCE_SERVER_RESTART = os.getenv("FORCE_SERVER_RESTART", "0") == "1"
 
 TRANSFER_EVENT_SIG = Web3.keccak(text="Transfer(address,address,uint256)").hex()
 TX_RE = re.compile(r"0x[a-fA-F0-9]{64}")
@@ -145,6 +148,9 @@ def _child_env() -> dict[str, str]:
     env["SERVER_URL"] = SERVER_URL
     env["FACILITATOR_URL"] = FACILITATOR_URL
     env["RPC_URL"] = RPC_URL
+    env["CHAIN_ID"] = os.getenv("CHAIN_ID", str(CHAIN_ID))
+    env["PERMIT2_ADDRESS"] = PERMIT2_ADDRESS
+    env["BBT_TOKEN"] = BBT_TOKEN
     env["X402_EXACT_PERMIT2_PROXY_ADDRESS"] = X402_EXACT_PERMIT2_PROXY_ADDRESS
     return env
 
@@ -195,7 +201,7 @@ async def _fetch_payment_required() -> dict:
         )
         if not required_b64:
             raise RuntimeError("Missing Payment-Required header")
-        return json.loads(base64.b64decode(required_b64))
+        return json.loads(base64.b64decode(required_b64, validate=True))
 
 
 async def _check_facilitator() -> None:
@@ -231,10 +237,21 @@ async def _check_facilitator() -> None:
         print("WARNING: facilitator check did not succeed; continuing...")
 
 
-def _check_rpc(w3: Web3) -> None:
+def _check_rpc(w3: Web3) -> int:
     if not w3.is_connected():
         raise RuntimeError("RPC not connected")
-    print(f"RPC connected. Latest block: {w3.eth.block_number}")
+    chain_id = int(w3.eth.chain_id)
+    print(f"RPC connected. Chain ID: {chain_id}. Latest block: {w3.eth.block_number}")
+    if CHAIN_ID and CHAIN_ID != chain_id:
+        raise RuntimeError(f"CHAIN_ID mismatch: configured {CHAIN_ID}, RPC reports {chain_id}")
+    return chain_id
+
+
+def _assert_code_exists(w3: Web3, address: str, label: str) -> None:
+    checksum = Web3.to_checksum_address(address)
+    code = w3.eth.get_code(checksum)
+    if not code:
+        raise RuntimeError(f"{label} has no deployed code at {checksum}")
 
 
 def _run_client() -> tuple[int, str]:
@@ -326,7 +343,7 @@ def _erc20_balance(w3: Web3, token_address: str, owner: str) -> int:
     return int(token.functions.balanceOf(Web3.to_checksum_address(owner)).call())
 
 
-def _ensure_native_topup(w3: Web3, to_addr: str, min_balance_wei: int) -> None:
+def _ensure_native_topup(w3: Web3, to_addr: str, min_balance_wei: int, chain_id: int) -> None:
     if not FUNDING_PRIVATE_KEY:
         return
 
@@ -352,7 +369,7 @@ def _ensure_native_topup(w3: Web3, to_addr: str, min_balance_wei: int) -> None:
         "to": to_addr,
         "value": topup,
         "nonce": nonce,
-        "chainId": CHAIN_ID,
+        "chainId": chain_id,
         **fee_params,
     }
     gas_est = w3.eth.estimate_gas(tx)
@@ -366,19 +383,19 @@ def _ensure_native_topup(w3: Web3, to_addr: str, min_balance_wei: int) -> None:
     print(f"Native top-up tx: {tx_hash.hex()}")
 
 
-def _ensure_bbt_topup(w3: Web3, to_addr: str, min_amount: int) -> None:
+def _ensure_bbt_topup(w3: Web3, token_address: str, to_addr: str, min_amount: int, chain_id: int) -> None:
     if min_amount <= 0 or not FUNDING_PRIVATE_KEY:
         return
 
     to_addr = Web3.to_checksum_address(to_addr)
-    current = _erc20_balance(w3, BBT_TOKEN, to_addr)
+    current = _erc20_balance(w3, token_address, to_addr)
     if current >= int(min_amount):
         return
 
     funder = Account.from_key(FUNDING_PRIVATE_KEY)
     funder_addr = Web3.to_checksum_address(funder.address)
 
-    funder_bal = _erc20_balance(w3, BBT_TOKEN, funder_addr)
+    funder_bal = _erc20_balance(w3, token_address, funder_addr)
     if funder_bal <= 0:
         raise RuntimeError(
             f"BBT top-up requested but funding wallet {funder_addr} has 0 BBT"
@@ -392,14 +409,14 @@ def _ensure_bbt_topup(w3: Web3, to_addr: str, min_amount: int) -> None:
         f"sending {amount} from {funder_addr}"
     )
 
-    token = w3.eth.contract(address=Web3.to_checksum_address(BBT_TOKEN), abi=ERC20_ABI)
+    token = w3.eth.contract(address=Web3.to_checksum_address(token_address), abi=ERC20_ABI)
     nonce = w3.eth.get_transaction_count(funder_addr)
     fee_params = _build_fee_params(w3)
     tx = token.functions.transfer(to_addr, amount).build_transaction(
         {
             "from": funder_addr,
             "nonce": nonce,
-            "chainId": CHAIN_ID,
+            "chainId": chain_id,
             **fee_params,
         }
     )
@@ -419,6 +436,7 @@ def _ensure_erc20_allowance_to_permit2(
     account,
     token_address: str,
     required_amount: int,
+    chain_id: int,
 ) -> None:
     token = w3.eth.contract(
         address=Web3.to_checksum_address(token_address),
@@ -441,7 +459,7 @@ def _ensure_erc20_allowance_to_permit2(
         {
             "from": owner,
             "nonce": nonce,
-            "chainId": CHAIN_ID,
+            "chainId": chain_id,
             **fee_params,
         }
     )
@@ -461,7 +479,7 @@ def _get_transfer_receipt(w3: Web3, tx_hash: str) -> dict:
     return w3.eth.wait_for_transaction_receipt(tx_hash, timeout=180)
 
 
-def _analyze_transfer(w3: Web3, tx_hash: str) -> RunResult:
+def _analyze_transfer(w3: Web3, tx_hash: str, token_address: str) -> RunResult:
     receipt = _get_transfer_receipt(w3, tx_hash)
     status = receipt.get("status")
     block_number = receipt.get("blockNumber")
@@ -470,8 +488,9 @@ def _analyze_transfer(w3: Web3, tx_hash: str) -> RunResult:
     transfer_to = None
     transfer_amount = None
 
+    token_address = Web3.to_checksum_address(token_address)
     for log in receipt.get("logs", []):
-        if (log.get("address") or "").lower() != BBT_TOKEN.lower():
+        if (log.get("address") or "").lower() != token_address.lower():
             continue
         decoded = _decode_transfer_log(log)
         if decoded:
@@ -503,6 +522,9 @@ async def main() -> int:
     if not PRIVATE_KEY:
         print("ERROR: PRIVATE_KEY missing (set env var or .env/.env.multitest)")
         return 1
+    if not RPC_URL:
+        print("ERROR: RPC_URL missing (set RPC_URL or NODE_URL)")
+        return 1
 
     account = Account.from_key(PRIVATE_KEY)
 
@@ -510,7 +532,7 @@ async def main() -> int:
     print(f"SERVER_URL: {SERVER_URL}")
     print(f"FACILITATOR_URL: {FACILITATOR_URL}")
     print(f"RPC_URL: {RPC_URL}")
-    print(f"CHAIN_ID: {CHAIN_ID}")
+    print(f"CHAIN_ID: {CHAIN_ID if CHAIN_ID else '(auto from RPC)'}")
     print(f"Client wallet: {account.address}")
     if FUNDING_PRIVATE_KEY:
         print(f"Funding wallet: {Account.from_key(FUNDING_PRIVATE_KEY).address}")
@@ -520,7 +542,13 @@ async def main() -> int:
     w3 = Web3(Web3.HTTPProvider(RPC_URL))
 
     _print_header("CHECKS")
-    _check_rpc(w3)
+    rpc_chain_id = _check_rpc(w3)
+    tx_chain_id = CHAIN_ID or rpc_chain_id
+    os.environ["CHAIN_ID"] = str(tx_chain_id)
+    _assert_code_exists(w3, PERMIT2_ADDRESS, "PERMIT2_ADDRESS")
+    _assert_code_exists(
+        w3, X402_EXACT_PERMIT2_PROXY_ADDRESS, "X402_EXACT_PERMIT2_PROXY_ADDRESS"
+    )
 
     if AUTO_STACK:
         _print_header("DOCKER STACK")
@@ -595,11 +623,13 @@ async def main() -> int:
 
     # For Permit2 SignatureTransfer, the client still needs gas at least once to approve Permit2,
     # and needs token balance to cover the payment.
-    _ensure_native_topup(w3, account.address, MIN_NATIVE_BALANCE_WEI)
-    _ensure_bbt_topup(w3, account.address, max(amount, MIN_BBT_BALANCE))
+    _ensure_native_topup(w3, account.address, MIN_NATIVE_BALANCE_WEI, tx_chain_id)
+    _ensure_bbt_topup(
+        w3, token_address, account.address, max(amount, MIN_BBT_BALANCE), tx_chain_id
+    )
 
     _print_header("ALLOWANCE")
-    _ensure_erc20_allowance_to_permit2(w3, account, token_address, amount)
+    _ensure_erc20_allowance_to_permit2(w3, account, token_address, amount, tx_chain_id)
 
     _print_header("RUN CLIENT")
     code, output = _run_client()
@@ -621,7 +651,7 @@ async def main() -> int:
         return 1
 
     _print_header("ON-CHAIN PROOF")
-    result = _analyze_transfer(w3, transfer_tx)
+    result = _analyze_transfer(w3, transfer_tx, token_address)
     print(f"Transfer tx: {result.transfer_tx}")
     print(f"Transfer status: {result.status}")
     print(f"Block: {result.block_number}")
