@@ -1039,8 +1039,16 @@ docker run --env-file .env -p 9090:9090 \
             ui.approveBtn.innerText = "SIGNING...";
             log("INITIATING APPROVAL TRANSACTION...", "info");
 
-            const maxUint256 = ethers.MaxUint256;
-            const tx = await bbtContract.approve(PERMIT2_ADDRESS, maxUint256);
+            const requiredAmount = getRequiredAmount();
+            if (!requiredAmount || requiredAmount <= 0n) {
+                log("GET PAYMENT REQUIREMENTS FIRST TO APPROVE THE EXACT AMOUNT.", "error");
+                ui.approveBtn.disabled = false;
+                ui.approveBtn.innerText = "GET PAYMENT FIRST";
+                return;
+            }
+
+            const tx = await bbtContract.approve(PERMIT2_ADDRESS, requiredAmount);
+            log("REQUESTED APPROVAL AMOUNT: " + requiredAmount.toString(), "info");
             
             log(`TX SENT: ${tx.hash}`, "info");
             ui.approveBtn.innerText = "PENDING...";
@@ -1387,9 +1395,13 @@ docker run --env-file .env -p 9090:9090 \
 
     function updateApproveButton(erc20Allowance) {
         const required = getRequiredAmount();
-        const hasAllowance = erc20Allowance > 0n;
-        const sufficient = required ? erc20Allowance >= required : hasAllowance;
+        if (!required || required <= 0n) {
+            ui.approveBtn.disabled = true;
+            ui.approveBtn.innerText = "GET PAYMENT FIRST";
+            return;
+        }
 
+        const sufficient = erc20Allowance >= required;
         if (sufficient) {
             ui.approveBtn.disabled = true;
             ui.approveBtn.innerText = "APPROVED";
@@ -1397,7 +1409,7 @@ docker run --env-file .env -p 9090:9090 \
         }
 
         ui.approveBtn.disabled = false;
-        ui.approveBtn.innerText = hasAllowance && required ? "INCREASE APPROVAL" : "APPROVE PERMIT2";
+        ui.approveBtn.innerText = erc20Allowance > 0n ? "SET EXACT APPROVAL" : "APPROVE EXACT AMOUNT";
     }
 
     async function fetchPaymentRequirements() {

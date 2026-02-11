@@ -147,11 +147,23 @@ def _get_payment_header(request: Request) -> str | None:
 
 
 def _requirements_match(accepted: dict, required: dict) -> bool:
-    # Coinbase/x402 v2 requires the accepted requirements to match one offered in accepts[].
+    # Accept additional non-critical fields from clients, but enforce all settlement-critical terms exactly.
     if not isinstance(accepted, dict) or not isinstance(required, dict):
         return False
-    # Strict key/value equality on the requirements object.
-    return accepted == required
+
+    critical_keys = (
+        "scheme",
+        "network",
+        "amount",
+        "payTo",
+        "maxTimeoutSeconds",
+        "asset",
+    )
+    for key in critical_keys:
+        if str(accepted.get(key)) != str(required.get(key)):
+            return False
+
+    return accepted.get("extra") == required.get("extra")
 
 def _extract_permit2_payload(payment_payload: dict) -> dict | None:
     if not isinstance(payment_payload, dict):

@@ -127,6 +127,25 @@ def sign_permit2_witness_transfer(
     return signature.hex()
 
 
+def _safe_log_headers(headers: httpx.Headers) -> dict[str, str]:
+    safe: dict[str, str] = {}
+    for key in (
+        "server",
+        "date",
+        "content-type",
+        "content-length",
+        "payment-required",
+        "x-payment-response",
+    ):
+        value = headers.get(key)
+        if value is None:
+            continue
+        if key in ("payment-required", "x-payment-response"):
+            value = f"<redacted:{len(value)} chars>"
+        safe[key] = value
+    return safe
+
+
 async def main():
     endpoint = f"{SERVER_URL}/api/weather"
     w3 = Web3(Web3.HTTPProvider(RPC_URL))
@@ -147,7 +166,7 @@ async def main():
     async with httpx.AsyncClient(timeout=60.0) as client:
         resp = await client.get(endpoint)
         print(f"Status: {resp.status_code}")
-        print(f"Headers: {dict(resp.headers)}")
+        print(f"Headers: {_safe_log_headers(resp.headers)}")
 
         if resp.status_code != 402:
             print(f"Expected 402, got {resp.status_code}")
@@ -276,7 +295,7 @@ async def main():
             },
         )
         print(f"Status: {resp.status_code}")
-        print(f"Headers: {dict(resp.headers)}")
+        print(f"Headers: {_safe_log_headers(resp.headers)}")
         print("\nResponse body:")
         try:
             print(json.dumps(resp.json(), indent=2))
