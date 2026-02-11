@@ -124,6 +124,11 @@
             padding-left: 18px;
         }
 
+        .guide-link {
+            color: var(--accent-color);
+            text-decoration: underline;
+        }
+
         pre {
             background: #000;
             border: 1px solid var(--border-color);
@@ -486,6 +491,16 @@
     <div class="tab-panel hidden" data-panel="server">
         <div class="content">
             <div class="guide-block">
+                <div class="guide-title">Documentation URLs</div>
+                <ul class="guide-list">
+                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/codex/coinbase-align-tzapac/docs/store_operator_guide.md" target="_blank" rel="noopener noreferrer">Store Operator Guide</a></li>
+                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/codex/coinbase-align-tzapac/docs/server_guide.md" target="_blank" rel="noopener noreferrer">Server Integration Guide</a></li>
+                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/codex/coinbase-align-tzapac/docs/client_guide.md" target="_blank" rel="noopener noreferrer">Client Integration Guide</a></li>
+                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/codex/coinbase-align-tzapac/docs/facilitator_api_glossary.md" target="_blank" rel="noopener noreferrer">Facilitator API Glossary</a></li>
+                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/codex/coinbase-align-tzapac/docs/facilitator_hosting_guide.md" target="_blank" rel="noopener noreferrer">Facilitator Hosting Guide</a></li>
+                </ul>
+            </div>
+            <div class="guide-block">
                 <div class="guide-title">Store / Server Setup</div>
                 <div class="guide-text">
                     Run the local stack with docker-compose (store API + store web/proxy + facilitator).
@@ -511,6 +526,14 @@ STORE_PRIVATE_KEY=0xYOUR_STORE_PRIVATE_KEY
 
     <div class="tab-panel hidden" data-panel="facilitator">
         <div class="content">
+            <div class="guide-block">
+                <div class="guide-title">Documentation URLs</div>
+                <ul class="guide-list">
+                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/codex/coinbase-align-tzapac/docs/facilitator_hosting_guide.md" target="_blank" rel="noopener noreferrer">Facilitator Hosting Guide</a></li>
+                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/codex/coinbase-align-tzapac/docs/facilitator_api_glossary.md" target="_blank" rel="noopener noreferrer">Facilitator API Glossary</a></li>
+                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/codex/coinbase-align-tzapac/docs/store_operator_guide.md" target="_blank" rel="noopener noreferrer">Store Operator Guide</a></li>
+                </ul>
+            </div>
             <div class="guide-block">
                 <div class="guide-title">Facilitator Setup</div>
                 <div class="guide-text">
