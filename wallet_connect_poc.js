@@ -62,7 +62,6 @@
         disclaimerOverlay: document.getElementById('disclaimer-overlay'),
         disclaimerOkBtn: document.getElementById('disclaimer-ok-btn'),
         termsBackBtn: document.getElementById('terms-back-btn'),
-        disclaimerTncLink: document.getElementById('disclaimer-tnc-link'),
         console: document.getElementById('console-output')
     };
 
@@ -131,54 +130,19 @@
         ui.catalogSelect.addEventListener('change', onCatalogSelectionChanged);
         ui.storeInput.addEventListener('change', onStoreUrlChanged);
         ui.storeInput.addEventListener('blur', onStoreUrlChanged);
-        const closeDisclaimer = (event) => {
-                if (event && event.preventDefault) {
-                    event.preventDefault();
-                }
-
-                ui.disclaimerOverlay.classList.add('hidden');
-                ui.disclaimerOverlay.style.display = 'none';
-                try {
-                    localStorage.setItem('tzapac_disclaimer_ack', '1');
-                } catch (err) {}
-            };
-
-            ui.disclaimerOkBtn.addEventListener('click', closeDisclaimer);
-
-            const hideDisclaimer = () => {
-                closeDisclaimer();
-            };
-
-        const openTermsPanel = (event) => {
-            event.preventDefault();
-            setActiveTab('terms');
-            hideDisclaimer();
-        };
-
-        if (ui.disclaimerTncLink) {
-            ui.disclaimerTncLink.addEventListener('click', openTermsPanel);
-        }
-
-        if (ui.termsBackBtn) {
-            ui.termsBackBtn.addEventListener('click', (event) => {
-                event.preventDefault();
-                setActiveTab('demo');
-                hideDisclaimer();
-            });
-        }
-
-        try {
-            const acknowledgedDisclaimer = localStorage.getItem('tzapac_disclaimer_ack') === '1';
-            if (acknowledgedDisclaimer) {
-                closeDisclaimer();
-            }
-        } catch (err) {}
+        ui.disclaimerOkBtn.addEventListener('click', () => {
+            ui.disclaimerOverlay.classList.add('hidden');
+        });
 
         tabButtons.forEach((button) => {
             button.addEventListener('click', () => setActiveTab(button.dataset.tab));
         });
 
         setActiveTab('demo');
+        if (ui.termsBackBtn) {
+            ui.termsBackBtn.addEventListener('click', () => setActiveTab('demo'));
+        }
+
         setGasPayerMode('facilitator');
         updateTokenToggle();
         await refreshCatalog();
