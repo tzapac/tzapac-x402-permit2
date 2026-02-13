@@ -62,6 +62,8 @@
         disclaimerOverlay: document.getElementById('disclaimer-overlay'),
         disclaimerOkBtn: document.getElementById('disclaimer-ok-btn'),
         termsBackBtn: document.getElementById('terms-back-btn'),
+        disclaimerTermsLink: document.getElementById('disclaimer-terms-link'),
+        disclaimerPrivacyLink: document.getElementById('disclaimer-privacy-link'),
         console: document.getElementById('console-output')
     };
 
@@ -138,11 +140,15 @@
             button.addEventListener('click', () => setActiveTab(button.dataset.tab));
         });
 
-        setActiveTab('demo');
-        if (ui.termsBackBtn) {
-            ui.termsBackBtn.addEventListener('click', () => setActiveTab('demo'));
-        }
+        document.querySelectorAll('[data-tab-target]').forEach((button) => {
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                setActiveTab(button.dataset.tabTarget);
+                ui.disclaimerOverlay.classList.add('hidden');
+            });
+        });
 
+        setActiveTab('demo');
         setGasPayerMode('facilitator');
         updateTokenToggle();
         await refreshCatalog();
