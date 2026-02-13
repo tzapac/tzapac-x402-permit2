@@ -6,6 +6,8 @@
     const ETHERLINK_CHAIN_ID = 42793;
     const ETHERLINK_CHAIN_ID_HEX = "0xA739";
     const RPC_URL = "https://node.mainnet.etherlink.com";
+    const DISCLAIMER_ACK_STORAGE_KEY = "tzapac_x402_disclaimer_ack_at";
+    const DISCLAIMER_ACK_TTL_MS = 24 * 60 * 60 * 1000;
     const IS_LOCAL_PAGE = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
     const DEFAULT_FACILITATOR_URL = IS_LOCAL_PAGE ? "http://localhost:9090" : "https://exp-faci.bubbletez.com";
     const DEFAULT_STORE_URL = IS_LOCAL_PAGE ? "http://localhost:9091/api/weather" : "https://exp-store.bubbletez.com/api/weather";
@@ -78,6 +80,33 @@
         ui.console.scrollTop = ui.console.scrollHeight;
     }
 
+    function hasRecentDisclaimerAcknowledgement() {
+        if (!window.localStorage) {
+            return false;
+        }
+
+        const raw = localStorage.getItem(DISCLAIMER_ACK_STORAGE_KEY);
+        if (!raw) {
+            return false;
+        }
+
+        const acknowledgedAt = Number(raw);
+        if (!Number.isFinite(acknowledgedAt)) {
+            localStorage.removeItem(DISCLAIMER_ACK_STORAGE_KEY);
+            return false;
+        }
+
+        return Date.now() - acknowledgedAt < DISCLAIMER_ACK_TTL_MS;
+    }
+
+    function setDisclaimerAcknowledged() {
+        if (!window.localStorage) {
+            return;
+        }
+
+        localStorage.setItem(DISCLAIMER_ACK_STORAGE_KEY, String(Date.now()));
+    }
+
     // --- INITIALIZATION ---
     function loadScript(src) {
         return new Promise((resolve, reject) => {
@@ -143,6 +172,8 @@
                 return;
             }
 
+            setDisclaimerAcknowledged();
+
             if (document.activeElement === ui.disclaimerOkBtn) {
                 ui.disclaimerOkBtn.blur();
             }
@@ -154,6 +185,19 @@
             const focusTarget = tabButtons.find((button) => button.dataset.tab === "demo") || tabButtons[0];
             if (focusTarget) {
                 focusTarget.focus({ preventScroll: true });
+            }
+        };
+
+        const showDisclaimerOverlay = () => {
+            if (!ui.disclaimerOverlay) {
+                return;
+            }
+
+            ui.disclaimerOverlay.style.display = "flex";
+            ui.disclaimerOverlay.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            if (ui.disclaimerOkBtn) {
+                ui.disclaimerOkBtn.focus({ preventScroll: true });
             }
         };
 
@@ -185,6 +229,12 @@
             log("METAMASK NOT DETECTED", "error");
             disableWalletActions();
             return;
+        }
+
+        if (!hasRecentDisclaimerAcknowledgement()) {
+            showDisclaimerOverlay();
+        } else {
+            hideDisclaimerOverlay();
         }
 
         // Auto-connect if already authorized
