@@ -1,9 +1,15 @@
 //! Compliance controls for facilitator-side request filtering.
 
-use reqwest::StatusCode;
-use serde_json::Value;
 use std::env;
-use std::time::Duration;
+use std::fs::{create_dir_all, OpenOptions};
+use std::io::Write;
+use std::path::Path;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use reqwest::StatusCode;
+use serde::Serialize;
+use serde_json::json;
+use serde_json::Value;
 use x402_types::proto::PaymentVerificationError;
 
 #[derive(Clone, Debug)]
@@ -12,6 +18,7 @@ pub struct ComplianceGate {
     deny_list: Vec<String>,
     allow_list: Vec<String>,
     provider: ComplianceProvider,
+    audit_log_path: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -35,6 +42,39 @@ enum ChainalysisResult {
     Unknown(String),
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CompliancePartyRecord {
+    role: String,
+    address: String,
+    status: String,
+    provider: String,
+    reason: Option<String>,
+}
+
+#[derive(Debug)]
+struct CompliancePartyCheckFailure {
+    party: CompliancePartyRecord,
+    error: PaymentVerificationError,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ComplianceAuditEvent {
+    event_type: String,
+    request_type: String,
+    timestamp_ms: u128,
+    outcome: String,
+    provider: String,
+    payer: Option<String>,
+    payee: Option<String>,
+    wallet: Option<String>,
+    user_agent: Option<String>,
+    reason: Option<String>,
+    parties: Vec<CompliancePartyRecord>,
+    metadata: Option<Value>,
+}
+
 impl ComplianceGate {
     pub fn enabled(&self) -> bool {
         self.enabled
@@ -46,6 +86,7 @@ impl ComplianceGate {
             deny_list: Vec::new(),
             allow_list: Vec::new(),
             provider: ComplianceProvider::Lists,
+            audit_log_path: None,
         }
     }
 
@@ -72,66 +113,306 @@ impl ComplianceGate {
             _ => ComplianceProvider::Lists,
         };
 
+        let audit_log_path = env::var("COMPLIANCE_AUDIT_LOG")
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
+
         Ok(Self {
             enabled,
             deny_list,
             allow_list,
             provider,
+            audit_log_path,
         })
     }
 
-    pub async fn validate(&self, payer: Option<&str>, payee: Option<&str>) -> Result<(), PaymentVerificationError> {
+    pub async fn validate_for_request(
+        &self,
+        request_type: &str,
+        payer: Option<&str>,
+        payee: Option<&str>,
+    ) -> Result<(), PaymentVerificationError> {
         if !self.enabled {
+            self.record_audit(ComplianceAuditEvent {
+                event_type: "compliance_check".to_string(),
+                request_type: request_type.to_string(),
+                timestamp_ms: current_timestamp_ms(),
+                outcome: "disabled".to_string(),
+                provider: self.provider_name().to_string(),
+                payer: payer.map(str::to_lowercase),
+                payee: payee.map(str::to_lowercase),
+                wallet: None,
+                user_agent: None,
+                reason: Some("compliance disabled".to_string()),
+                parties: Vec::new(),
+                metadata: None,
+            });
             return Ok(());
         }
 
-        if let Some(payer) = payer {
-            self.validate_party("payer", payer).await?;
+        let mut party_records = Vec::new();
+
+        if let Some(payer_raw) = payer {
+            let payer_normalized = normalize_address(payer_raw)
+                .ok_or_else(|| PaymentVerificationError::ComplianceFailed("payer has an invalid address format".to_string()))?;
+
+            match self.validate_party("payer", &payer_normalized).await {
+                Ok(record) => party_records.push(record),
+                Err(failure) => {
+                    self.record_audit(ComplianceAuditEvent {
+                        event_type: "compliance_check".to_string(),
+                        request_type: request_type.to_string(),
+                        timestamp_ms: current_timestamp_ms(),
+                        outcome: "denied".to_string(),
+                        provider: self.provider_name().to_string(),
+                        payer: Some(payer_normalized),
+                        payee: payee.map(str::to_lowercase),
+                        wallet: None,
+                        user_agent: None,
+                        reason: Some(format!("{}", failure.error)),
+                        parties: vec![failure.party],
+                        metadata: None,
+                    });
+                    return Err(failure.error);
+                }
+            }
         }
-        if let Some(payee) = payee {
-            self.validate_party("payee", payee).await?;
+
+        if let Some(payee_raw) = payee {
+            let payee_normalized = normalize_address(payee_raw)
+                .ok_or_else(|| PaymentVerificationError::ComplianceFailed("payee has an invalid address format".to_string()))?;
+
+            match self.validate_party("payee", &payee_normalized).await {
+                Ok(record) => party_records.push(record),
+                Err(failure) => {
+                    self.record_audit(ComplianceAuditEvent {
+                        event_type: "compliance_check".to_string(),
+                        request_type: request_type.to_string(),
+                        timestamp_ms: current_timestamp_ms(),
+                        outcome: "denied".to_string(),
+                        provider: self.provider_name().to_string(),
+                        payer: payer.map(str::to_lowercase),
+                        payee: Some(payee_normalized),
+                        wallet: None,
+                        user_agent: None,
+                        reason: Some(format!("{}", failure.error)),
+                        parties: party_records
+                            .into_iter()
+                            .chain(std::iter::once(failure.party))
+                            .collect(),
+                        metadata: None,
+                    });
+                    return Err(failure.error);
+                }
+            }
         }
+
+        self.record_audit(ComplianceAuditEvent {
+            event_type: "compliance_check".to_string(),
+            request_type: request_type.to_string(),
+            timestamp_ms: current_timestamp_ms(),
+            outcome: "allowed".to_string(),
+            provider: self.provider_name().to_string(),
+            payer: payer.map(str::to_lowercase),
+            payee: payee.map(str::to_lowercase),
+            wallet: None,
+            user_agent: None,
+            reason: None,
+            parties: party_records,
+            metadata: None,
+        });
 
         Ok(())
     }
 
-    async fn validate_party(&self, role: &str, raw_address: &str) -> Result<(), PaymentVerificationError> {
-        let address = normalize_address(raw_address)
-            .ok_or_else(|| PaymentVerificationError::ComplianceFailed(format!("{role} has an invalid address format")))?;
-
-        if self.deny_list.iter().any(|denied| denied == &address) {
-            return Err(PaymentVerificationError::ComplianceFailed(format!(
-                "{role} is denied by compliance policy: {address}"
-            )));
+    pub fn log_connection(
+        &self,
+        wallet: &str,
+        reason: Option<&str>,
+        source: Option<&str>,
+        user_agent: Option<&str>,
+        metadata: Option<Value>,
+    ) {
+        let address = normalize_address(wallet);
+        let outcome = if address.is_some() { "accepted" } else { "invalid_address" };
+        let mut event_metadata = metadata.unwrap_or_else(|| json!({}));
+        if !event_metadata.is_object() {
+            event_metadata = json!({
+                "metadataType": event_metadata.to_string(),
+            });
         }
 
-        if !self.allow_list.is_empty() && !self.allow_list.iter().any(|allowed| allowed == &address) {
-            return Err(PaymentVerificationError::ComplianceFailed(format!(
-                "{role} is not in compliance allow-list"
-            )));
+        if let Some(obj) = event_metadata.as_object_mut() {
+            obj.insert("source".to_string(), json!(source.unwrap_or("wallet_client")));
+            obj.insert("provider".to_string(), json!(self.provider_name()));
+            if let Some(address) = address.as_ref() {
+                obj.insert("normalizedAddress".to_string(), json!(address));
+            }
+        }
+
+        self.record_audit(ComplianceAuditEvent {
+            event_type: "connection".to_string(),
+            request_type: "connect".to_string(),
+            timestamp_ms: current_timestamp_ms(),
+            outcome: outcome.to_string(),
+            provider: self.provider_name().to_string(),
+            payer: address,
+            payee: None,
+            wallet: Some(wallet.to_string()),
+            user_agent: user_agent.map(ToString::to_string),
+            reason: reason.map(ToString::to_string),
+            parties: Vec::new(),
+            metadata: Some(event_metadata),
+        });
+    }
+
+    async fn validate_party(&self, role: &str, address: &str) -> Result<CompliancePartyRecord, CompliancePartyCheckFailure> {
+        if self
+            .deny_list
+            .iter()
+            .any(|denied| denied.as_str() == address)
+        {
+            let party = CompliancePartyRecord {
+                role: role.to_string(),
+                address: address.to_string(),
+                status: "denied".to_string(),
+                provider: self.provider_name().to_string(),
+                reason: Some("address is explicitly denied".to_string()),
+            };
+            return Err(CompliancePartyCheckFailure {
+                party,
+                error: PaymentVerificationError::ComplianceFailed(format!(
+                    "{role} is denied by compliance policy: {address}"
+                )),
+            });
+        }
+
+        if !self.allow_list.is_empty() && !self.allow_list.iter().any(|allowed| allowed == address) {
+            let party = CompliancePartyRecord {
+                role: role.to_string(),
+                address: address.to_string(),
+                status: "denied".to_string(),
+                provider: self.provider_name().to_string(),
+                reason: Some("address is not in compliance allow-list".to_string()),
+            };
+            return Err(CompliancePartyCheckFailure {
+                party,
+                error: PaymentVerificationError::ComplianceFailed(format!(
+                    "{role} is not in compliance allow-list: {address}"
+                )),
+            });
         }
 
         match &self.provider {
-            ComplianceProvider::Lists => Ok(()),
+            ComplianceProvider::Lists => Ok(CompliancePartyRecord {
+                role: role.to_string(),
+                address: address.to_string(),
+                status: "passed".to_string(),
+                provider: self.provider_name().to_string(),
+                reason: None,
+            }),
             ComplianceProvider::Chainalysis(config) => {
-                let status = query_chainalysis(&address, config).await?;
+                let status = query_chainalysis(address, config).await.map_err(|error| {
+                    CompliancePartyCheckFailure {
+                        party: CompliancePartyRecord {
+                            role: role.to_string(),
+                            address: address.to_string(),
+                            status: "unknown".to_string(),
+                            provider: self.provider_name().to_string(),
+                            reason: Some(format!("chainalysis query failed: {error}")),
+                        },
+                        error,
+                    }
+                })?;
                 match status {
-                    ChainalysisResult::Allowed => Ok(()),
+                    ChainalysisResult::Allowed => Ok(CompliancePartyRecord {
+                        role: role.to_string(),
+                        address: address.to_string(),
+                        status: "passed".to_string(),
+                        provider: self.provider_name().to_string(),
+                        reason: Some("chainalysis clear".to_string()),
+                    }),
                     ChainalysisResult::Denied(reason) => {
-                        Err(PaymentVerificationError::ComplianceFailed(format!(
-                            "{role} failed provider screening: {reason}"
-                        )))
+                        let party = CompliancePartyRecord {
+                            role: role.to_string(),
+                            address: address.to_string(),
+                            status: "denied".to_string(),
+                            provider: self.provider_name().to_string(),
+                            reason: Some(reason.clone()),
+                        };
+                        Err(CompliancePartyCheckFailure {
+                            party,
+                            error: PaymentVerificationError::ComplianceFailed(format!(
+                                "{role} failed provider screening: {reason}"
+                            )),
+                        })
                     }
                     ChainalysisResult::Unknown(reason) => {
                         if config.fail_closed {
-                            Err(PaymentVerificationError::ComplianceFailed(format!(
-                                "{role} screening result unresolved: {reason}"
-                            )))
+                            let party = CompliancePartyRecord {
+                                role: role.to_string(),
+                                address: address.to_string(),
+                                status: "denied".to_string(),
+                                provider: self.provider_name().to_string(),
+                                reason: Some(reason.clone()),
+                            };
+                            Err(CompliancePartyCheckFailure {
+                                party,
+                                error: PaymentVerificationError::ComplianceFailed(format!(
+                                    "{role} screening result unresolved: {reason}"
+                                )),
+                            })
                         } else {
-                            Ok(())
+                            Ok(CompliancePartyRecord {
+                                role: role.to_string(),
+                                address: address.to_string(),
+                                status: "warn".to_string(),
+                                provider: self.provider_name().to_string(),
+                                reason: Some(reason),
+                            })
                         }
                     }
                 }
+            }
+        }
+    }
+
+    fn provider_name(&self) -> &'static str {
+        match self.provider {
+            ComplianceProvider::Lists => "lists",
+            ComplianceProvider::Chainalysis(_) => "chainalysis",
+        }
+    }
+
+    fn record_audit(&self, event: ComplianceAuditEvent) {
+        let Some(path) = self.audit_log_path.as_deref() else {
+            return;
+        };
+
+        if let Some(parent) = Path::new(path).parent() {
+            if let Err(error) = create_dir_all(parent) {
+                eprintln!("failed to create compliance log directory {parent:?}: {error}");
+                return;
+            }
+        }
+
+        let serialized = match serde_json::to_string(&event) {
+            Ok(serialized) => serialized,
+            Err(error) => {
+                eprintln!("failed to serialize compliance audit event: {error}");
+                return;
+            }
+        };
+
+        match OpenOptions::new().create(true).append(true).open(path) {
+            Ok(mut file) => {
+                if let Err(error) = writeln!(file, "{serialized}") {
+                    eprintln!("failed to write compliance audit record to {path}: {error}");
+                }
+            }
+            Err(error) => {
+                eprintln!("failed to open compliance audit log {path}: {error}");
             }
         }
     }
@@ -177,7 +458,7 @@ fn parse_bool(value: &str) -> bool {
 fn parse_address_list(key: &str) -> Result<Vec<String>, String> {
     let raw = env::var(key).unwrap_or_default();
     Ok(raw
-        .split(",")
+        .split(',')
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .filter_map(|address| {
@@ -249,6 +530,13 @@ fn extract_sanctions_status(value: &Value, blocked_status: &str) -> Option<bool>
     }
 
     None
+}
+
+fn current_timestamp_ms() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|time| time.as_millis())
+        .unwrap_or(0)
 }
 
 async fn query_chainalysis(
