@@ -59,7 +59,7 @@ pub(crate) async fn post_wallet_connect_event(
         );
     }
 
-    facilitator.log_wallet_connection(
+    facilitator.as_ref().log_wallet_connection(
         &body.wallet,
         body.reason.as_deref(),
         body.source.as_deref(),
