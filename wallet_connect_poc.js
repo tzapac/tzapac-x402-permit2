@@ -62,8 +62,7 @@
         disclaimerOverlay: document.getElementById('disclaimer-overlay'),
         disclaimerOkBtn: document.getElementById('disclaimer-ok-btn'),
         termsBackBtn: document.getElementById('terms-back-btn'),
-        disclaimerTermsLink: document.getElementById('disclaimer-terms-link'),
-        disclaimerPrivacyLink: document.getElementById('disclaimer-privacy-link'),
+        disclaimerTncLink: document.getElementById('disclaimer-tnc-link'),
         console: document.getElementById('console-output')
     };
 
@@ -136,16 +135,30 @@
             ui.disclaimerOverlay.classList.add('hidden');
         });
 
+        const hideDisclaimer = () => {
+            ui.disclaimerOverlay.classList.add('hidden');
+        };
+
+        const openTermsPanel = (event) => {
+            event.preventDefault();
+            setActiveTab('terms');
+            hideDisclaimer();
+        };
+
+        if (ui.disclaimerTncLink) {
+            ui.disclaimerTncLink.addEventListener('click', openTermsPanel);
+        }
+
+        if (ui.termsBackBtn) {
+            ui.termsBackBtn.addEventListener('click', (event) => {
+                event.preventDefault();
+                setActiveTab('demo');
+                hideDisclaimer();
+            });
+        }
+
         tabButtons.forEach((button) => {
             button.addEventListener('click', () => setActiveTab(button.dataset.tab));
-        });
-
-        document.querySelectorAll('[data-tab-target]').forEach((button) => {
-            button.addEventListener('click', (event) => {
-                event.preventDefault();
-                setActiveTab(button.dataset.tabTarget);
-                ui.disclaimerOverlay.classList.add('hidden');
-            });
         });
 
         setActiveTab('demo');
