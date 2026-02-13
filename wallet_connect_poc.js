@@ -5,7 +5,7 @@
     const DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS = "0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E";
     const ETHERLINK_CHAIN_ID = 42793;
     const ETHERLINK_CHAIN_ID_HEX = "0xA739";
-    const RPC_URL = "https://rpc.bubbletez.com";
+    const RPC_URL = "https://node.mainnet.etherlink.com";
     const IS_LOCAL_PAGE = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
     const DEFAULT_FACILITATOR_URL = IS_LOCAL_PAGE ? "http://localhost:9090" : "https://exp-faci.bubbletez.com";
     const DEFAULT_STORE_URL = IS_LOCAL_PAGE ? "http://localhost:9091/api/weather" : "https://exp-store.bubbletez.com/api/weather";
