@@ -70,7 +70,7 @@ pub struct FacilitatorLocal<A> {
 impl<A> FacilitatorLocal<A> {
     /// Creates a new [`FacilitatorLocal`] with the given scheme handler registry.
     ///
-    /// Compliance checks are disabled by default.
+    /// Legacy constructor keeps compliance disabled. Use new_with_compliance to create a facilitator with policy-driven compliance checks.
     pub fn new(handlers: A) -> Self {
         Self::new_with_compliance(handlers, ComplianceGate::disabled())
     }

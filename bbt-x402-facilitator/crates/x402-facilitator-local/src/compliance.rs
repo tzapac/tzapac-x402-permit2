@@ -50,7 +50,7 @@ impl ComplianceGate {
     }
 
     pub fn from_env() -> Result<Self, String> {
-        let raw_enabled = env::var("COMPLIANCE_SCREENING_ENABLED").unwrap_or_else(|_| "false".to_string());
+        let raw_enabled = env::var("COMPLIANCE_SCREENING_ENABLED").unwrap_or_else(|_| "true".to_string());
         let enabled = parse_bool(raw_enabled.as_str());
 
         let deny_list = parse_address_list("COMPLIANCE_DENY_LIST")?;
@@ -64,7 +64,7 @@ impl ComplianceGate {
         }
 
         let provider = match env::var("COMPLIANCE_PROVIDER")
-            .unwrap_or_else(|_| "list".to_string())
+            .unwrap_or_else(|_| "chainalysis".to_string())
             .to_lowercase()
             .as_str()
         {

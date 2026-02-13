@@ -27,7 +27,7 @@
 //! - `PORT` - Server port (default: `9090`)
 //! - `CONFIG` - Path to configuration file (default: `config.json`)
 //! - `X402_CORS_ALLOWED_ORIGINS` - comma-separated CORS allowlist, or `*` to allow all
-//! - `COMPLIANCE_SCREENING_ENABLED` - enable off-chain compliance checks (`true`/`false`)
+//! - COMPLIANCE_SCREENING_ENABLED - enable off-chain compliance checks (true/false, defaults to true)
 //! - `COMPLIANCE_DENY_LIST` - comma-separated list of denied addresses
 //! - `COMPLIANCE_ALLOW_LIST` - comma-separated list of allowed addresses (if set, only these are allowed)
 //! - `OTEL_*` - OpenTelemetry configuration (when `telemetry` feature enabled)
