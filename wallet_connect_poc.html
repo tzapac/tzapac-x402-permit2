@@ -30,7 +30,6 @@
         <div class="status-indicator">
             <div id="status-dot" class="status-dot"></div>
             <span id="status-text">OFFLINE</span>
-            <a href="/terms.html" class="status-link tab-button" target="_blank" rel="noopener noreferrer">Terms &amp; Privacy</a>
         </div>
     </header>
 
@@ -38,6 +37,7 @@
         <button class="tab-button" data-tab="server">Server</button>
         <button class="tab-button" data-tab="facilitator">Facilitator</button>
         <button class="tab-button active" data-tab="demo">Demo</button>
+        <button class="tab-button" data-tab="terms">Terms &amp; Privacy</button>
     </div>
 
     <div class="tab-panel" data-panel="demo">
@@ -108,13 +108,13 @@
             <button id="health-btn">1. CHECK /HEALTH</button>
             <button id="requirements-btn">2. GET PAYMENT</button>
             <button id="approve-btn" class="hidden">3. APPROVE PERMIT2</button>
-            <button id="pay-btn" disabled>4. SIGN & PAY</button>
+            <button id="pay-btn" disabled>4. SIGN &amp; PAY</button>
         </div>
 
         <!-- Console -->
         <div id="console-output">
-            <div class="log-entry log-info">> SYSTEM READY</div>
-            <div class="log-entry log-info">> WAITING FOR CONNECTION...</div>
+            <div class="log-entry log-info">&gt; SYSTEM READY</div>
+            <div class="log-entry log-info">&gt; WAITING FOR CONNECTION...</div>
         </div>
 
         <div class="actions">
@@ -132,7 +132,7 @@
                 <span id="balance-display" class="data-value">0.00</span>
             </div>
             <div class="data-row">
-                <span class="data-label">ERC20 Allowance -> Permit2</span>
+                <span class="data-label">ERC20 Allowance -&gt; Permit2</span>
                 <span id="allowance-display" class="data-value">0.00</span>
             </div>
             <div id="permit2-allowance-row" class="data-row hidden">
@@ -252,14 +252,48 @@ docker run --env-file .env -p 9090:9090 \
             </div>
         </div>
     </div>
+
+    <div class="tab-panel hidden" data-panel="terms">
+        <div class="content">
+            <div class="guide-block">
+                <div class="guide-title">Terms &amp; Privacy</div>
+                <div class="guide-text">Effective date: February 13, 2026</div>
+
+                <div class="guide-title">1. What this site is</div>
+                <p class="guide-text">This frontend demonstrates a TZ APAC x402 facilitator/store sample and is provided for demonstration of Permit2-powered payment flows on Etherlink.</p>
+
+                <div class="guide-title">2. Terms of use</div>
+                <ul class="guide-list">
+                    <li>You use the service in good faith and at your own risk.</li>
+                    <li>You are responsible for safeguarding your own wallet, private keys, and signatures.</li>
+                    <li>Verify contract addresses and facilitator endpoints before approving transactions.</li>
+                    <li>Payments and wallet signing are executed only when you explicitly initiate actions in the UI.</li>
+                </ul>
+
+                <div class="guide-title">3. Privacy note</div>
+                <ul class="guide-list">
+                    <li>The client reads your wallet account and request/response data needed to request payment requirements.</li>
+                    <li>Data sent to a store or facilitator is limited to on-demand payment request payloads and signature headers required for settlement.</li>
+                    <li>No unnecessary private keys are stored by this frontend.</li>
+                </ul>
+
+                <div class="guide-title">4. Limitations</div>
+                <p class="guide-text">This is a beta implementation. Network, chain, and service behavior can change; external infrastructure reliability may affect the flow.</p>
+
+                <div class="guide-title">5. Disclaimer</div>
+                <p class="guide-text">This is not financial advice, and the demo software is provided as-is for technical evaluation and integration testing.</p>
+
+                <div class="actions">
+                    <button id="terms-back-btn">RETURN TO DEMO</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <footer>
         built with <3 by tzapac.
     </footer>
 </div>
-
 <script src="/wallet_connect_poc.js?v=20260211-2"></script>
-
 </body>
 </html>

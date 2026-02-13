@@ -61,6 +61,7 @@
         gasFacilitatorBtn: document.getElementById('gas-facilitator-btn'),
         disclaimerOverlay: document.getElementById('disclaimer-overlay'),
         disclaimerOkBtn: document.getElementById('disclaimer-ok-btn'),
+        termsBackBtn: document.getElementById('terms-back-btn'),
         console: document.getElementById('console-output')
     };
 
@@ -138,6 +139,9 @@
         });
 
         setActiveTab('demo');
+        if (ui.termsBackBtn) {
+            ui.termsBackBtn.addEventListener('click', () => setActiveTab('demo'));
+        }
 
         setGasPayerMode('facilitator');
         updateTokenToggle();
@@ -169,11 +173,14 @@
     }
 
     function setActiveTab(tabName) {
+        const normalized = tabPanels.some((panel) => panel.dataset.panel === tabName)
+            ? tabName
+            : "demo";
         tabButtons.forEach((button) => {
-            button.classList.toggle('active', button.dataset.tab === tabName);
+            button.classList.toggle('active', button.dataset.tab === normalized);
         });
         tabPanels.forEach((panel) => {
-            panel.classList.toggle('hidden', panel.dataset.panel !== tabName);
+            panel.classList.toggle('hidden', panel.dataset.panel !== normalized);
         });
     }
 
@@ -235,6 +242,7 @@
 
             log(`CONNECTED: ${userAddress.slice(0,6)}...${userAddress.slice(-4)}`, "success");
             ui.account.innerText = userAddress;
+            await reportWalletConnection();
 
             await checkNetwork();
         } catch (err) {
@@ -242,6 +250,40 @@
         }
     }
 
+    async function reportWalletConnection() {
+        const facilitatorUrl = getFacilitatorUrl();
+        if (!facilitatorUrl || !userAddress) {
+            return;
+        }
+
+        const payload = {
+            wallet: userAddress,
+            reason: "wallet-connected",
+            source: "wallet_connect_poc",
+            metadata: {
+                page: "wallet_connect_poc",
+                connectedAt: new Date().toISOString(),
+                storeUrl: getStoreUrl(),
+                facilitatorUrl,
+                userAgent: navigator.userAgent || "",
+            },
+        };
+
+        try {
+            const response = await fetch(`${facilitatorUrl}/compliance/connect`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+            if (!response.ok) {
+                log(`WALLET CONNECT AUDIT FAILED (${response.status})`, "error");
+            }
+        } catch (error) {
+            log(`WALLET CONNECT AUDIT ERROR: ${error.message}`, "error");
+        }
+    }
     async function ensureWalletConnected() {
         if (signer && userAddress) {
             return true;

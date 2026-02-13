@@ -169,24 +169,6 @@
             box-shadow: 0 0 5px var(--accent-color);
         }
 
-        .status-link.tab-button {
-            flex: 0 0 auto;
-            width: auto;
-            padding: 10px 12px;
-            font-size: 0.7rem;
-            color: var(--accent-color);
-            text-transform: uppercase;
-            text-decoration: none;
-            border: 1px solid var(--accent-color);
-            line-height: 1.2;
-            text-align: center;
-        }
-
-        .status-link.tab-button:hover {
-            background: var(--accent-color);
-            color: var(--bg-color);
-            box-shadow: 0 0 12px var(--accent-dim);
-        }
 
         .content {
             padding: 30px 20px;
