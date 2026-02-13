@@ -33,6 +33,7 @@
 
 use std::collections::HashMap;
 
+use serde_json::Value;
 use x402_types::facilitator::Facilitator;
 use x402_types::proto;
 use x402_types::proto::PaymentVerificationError;
@@ -83,12 +84,38 @@ impl<A> FacilitatorLocal<A> {
         }
     }
 
-    async fn validate_parties(&self, request: &proto::VerifyRequest) -> Result<(), PaymentVerificationError> {
+    pub async fn validate_verify_parties(
+        &self,
+        request: &proto::VerifyRequest,
+    ) -> Result<(), PaymentVerificationError> {
         let payer_address = request.payer();
         let payee_address = request.payee();
         self.compliance_gate
-            .validate(payer_address.as_deref(), payee_address.as_deref())
+            .validate_for_request("verify", payer_address.as_deref(), payee_address.as_deref())
             .await
+    }
+
+    pub async fn validate_settle_parties(
+        &self,
+        request: &proto::SettleRequest,
+    ) -> Result<(), PaymentVerificationError> {
+        let payer_address = request.payer();
+        let payee_address = request.payee();
+        self.compliance_gate
+            .validate_for_request("settle", payer_address.as_deref(), payee_address.as_deref())
+            .await
+    }
+
+    pub fn log_wallet_connection(
+        &self,
+        wallet: &str,
+        reason: Option<&str>,
+        source: Option<&str>,
+        user_agent: Option<&str>,
+        metadata: Option<Value>,
+    ) {
+        self.compliance_gate
+            .log_connection(wallet, reason, source, user_agent, metadata)
     }
 }
 
@@ -111,7 +138,7 @@ impl Facilitator for FacilitatorLocal<SchemeRegistry> {
         &self,
         request: &proto::VerifyRequest,
     ) -> Result<proto::VerifyResponse, Self::Error> {
-        self.validate_parties(request)
+        self.validate_verify_parties(request)
             .await
             .map_err(|error| FacilitatorLocalError::verification(error))?;
 
@@ -129,7 +156,7 @@ impl Facilitator for FacilitatorLocal<SchemeRegistry> {
         &self,
         request: &proto::SettleRequest,
     ) -> Result<proto::SettleResponse, Self::Error> {
-        self.validate_parties(request)
+        self.validate_settle_parties(request)
             .await
             .map_err(|error| FacilitatorLocalError::settlement(error))?;
 
