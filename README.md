@@ -184,6 +184,75 @@ This deployer creates `x402ExactPermit2Proxy` and calls `initialize(permit2)` im
 - Funding top-ups are opt-in with `ALLOW_FUNDING_TOPUPS=1`.
 - Facilitator CORS defaults to an explicit allowlist via `X402_CORS_ALLOWED_ORIGINS` (set `*` only if intentionally public).
 
+## Compliance Logging
+
+Compliance controls are enabled at the facilitator layer and emit JSONL audit events.
+
+What is logged:
+- `POST /verify` and `POST /settle` calls.
+- Optional wallet connection telemetry via `POST /compliance/connect`.
+
+Enable logging with:
+- `COMPLIANCE_SCREENING_ENABLED=true` (default)
+- `COMPLIANCE_PROVIDER=chainalysis` or `lists`
+- `COMPLIANCE_AUDIT_LOG=/app/logs/compliance-audit.jsonl` (optional)
+
+In the included docker stacks, logs are written to:
+- `./logs/compliance-audit.jsonl` (mounted as `/app/logs` in the facilitator container)
+
+Log event shapes:
+
+```json
+{
+  "eventType": "compliance_check",
+  "requestType": "verify",
+  "timestampMs": 1710000000000,
+  "outcome": "denied",
+  "provider": "chainalysis",
+  "payer": "0x1111111111111111111111111111111111111111",
+  "payee": "0x2222222222222222222222222222222222222222",
+  "wallet": null,
+  "userAgent": null,
+  "reason": "payer failed provider screening: status matches blocked policy",
+  "parties": [
+    {
+      "role": "payer",
+      "address": "0x1111111111111111111111111111111111111111",
+      "status": "denied",
+      "provider": "chainalysis",
+      "reason": "status matches blocked policy"
+    }
+  ],
+  "metadata": null
+}
+```
+
+```json
+{
+  "eventType": "connection",
+  "requestType": "connect",
+  "timestampMs": 1710000000000,
+  "outcome": "accepted",
+  "provider": "chainalysis",
+  "payer": null,
+  "payee": null,
+  "wallet": "0x3333333333333333333333333333333333333333",
+  "userAgent": "Mozilla/5.0 ...",
+  "reason": "wallet-connected",
+  "parties": [],
+  "metadata": {
+    "page": "wallet_connect_poc",
+    "connectedAt": "2026-02-13T12:34:56.789Z",
+    "storeUrl": "https://exp-store.bubbletez.com/",
+    "facilitatorUrl": "https://exp-faci.bubbletez.com",
+    "source": "wallet_connect_poc",
+    "provider": "chainalysis"
+  }
+}
+```
+
+This repository ships the wallet-connect path that sends the connection event from the browser and records it server-side for observability and compliance traceability.
+
 ## Notes
 
 - This is a Beta repository, not a hardened production deployment.
