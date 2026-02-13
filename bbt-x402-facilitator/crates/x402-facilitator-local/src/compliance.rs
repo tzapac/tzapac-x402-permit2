@@ -226,6 +226,14 @@ impl ComplianceGate {
         Ok(())
     }
 
+    pub async fn validate(
+        &self,
+        payer: Option<&str>,
+        payee: Option<&str>,
+    ) -> Result<(), PaymentVerificationError> {
+        self.validate_for_request("request", payer, payee).await
+    }
+
     pub fn log_connection(
         &self,
         wallet: &str,
