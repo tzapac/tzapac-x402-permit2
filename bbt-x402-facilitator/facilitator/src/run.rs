@@ -16,10 +16,10 @@
 //!
 //! # Features
 //!
-//! - **Multi-chain support**: EIP-155 (EVM) networks
-//! - **OpenTelemetry tracing** (with `telemetry` feature): Distributed tracing and metrics
-//! - **CORS support**: Cross-origin requests for browser-based clients
-//! - **Graceful shutdown**: Signal-based shutdown with cleanup
+//! - `Multi-chain support`: EIP-155 (EVM) networks
+//! - `OpenTelemetry` tracing (with `telemetry` feature): distributed tracing and metrics
+//! - `CORS` support: Cross-origin requests for browser-based clients
+//! - `Graceful shutdown`: Signal-based shutdown with cleanup
 //!
 //! # Environment Variables
 //!
@@ -27,23 +27,25 @@
 //! - `PORT` - Server port (default: `9090`)
 //! - `CONFIG` - Path to configuration file (default: `config.json`)
 //! - `X402_CORS_ALLOWED_ORIGINS` - comma-separated CORS allowlist, or `*` to allow all
+//! - COMPLIANCE_SCREENING_ENABLED - enable off-chain compliance checks (true/false, defaults to true)
+//! - `COMPLIANCE_DENY_LIST` - comma-separated list of denied addresses
+//! - `COMPLIANCE_ALLOW_LIST` - comma-separated list of allowed addresses (if set, only these are allowed)
 //! - `OTEL_*` - OpenTelemetry configuration (when `telemetry` feature enabled)
 
-use axum::Router;
-use axum::http::{HeaderValue, Method};
-use dotenvy::dotenv;
 use std::io;
 use std::net::SocketAddr;
-use std::sync::Arc;
+
+use axum::http::{HeaderValue, Method};
+use axum::Router;
+use dotenvy::dotenv;
 use tower_http::cors;
+
 use x402_facilitator_local::util::SigDown;
 use x402_facilitator_local::{FacilitatorLocal, handlers};
-use x402_types::chain::ChainRegistry;
-use x402_types::chain::FromConfig;
-use x402_types::scheme::{SchemeBlueprints, SchemeRegistry};
-
 #[cfg(feature = "chain-eip155")]
 use x402_chain_eip155::{V1Eip155Exact, V2Eip155Exact};
+use x402_types::chain::{ChainRegistry, FromConfig};
+use x402_types::scheme::{SchemeBlueprints, SchemeRegistry};
 #[cfg(feature = "telemetry")]
 use x402_facilitator_local::util::Telemetry;
 
@@ -64,7 +66,7 @@ fn build_cors_layer() -> Result<cors::CorsLayer, io::Error> {
     }
 
     let origins: Vec<HeaderValue> = raw
-        .split(',')
+        .split(",")
         .map(str::trim)
         .filter(|v| !v.is_empty())
         .map(HeaderValue::from_str)
@@ -86,6 +88,11 @@ fn build_cors_layer() -> Result<cors::CorsLayer, io::Error> {
     Ok(base.allow_origin(origins))
 }
 
+fn load_compliance_gate() -> Result<x402_facilitator_local::compliance::ComplianceGate, io::Error> {
+    x402_facilitator_local::compliance::ComplianceGate::from_env()
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))
+}
+
 /// Initializes the x402 facilitator server.
 ///
 /// - Loads `.env` variables.
@@ -95,7 +102,6 @@ fn build_cors_layer() -> Result<cors::CorsLayer, io::Error> {
 ///
 /// Binds to the address specified by the `HOST` and `PORT` env vars.
 pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize rustls crypto provider (ring)
     rustls::crypto::CryptoProvider::install_default(rustls::crypto::ring::default_provider())
         .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("failed to initialize rustls crypto provider: {e:?}")))?;
 
@@ -112,10 +118,11 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let config = Config::load()?;
+    let compliance_gate = load_compliance_gate()?;
 
     let chain_registry = ChainRegistry::from_config(config.chains()).await?;
     let scheme_blueprints = {
-        #[allow(unused_mut)] // For when no chain features enabled
+        #[allow(unused_mut)] // For when no chain features are enabled
         let mut scheme_blueprints = SchemeBlueprints::new();
         #[cfg(feature = "chain-eip155")]
         {
@@ -127,12 +134,14 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let scheme_registry =
         SchemeRegistry::build(chain_registry, scheme_blueprints, config.schemes());
 
-    let facilitator = FacilitatorLocal::new(scheme_registry);
-    let axum_state = Arc::new(facilitator);
+    let facilitator = FacilitatorLocal::new_with_compliance(scheme_registry, compliance_gate);
+    let axum_state = std::sync::Arc::new(facilitator);
 
-    let http_endpoints = Router::new().merge(handlers::routes().with_state(axum_state));
+    let mut http_endpoints = Router::new().merge(handlers::routes().with_state(axum_state));
     #[cfg(feature = "telemetry")]
-    let http_endpoints = http_endpoints.layer(telemetry_layer);
+    {
+        http_endpoints = http_endpoints.layer(telemetry_layer);
+    }
     let http_endpoints = http_endpoints.layer(build_cors_layer()?);
 
     let addr = SocketAddr::new(config.host(), config.port());

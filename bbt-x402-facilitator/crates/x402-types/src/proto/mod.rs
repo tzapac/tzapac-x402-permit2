@@ -188,6 +188,48 @@ impl VerifyRequest {
             _ => None,
         }
     }
+
+    /// Returns the payer address from the signed payload, when present.
+    ///
+    /// This extracts:
+    /// - V1 and V2 ERC-3009 payer from `authorization.from`
+    /// - V1 and V2 Permit2 payer from `permit2.owner`
+    /// - V1 and V2 Permit2 witness payer from `permit2Authorization.from`
+    pub fn payer(&self) -> Option<String> {
+        let payload = self.0.get("paymentPayload")?.get("payload")?;
+        payload
+            .get("authorization")
+            .and_then(|authorization| authorization.get("from"))
+            .or_else(|| payload.get("permit2").and_then(|permit2| permit2.get("owner")))
+            .or_else(|| {
+                payload
+                    .get("permit2Authorization")
+                    .and_then(|authorization| authorization.get("from"))
+            })
+            .and_then(|address| address.as_str())
+            .map(str::to_lowercase)
+    }
+
+    /// Returns the recipient address from the payment requirements, when present.
+    ///
+    /// This extracts:
+    /// - V1 requirements payee from `paymentRequirements.payTo`
+    /// - V2 requirements payee from `paymentRequirements.payTo` or `paymentPayload.accepted.payTo`
+    pub fn payee(&self) -> Option<String> {
+        self.0
+            .get("paymentRequirements")
+            .and_then(|requirements| requirements.get("payTo"))
+            .and_then(|address| address.as_str())
+            .or_else(|| {
+                self
+                    .0
+                    .get("paymentPayload")?
+                    .get("accepted")?
+                    .get("payTo")
+                    .and_then(|address| address.as_str())
+            })
+            .map(str::to_lowercase)
+    }
 }
 
 /// Response from a payment verification request.
@@ -231,6 +273,9 @@ pub enum PaymentVerificationError {
     /// The payment asset (token) doesn't match the requirements.
     #[error("Payment asset is invalid with respect to the payment requirements")]
     AssetMismatch,
+    /// The payer or payee failed off-chain compliance screening.
+    #[error("Compliance check failed: {0}")]
+    ComplianceFailed(String),
     /// The payer's on-chain balance is insufficient.
     #[error("Onchain balance is not enough to cover the payment amount")]
     InsufficientFunds,
@@ -262,6 +307,7 @@ impl AsPaymentProblem for PaymentVerificationError {
             PaymentVerificationError::ChainIdMismatch => ErrorReason::ChainIdMismatch,
             PaymentVerificationError::RecipientMismatch => ErrorReason::RecipientMismatch,
             PaymentVerificationError::AssetMismatch => ErrorReason::AssetMismatch,
+            PaymentVerificationError::ComplianceFailed(_) => ErrorReason::ComplianceFailed,
             PaymentVerificationError::InvalidSignature(_) => ErrorReason::InvalidSignature,
             PaymentVerificationError::TransactionSimulation(_) => {
                 ErrorReason::TransactionSimulation
@@ -303,6 +349,8 @@ pub enum ErrorReason {
     RecipientMismatch,
     /// The token asset doesn't match.
     AssetMismatch,
+    /// Compliance screening failed.
+    ComplianceFailed,
     /// The accepted details don't match requirements.
     AcceptedRequirementsMismatch,
     /// The signature is invalid.

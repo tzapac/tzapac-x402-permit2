@@ -8,7 +8,6 @@
 //!
 //! The local facilitator delegates payment processing to scheme handlers registered
 //! in a [`SchemeRegistry`](x402_types::scheme::SchemeRegistry). Each handler is responsible for:
-//!
 //! - Verifying payment signatures and requirements
 //! - Checking on-chain balances
 //! - Executing settlement transactions
@@ -19,8 +18,8 @@
 //! use x402_facilitator_local::FacilitatorLocal;
 //! use x402_types::scheme::SchemeRegistry;
 //!
-//! let registry = SchemeRegistry::build(chain_registry, scheme_blueprints, &config);
-//! let facilitator = FacilitatorLocal::new(registry);
+//! let scheme_registry = SchemeRegistry::build(chain_registry, scheme_blueprints, &config);
+//! let facilitator = FacilitatorLocal::new(scheme_registry);
 //! ```
 //!
 //! # Scheme Routing
@@ -33,10 +32,13 @@
 //! [`PaymentVerificationError::UnsupportedScheme`](x402_types::proto::PaymentVerificationError::UnsupportedScheme).
 
 use std::collections::HashMap;
+
 use x402_types::facilitator::Facilitator;
 use x402_types::proto;
 use x402_types::proto::PaymentVerificationError;
 use x402_types::scheme::{SchemeRegistry, X402SchemeFacilitatorError};
+
+use crate::compliance::ComplianceGate;
 
 /// A local [`Facilitator`](x402_types::facilitator::Facilitator) implementation that delegates to scheme handlers.
 ///
@@ -62,26 +64,43 @@ use x402_types::scheme::{SchemeRegistry, X402SchemeFacilitatorError};
 /// ```
 pub struct FacilitatorLocal<A> {
     handlers: A,
+    compliance_gate: ComplianceGate,
 }
 
 impl<A> FacilitatorLocal<A> {
     /// Creates a new [`FacilitatorLocal`] with the given scheme handler registry.
     ///
-    /// # Arguments
-    ///
-    /// - `handlers` - The scheme registry containing all registered payment handlers
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// use x402_facilitator_local::FacilitatorLocal;
-    /// use x402_types::scheme::SchemeRegistry;
-    ///
-    /// let scheme_registry = SchemeRegistry::build(chain_registry, scheme_blueprints, &config);
-    /// let facilitator = FacilitatorLocal::new(scheme_registry);
-    /// ```
+    /// Legacy constructor keeps compliance disabled. Use new_with_compliance to create a facilitator with policy-driven compliance checks.
     pub fn new(handlers: A) -> Self {
-        FacilitatorLocal { handlers }
+        Self::new_with_compliance(handlers, ComplianceGate::disabled())
+    }
+
+    /// Creates a new [`FacilitatorLocal`] with an explicit compliance policy.
+    pub fn new_with_compliance(handlers: A, compliance_gate: ComplianceGate) -> Self {
+        Self {
+            handlers,
+            compliance_gate,
+        }
+    }
+
+    async fn validate_parties(&self, request: &proto::VerifyRequest) -> Result<(), PaymentVerificationError> {
+        let payer_address = request.payer();
+        let payee_address = request.payee();
+        self.compliance_gate
+            .validate(payer_address.as_deref(), payee_address.as_deref())
+            .await
+    }
+}
+
+impl FacilitatorLocal<SchemeRegistry> {
+    async fn route_handler(
+        &self,
+        request: &proto::VerifyRequest,
+    ) -> Result<&dyn x402_types::scheme::X402SchemeFacilitator, FacilitatorLocalError> {
+        request
+            .scheme_handler_slug()
+            .and_then(|slug| self.handlers.by_slug(&slug))
+            .ok_or_else(|| FacilitatorLocalError::Verification(PaymentVerificationError::UnsupportedScheme.into()))
     }
 }
 
@@ -92,12 +111,13 @@ impl Facilitator for FacilitatorLocal<SchemeRegistry> {
         &self,
         request: &proto::VerifyRequest,
     ) -> Result<proto::VerifyResponse, Self::Error> {
-        let handler = request
-            .scheme_handler_slug()
-            .and_then(|slug| self.handlers.by_slug(&slug))
-            .ok_or(FacilitatorLocalError::Verification(
-                PaymentVerificationError::UnsupportedScheme.into(),
-            ))?;
+        self.validate_parties(request)
+            .await
+            .map_err(|error| FacilitatorLocalError::verification(error))?;
+
+        let handler = self
+            .route_handler(request)
+            .await?;
         let response = handler
             .verify(request)
             .await
@@ -109,12 +129,13 @@ impl Facilitator for FacilitatorLocal<SchemeRegistry> {
         &self,
         request: &proto::SettleRequest,
     ) -> Result<proto::SettleResponse, Self::Error> {
-        let handler = request
-            .scheme_handler_slug()
-            .and_then(|slug| self.handlers.by_slug(&slug))
-            .ok_or(FacilitatorLocalError::Verification(
-                PaymentVerificationError::UnsupportedScheme.into(),
-            ))?;
+        self.validate_parties(request)
+            .await
+            .map_err(|error| FacilitatorLocalError::settlement(error))?;
+
+        let handler = self
+            .route_handler(request)
+            .await?;
         let response = handler
             .settle(request)
             .await
@@ -139,6 +160,16 @@ impl Facilitator for FacilitatorLocal<SchemeRegistry> {
             extensions: Vec::new(),
             signers,
         })
+    }
+}
+
+impl FacilitatorLocalError {
+    fn verification(error: PaymentVerificationError) -> Self {
+        FacilitatorLocalError::Verification(error.into())
+    }
+
+    fn settlement(error: PaymentVerificationError) -> Self {
+        FacilitatorLocalError::Settlement(error.into())
     }
 }
 
