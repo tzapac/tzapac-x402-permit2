@@ -22,6 +22,7 @@
     let facilitatorOnline = null;
     let facilitatorPollTimer = null;
     let catalogItems = [];
+    let appInitialized = false;
 
     // --- ABI ---
     const ERC20_ABI = [
@@ -109,8 +110,11 @@
 
         return false;
     }
-
     async function init() {
+        if (appInitialized) {
+            return;
+        }
+        appInitialized = true;
         if (!ui.facilitatorInput.value) {
             ui.facilitatorInput.value = DEFAULT_FACILITATOR_URL;
         }
@@ -139,10 +143,18 @@
                 return;
             }
 
+            if (document.activeElement === ui.disclaimerOkBtn) {
+                ui.disclaimerOkBtn.blur();
+            }
+
             ui.disclaimerOverlay.style.display = "none";
             ui.disclaimerOverlay.classList.add('hidden');
-            ui.disclaimerOverlay.setAttribute('aria-hidden', 'true');
             document.body.style.overflow = '';
+
+            const focusTarget = tabButtons.find((button) => button.dataset.tab === "demo") || tabButtons[0];
+            if (focusTarget) {
+                focusTarget.focus({ preventScroll: true });
+            }
         };
 
         ui.disclaimerOkBtn.addEventListener('click', hideDisclaimerOverlay);
@@ -1072,5 +1084,8 @@
     }
 
     // Start
-    window.addEventListener('DOMContentLoaded', init);
-
+    if (document.readyState === 'loading') {
+        window.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
