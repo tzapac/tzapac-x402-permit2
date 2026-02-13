@@ -4,27 +4,82 @@
 //! They include both protocol-critical endpoints (`/verify`, `/settle`) and discovery endpoints (`/supported`, etc).
 //!
 //! All payloads follow the types defined in the `x402-rs` crate, and are compatible
-//! with the TypeScript and Go client SDKs.
+//! with official x402 client SDKs.
 //!
 //! Each endpoint consumes or produces structured JSON payloads defined in `x402-rs`,
 //! and is compatible with official x402 client SDKs.
 
+use std::sync::Arc;
+
 use axum::extract::State;
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::Response;
 use axum::routing::{get, post};
 use axum::{Json, Router, response::IntoResponse};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 use x402_types::facilitator::Facilitator;
 use x402_types::proto;
 use x402_types::proto::{AsPaymentProblem, ErrorReason};
-use x402_types::scheme::X402SchemeFacilitatorError;
+use x402_types::scheme::{SchemeRegistry, X402SchemeFacilitatorError};
 
 #[cfg(feature = "telemetry")]
 use tracing::instrument;
 
-use crate::facilitator_local::FacilitatorLocalError;
+use crate::facilitator_local::{FacilitatorLocal, FacilitatorLocalError};
+
+/// `POST /compliance/connect`: Records wallet-connection attempts for audit and observability.
+#[cfg_attr(feature = "telemetry", instrument(skip_all))]
+pub(crate) async fn post_wallet_connect_event(
+    headers: HeaderMap,
+    State(facilitator): State<Arc<FacilitatorLocal<SchemeRegistry>>>,
+    Json(body): Json<WalletConnectLogRequest>,
+) -> impl IntoResponse {
+    let user_agent = headers
+        .get(axum::http::header::USER_AGENT)
+        .and_then(|value| value.to_str().ok())
+        .map(ToString::to_string);
+
+    let mut metadata = body.metadata.unwrap_or_else(|| json!({}));
+    if !metadata.is_object() {
+        metadata = json!({ "payloadType": "non_object", "payload": metadata });
+    }
+
+    let remote_addr = headers
+        .get("x-forwarded-for")
+        .and_then(|value| value.to_str().ok())
+        .map(ToString::to_string)
+        .unwrap_or_else(|| "unknown".to_string());
+
+    if let Some(meta) = metadata.as_object_mut() {
+            meta.insert("remoteAddress".to_string(), json!(remote_addr));
+        meta.insert(
+            "source".to_string(),
+            json!(body.source.clone().unwrap_or_else(|| "wallet_client".to_string())),
+        );
+    }
+
+    facilitator.log_wallet_connection(
+        &body.wallet,
+        body.reason.as_deref(),
+        body.source.as_deref(),
+        user_agent.as_deref(),
+        Some(metadata),
+    );
+
+    (StatusCode::ACCEPTED, Json(json!({ "status": "recorded" }))).into_response()
+}
+
+#[derive(Deserialize)]
+pub(crate) struct WalletConnectLogRequest {
+    wallet: String,
+    #[serde(default)]
+    reason: Option<String>,
+    #[serde(default)]
+    source: Option<String>,
+    #[serde(default)]
+    metadata: Option<Value>,
+}
 
 /// `GET /verify`: Returns a machine-readable description of the `/verify` endpoint.
 ///
@@ -101,6 +156,11 @@ where
         .route("/settle", post(post_settle::<A>))
         .route("/health", get(get_health::<A>))
         .route("/supported", get(get_supported::<A>))
+}
+
+/// Routes for x402 compliance/audit helpers.
+pub fn compliance_routes() -> Router<Arc<FacilitatorLocal<SchemeRegistry>>> {
+    Router::new().route("/compliance/connect", post(post_wallet_connect_event))
 }
 
 /// `GET /`: Returns a simple greeting message from the facilitator.
