@@ -137,7 +137,9 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let facilitator = FacilitatorLocal::new_with_compliance(scheme_registry, compliance_gate);
     let axum_state = std::sync::Arc::new(facilitator);
 
-    let mut http_endpoints = Router::new().merge(handlers::routes().with_state(axum_state));
+    let mut http_endpoints = Router::new()
+        .merge(handlers::routes().with_state(axum_state.clone()))
+        .merge(handlers::compliance_routes().with_state(axum_state.clone()));
     #[cfg(feature = "telemetry")]
     {
         http_endpoints = http_endpoints.layer(telemetry_layer);
