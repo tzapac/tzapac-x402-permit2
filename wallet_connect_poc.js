@@ -130,9 +130,22 @@
         ui.catalogSelect.addEventListener('change', onCatalogSelectionChanged);
         ui.storeInput.addEventListener('change', onStoreUrlChanged);
         ui.storeInput.addEventListener('blur', onStoreUrlChanged);
-        ui.disclaimerOkBtn.addEventListener('click', () => {
+        const hideDisclaimerOverlay = (event) => {
+            if (event && event.preventDefault) {
+                event.preventDefault();
+            }
+
+            if (!ui.disclaimerOverlay) {
+                return;
+            }
+
+            ui.disclaimerOverlay.style.display = "none";
             ui.disclaimerOverlay.classList.add('hidden');
-        });
+            ui.disclaimerOverlay.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+        };
+
+        ui.disclaimerOkBtn.addEventListener('click', hideDisclaimerOverlay);
 
         tabButtons.forEach((button) => {
             button.addEventListener('click', () => setActiveTab(button.dataset.tab));
