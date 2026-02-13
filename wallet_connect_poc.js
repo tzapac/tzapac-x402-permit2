@@ -131,13 +131,23 @@
         ui.catalogSelect.addEventListener('change', onCatalogSelectionChanged);
         ui.storeInput.addEventListener('change', onStoreUrlChanged);
         ui.storeInput.addEventListener('blur', onStoreUrlChanged);
-        ui.disclaimerOkBtn.addEventListener('click', () => {
-            ui.disclaimerOverlay.classList.add('hidden');
-        });
+        const closeDisclaimer = (event) => {
+                if (event && event.preventDefault) {
+                    event.preventDefault();
+                }
 
-        const hideDisclaimer = () => {
-            ui.disclaimerOverlay.classList.add('hidden');
-        };
+                ui.disclaimerOverlay.classList.add('hidden');
+                ui.disclaimerOverlay.style.display = 'none';
+                try {
+                    localStorage.setItem('tzapac_disclaimer_ack', '1');
+                } catch (err) {}
+            };
+
+            ui.disclaimerOkBtn.addEventListener('click', closeDisclaimer);
+
+            const hideDisclaimer = () => {
+                closeDisclaimer();
+            };
 
         const openTermsPanel = (event) => {
             event.preventDefault();
@@ -156,6 +166,13 @@
                 hideDisclaimer();
             });
         }
+
+        try {
+            const acknowledgedDisclaimer = localStorage.getItem('tzapac_disclaimer_ack') === '1';
+            if (acknowledgedDisclaimer) {
+                closeDisclaimer();
+            }
+        } catch (err) {}
 
         tabButtons.forEach((button) => {
             button.addEventListener('click', () => setActiveTab(button.dataset.tab));
