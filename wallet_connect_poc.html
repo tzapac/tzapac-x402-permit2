@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/wallet_connect_poc.css?v=20260211-2">
+    <link rel="stylesheet" href="/wallet_connect_poc.css?v=20260214-ia1">
 </head>
 <body>
 
@@ -16,7 +16,7 @@
     <div class="modal-card">
         <div class="modal-title">Usage Notice</div>
         <div class="modal-body">
-            While x402 is an open and neutral standard, this website is maintained by TZ APAC. By using this site, you agree to be bound by the Terms of Service and Privacy policy
+            While x402 is an open and neutral standard, this website is maintained by TZ APAC. By using this site, you agree to be bound by the Terms of Service and Privacy policy.
         </div>
         <div class="modal-actions">
             <button id="disclaimer-ok-btn" type="button">I UNDERSTAND</button>
@@ -26,155 +26,325 @@
 
 <div class="container">
     <header>
-        <h1>x402 <span class="beta-badge">BETA</span></h1>
-        <div class="status-indicator">
-            <div id="status-dot" class="status-dot"></div>
-            <span id="status-text">OFFLINE</span>
+        <div class="header-main">
+            <h1>ETHERLINK x402 // PERMIT2 UPLINK <span class="beta-badge">BETA</span></h1>
+            <p class="subtitle">Reference implementation for x402 payments, Permit2 signing, and facilitator-sponsored gas.</p>
+        </div>
+        <div class="header-side">
+            <div class="status-indicator">
+                <div id="status-dot" class="status-dot"></div>
+                <span id="status-text">OFFLINE</span>
+            </div>
+            <a class="header-link" href="https://github.com/tzapac/tzapac-x402-permit2" target="_blank" rel="noopener noreferrer">GitHub Repository</a>
         </div>
     </header>
 
+    <div class="trust-strip">
+        <div class="trust-item"><span class="trust-label">x402 Spec</span><span class="trust-value">v2</span></div>
+        <div class="trust-item"><span class="trust-label">Chain</span><span class="trust-value">Etherlink (42793)</span></div>
+        <div class="trust-item"><span class="trust-label">Settlement</span><span class="trust-value">Permit2</span></div>
+        <div class="trust-item"><span class="trust-label">Gas Model</span><span class="trust-value">Facilitator Sponsored</span></div>
+    </div>
+
     <div class="tab-bar">
-        <button class="tab-button" data-tab="server">Server</button>
-        <button class="tab-button" data-tab="facilitator">Facilitator</button>
-        <button class="tab-button active" data-tab="demo">Demo</button>
+        <button class="tab-button active" data-tab="overview">Overview</button>
+        <button class="tab-button" data-tab="demo">Demo</button>
+        <button class="tab-button" data-tab="integration">Integration Guide</button>
+        <button class="tab-button" data-tab="setup">Setup Instructions</button>
+        <button class="tab-button" data-tab="docs">Docs</button>
         <button class="tab-button" data-tab="terms">Terms &amp; Privacy</button>
     </div>
 
-    <div class="tab-panel" data-panel="demo">
+    <div class="tab-panel" data-panel="overview">
         <div class="content">
-        <!-- Wallet Section -->
-        <div id="wallet-section">
-            <div class="data-row">
-                <span class="data-label">Network</span>
-                <span id="network-display" class="data-value">--</span>
-            </div>
-            <div class="data-row">
-                <span class="data-label">Account</span>
-                <span id="account-display" class="data-value address">--</span>
-            </div>
-        </div>
-
-        <!-- Facilitator Section -->
-        <div id="facilitator-section">
-            <div class="data-row">
-                <span class="data-label">Facilitator URL</span>
-                <span class="data-value address">
-                    <input id="facilitator-input" class="text-input" type="text" value="" />
-                </span>
-            </div>
-            <div class="data-row">
-                <span class="data-label">Facilitator Spender</span>
-                <span class="data-value address">
-                    <input id="spender-input" class="text-input" type="text" placeholder="0x... (x402 proxy address)" />
-                </span>
-            </div>
-        </div>
-
-        <!-- Store Section -->
-        <div id="store-section">
-            <div class="data-row">
-                <span class="data-label">Store API URL</span>
-                <span class="data-value address">
-                    <input id="store-input" class="text-input" type="text" value="" />
-                </span>
-            </div>
-            <div id="catalog-row" class="data-row hidden">
-                <span class="data-label">Catalog Item</span>
-                <span class="data-value address">
-                    <select id="catalog-select" class="text-input"></select>
-                </span>
-            </div>
-            <div class="data-row">
-                <span class="data-label">Payment Amount</span>
-                <span id="amount-display" class="data-value">--</span>
-            </div>
-            <div class="data-row">
-                <span class="data-label">Pay To</span>
-                <span id="payto-display" class="data-value address">--</span>
-            </div>
-        </div>
-
-        <div class="data-row">
-            <span class="data-label">Gas Payer</span>
-            <span class="data-value">
-                <div class="toggle-group">
-                    <button id="gas-facilitator-btn" class="toggle-button active">FACILITATOR PAYS GAS (TZAPAC)</button>
+            <div class="guide-block">
+                <div class="guide-title">Choose Your Role</div>
+                <div class="role-selector" id="role-selector">
+                    <button id="role-client-btn" class="role-button active" data-role="client">Client Integrator</button>
+                    <button id="role-store-btn" class="role-button" data-role="store">Store Operator</button>
+                    <button id="role-facilitator-btn" class="role-button" data-role="facilitator">Facilitator Host</button>
                 </div>
-            </span>
-        </div>
+                <div id="role-summary" class="guide-text role-summary"></div>
+            </div>
 
-        <!-- Flow Actions -->
-        <div class="actions flow-actions">
-            <button id="health-btn">1. CHECK /HEALTH</button>
-            <button id="requirements-btn">2. GET PAYMENT</button>
-            <button id="approve-btn" class="hidden">3. APPROVE PERMIT2</button>
-            <button id="pay-btn" disabled>4. SIGN &amp; PAY</button>
-        </div>
+            <div class="role-panels">
+                <div class="guide-block" data-role-panel="client">
+                    <div class="guide-title">Client Integrator Focus</div>
+                    <ul class="guide-list">
+                        <li>Detect `HTTP 402 Payment Required`.</li>
+                        <li>Parse the `Payment-Required` payload and select supported method (`permit2`).</li>
+                        <li>Sign Permit2 typed data and retry the protected endpoint with `Payment-Signature`.</li>
+                    </ul>
+                </div>
+                <div class="guide-block hidden" data-role-panel="store">
+                    <div class="guide-title">Store Operator Focus</div>
+                    <ul class="guide-list">
+                        <li>Protect resources and return standards-compliant 402 requirements.</li>
+                        <li>Validate signed payment payload against expected terms.</li>
+                        <li>Call facilitator settlement endpoint and only release resource on success.</li>
+                    </ul>
+                </div>
+                <div class="guide-block hidden" data-role-panel="facilitator">
+                    <div class="guide-title">Facilitator Host Focus</div>
+                    <ul class="guide-list">
+                        <li>Validate payloads and enforce allowlist/codehash checks.</li>
+                        <li>Sponsor gas and execute settlement transactions against Permit2 proxy.</li>
+                        <li>Expose reliable `/health`, `/supported`, `/settle` endpoints for store calls.</li>
+                    </ul>
+                </div>
+            </div>
 
-        <!-- Console -->
-        <div id="console-output">
-            <div class="log-entry log-info">&gt; SYSTEM READY</div>
-            <div class="log-entry log-info">&gt; WAITING FOR CONNECTION...</div>
-        </div>
+            <div class="guide-block">
+                <div class="guide-title">How the Flow Works</div>
+                <pre>Client App
+  -&gt; GET /protected-resource
+Store API
+  -&gt; 402 Payment Required + x402 payment requirement
+Client App
+  -&gt; signs Permit2 typed data (off-chain)
+Client App
+  -&gt; retries resource request with Payment-Signature
+Store API
+  -&gt; calls Facilitator /settle
+Facilitator
+  -&gt; sponsors gas + executes Permit2 settlement on-chain
+Store API
+  -&gt; returns protected resource</pre>
+                <ol class="guide-list ordered-list">
+                    <li>Client requests protected resource.</li>
+                    <li>Store responds with 402 and exact payment requirement.</li>
+                    <li>Client signs Permit2 authorization matching store terms.</li>
+                    <li>Facilitator validates and settles on-chain while paying gas.</li>
+                    <li>Store verifies settlement and serves content.</li>
+                </ol>
+            </div>
 
-        <div class="actions">
-            <button id="token-toggle-btn">SHOW TOKEN DETAILS</button>
-        </div>
+            <div class="guide-block">
+                <div class="guide-title">On-Chain Endpoints &amp; References</div>
+                <div class="address-row"><span class="address-label">Chain ID</span><span class="address-value">42793</span></div>
+                <div class="address-row"><span class="address-label">Permit2</span><span id="address-permit2" class="address-value">0x000000000022D473030F116dDEE9F6B43aC78BA3</span><button class="mini-btn copy-btn" data-copy-target="address-permit2">Copy</button></div>
+                <div class="address-row"><span class="address-label">x402 Proxy</span><span id="address-x402-proxy" class="address-value">0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E</span><button class="mini-btn copy-btn" data-copy-target="address-x402-proxy">Copy</button></div>
+                <div class="address-row"><span class="address-label">BBT Token</span><span id="address-token" class="address-value">0x7EfE4bdd11237610bcFca478937658bE39F8dfd6</span><button class="mini-btn copy-btn" data-copy-target="address-token">Copy</button></div>
+                <div class="address-row"><span class="address-label">Public Facilitator</span><span id="address-facilitator" class="address-value">https://exp-faci.bubbletez.com</span><button class="mini-btn copy-btn" data-copy-target="address-facilitator">Copy</button></div>
+                <div class="address-row"><span class="address-label">Public Store</span><span id="address-store" class="address-value">https://exp-store.bubbletez.com/api/weather</span><button class="mini-btn copy-btn" data-copy-target="address-store">Copy</button></div>
+                <p class="guide-text">Gas sponsored means the user signs authorization; the facilitator submits and pays network gas for settlement execution.</p>
+            </div>
 
-        <!-- Token Section -->
-        <div id="token-section" class="hidden">
-            <div class="data-row">
-                <span class="data-label">Asset</span>
-                <span class="data-value">BBT (BubbleTez)</span>
+            <div class="actions compact-actions">
+                <button id="go-demo-btn">Open Demo</button>
+                <button id="go-integration-btn">Open Integration Guide</button>
+                <button id="go-setup-btn">Open Setup Instructions</button>
             </div>
-            <div class="data-row">
-                <span class="data-label">Balance</span>
-                <span id="balance-display" class="data-value">0.00</span>
-            </div>
-            <div class="data-row">
-                <span class="data-label">ERC20 Allowance -&gt; Permit2</span>
-                <span id="allowance-display" class="data-value">0.00</span>
-            </div>
-            <div id="permit2-allowance-row" class="data-row hidden">
-                <span class="data-label">Permit2 Allowance</span>
-                <span id="permit2-allowance-display" class="data-value">--</span>
-            </div>
-            <div class="data-row">
-                <span class="data-label">Permit2 Expiration</span>
-                <span id="permit2-expiration-display" class="data-value">--</span>
-            </div>
-            <div class="data-row">
-                <span class="data-label">Permit2 Nonce</span>
-                <span id="permit2-nonce-display" class="data-value">--</span>
-            </div>
-        </div>
         </div>
     </div>
 
-    <div class="tab-panel hidden" data-panel="server">
+    <div class="tab-panel hidden" data-panel="demo">
         <div class="content">
             <div class="guide-block">
-                <div class="guide-title">Documentation URLs</div>
-                <ul class="guide-list">
-                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/store_operator_guide.md" target="_blank" rel="noopener noreferrer">Store Operator Guide</a></li>
-                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/server_guide.md" target="_blank" rel="noopener noreferrer">Server Integration Guide</a></li>
-                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/client_guide.md" target="_blank" rel="noopener noreferrer">Client Integration Guide</a></li>
-                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/facilitator_api_glossary.md" target="_blank" rel="noopener noreferrer">Facilitator API Glossary</a></li>
-                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/facilitator_hosting_guide.md" target="_blank" rel="noopener noreferrer">Facilitator Hosting Guide</a></li>
-                </ul>
+                <div class="guide-title">Interactive Demo (End-to-End)</div>
+                <div class="guide-text">This demo runs the exact 5-step payment flow with facilitator-sponsored gas.</div>
             </div>
-            <div class="guide-block">
-                <div class="guide-title">Store / Server Setup</div>
-                <div class="guide-text">
-                    Run the local stack with docker-compose (store API + store web/proxy + facilitator).
+
+            <div class="step-card" data-step="1">
+                <div class="step-head">
+                    <div class="step-title">Step 1: Connect Wallet</div>
+                    <span id="step-status-1" class="step-status pending">Not started</span>
                 </div>
-                <ul class="guide-list">
-                    <li>Create `.env` with store wallet/private key and RPC details.</li>
-                    <li>Start stack using `docker-compose.wallet-poc.yml`.</li>
-                    <li>Open UI at `http://localhost:9091`.</li>
-                </ul>
-                <pre># .env (local stack)
-FACILITATOR_URL=http://localhost:9090
+                <p class="guide-text">What happens: initialize provider and load selected account context.</p>
+                <p class="guide-text">On-chain interaction: none.</p>
+                <div class="actions compact-actions">
+                    <button id="connect-btn">1. CONNECT WALLET</button>
+                </div>
+                <div id="wallet-section">
+                    <div class="data-row"><span class="data-label">Network</span><span id="network-display" class="data-value">--</span></div>
+                    <div class="data-row"><span class="data-label">Account</span><span id="account-display" class="data-value address">--</span></div>
+                </div>
+            </div>
+
+            <div class="step-card" data-step="2">
+                <div class="step-head">
+                    <div class="step-title">Step 2: Check Facilitator Health</div>
+                    <span id="step-status-2" class="step-status pending">Not started</span>
+                </div>
+                <p class="guide-text">What happens: call facilitator `/health` and confirm chain support.</p>
+                <p class="guide-text">On-chain interaction: none.</p>
+                <div id="facilitator-section">
+                    <div class="data-row">
+                        <span class="data-label">Facilitator URL</span>
+                        <span class="data-value address"><input id="facilitator-input" class="text-input" type="text" value="" /></span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Facilitator Spender</span>
+                        <span class="data-value address"><input id="spender-input" class="text-input" type="text" placeholder="0x... (x402 proxy address)" /></span>
+                    </div>
+                </div>
+                <div class="actions compact-actions">
+                    <button id="health-btn">2. CHECK /HEALTH</button>
+                </div>
+                <pre id="health-response" class="response-preview">Awaiting response...</pre>
+            </div>
+
+            <div class="step-card" data-step="3">
+                <div class="step-head">
+                    <div class="step-title">Step 3: Fetch Payment Requirement</div>
+                    <span id="step-status-3" class="step-status pending">Not started</span>
+                </div>
+                <p class="guide-text">What happens: request protected store endpoint and parse `Payment-Required` header on HTTP 402.</p>
+                <p class="guide-text">On-chain interaction: none.</p>
+                <div id="store-section">
+                    <div class="data-row">
+                        <span class="data-label">Store API URL</span>
+                        <span class="data-value address"><input id="store-input" class="text-input" type="text" value="" /></span>
+                    </div>
+                    <div id="catalog-row" class="data-row hidden">
+                        <span class="data-label">Catalog Item</span>
+                        <span class="data-value address"><select id="catalog-select" class="text-input"></select></span>
+                    </div>
+                    <div class="data-row"><span class="data-label">Payment Amount</span><span id="amount-display" class="data-value">--</span></div>
+                    <div class="data-row"><span class="data-label">Pay To</span><span id="payto-display" class="data-value address">--</span></div>
+                </div>
+                <div class="actions compact-actions">
+                    <button id="requirements-btn">3. GET PAYMENT</button>
+                </div>
+                <pre id="requirements-response" class="response-preview">Awaiting response...</pre>
+            </div>
+
+            <div class="step-card" data-step="4">
+                <div class="step-head">
+                    <div class="step-title">Step 4: Approve Permit2</div>
+                    <span id="step-status-4" class="step-status pending">Not started</span>
+                </div>
+                <p class="guide-text">What happens: set ERC-20 allowance to Permit2 for exact required amount.</p>
+                <p class="guide-text">On-chain interaction: user sends approval transaction.</p>
+                <div class="data-row">
+                    <span class="data-label">Gas Payer</span>
+                    <span class="data-value">
+                        <div class="toggle-group">
+                            <button id="gas-facilitator-btn" class="toggle-button active">FACILITATOR PAYS GAS (TZAPAC)</button>
+                        </div>
+                    </span>
+                </div>
+                <div class="actions compact-actions">
+                    <button id="approve-btn" class="hidden">4. APPROVE PERMIT2</button>
+                </div>
+                <div class="actions compact-actions">
+                    <button id="token-toggle-btn">SHOW TOKEN DETAILS</button>
+                </div>
+                <div id="token-section" class="hidden">
+                    <div class="data-row"><span class="data-label">Asset</span><span class="data-value">BBT (BubbleTez)</span></div>
+                    <div class="data-row"><span class="data-label">Balance</span><span id="balance-display" class="data-value">0.00</span></div>
+                    <div class="data-row"><span class="data-label">ERC20 Allowance -&gt; Permit2</span><span id="allowance-display" class="data-value">0.00</span></div>
+                    <div id="permit2-allowance-row" class="data-row hidden"><span class="data-label">Permit2 Allowance</span><span id="permit2-allowance-display" class="data-value">--</span></div>
+                    <div class="data-row"><span class="data-label">Permit2 Expiration</span><span id="permit2-expiration-display" class="data-value">--</span></div>
+                    <div class="data-row"><span class="data-label">Permit2 Nonce</span><span id="permit2-nonce-display" class="data-value">--</span></div>
+                </div>
+            </div>
+
+            <div class="step-card" data-step="5">
+                <div class="step-head">
+                    <div class="step-title">Step 5: Sign &amp; Pay</div>
+                    <span id="step-status-5" class="step-status pending">Not started</span>
+                </div>
+                <p class="guide-text">What happens: sign Permit2 typed data off-chain and submit `Payment-Signature`; facilitator settles on-chain.</p>
+                <p class="guide-text">On-chain interaction: facilitator submits settlement transaction and pays gas.</p>
+                <div class="actions compact-actions">
+                    <button id="pay-btn" disabled>5. SIGN &amp; PAY</button>
+                </div>
+                <pre id="settle-response" class="response-preview">Awaiting response...</pre>
+            </div>
+
+            <div id="console-output">
+                <div class="log-entry log-info">&gt; SYSTEM READY</div>
+                <div class="log-entry log-info">&gt; WAITING FOR CONNECTION...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-panel hidden" data-panel="integration">
+        <div class="content">
+            <div class="guide-block">
+                <div class="guide-title">Integration Summary</div>
+                <div class="integration-grid">
+                    <div class="integration-card">
+                        <div class="guide-title">Client Must</div>
+                        <ul class="guide-list">
+                            <li>Detect `HTTP 402` from protected endpoint.</li>
+                            <li>Parse `Payment-Required` payload and supported method.</li>
+                            <li>Generate Permit2 signature matching exact requirement.</li>
+                            <li>Retry request with `Payment-Signature` header.</li>
+                        </ul>
+                    </div>
+                    <div class="integration-card">
+                        <div class="guide-title">Store Must</div>
+                        <ul class="guide-list">
+                            <li>Issue x402 payment requirement with exact terms.</li>
+                            <li>Validate signature payload and accepted requirement.</li>
+                            <li>Call facilitator `/settle` for execution.</li>
+                            <li>Release resource only on successful settlement.</li>
+                        </ul>
+                    </div>
+                    <div class="integration-card">
+                        <div class="guide-title">Facilitator Must</div>
+                        <ul class="guide-list">
+                            <li>Sponsor gas for supported settlement path.</li>
+                            <li>Execute Permit2 settlement transaction.</li>
+                            <li>Enforce proxy codehash allowlist.</li>
+                            <li>Expose reliable health/supported/settle APIs.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="guide-block" data-role-checklist="client">
+                <div class="guide-title">Role Checklist: Client Integrator</div>
+                <pre>// Pseudocode
+resp = fetch(protectedUrl)
+if resp.status == 402:
+  req = decodePaymentRequired(resp)
+  sig = signPermit2(req.accepts[0])
+  paid = fetch(protectedUrl, { headers: { "Payment-Signature": sig } })</pre>
+            </div>
+
+            <div class="guide-block hidden" data-role-checklist="store">
+                <div class="guide-title">Role Checklist: Store Operator</div>
+                <pre>// Pseudocode
+if no Payment-Signature:
+  return 402 + payment requirement
+validate(signaturePayload, requiredTerms)
+settlement = POST facilitator /settle
+if settlement.success: return protected resource</pre>
+            </div>
+
+            <div class="guide-block hidden" data-role-checklist="facilitator">
+                <div class="guide-title">Role Checklist: Facilitator Host</div>
+                <pre>// Pseudocode
+verify payload and requirement match
+enforce codehash allowlist
+send settlement tx via signer wallet
+return tx hash + status to store</pre>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-panel hidden" data-panel="setup">
+        <div class="content">
+            <div class="guide-block">
+                <div class="guide-title">Setup Instructions</div>
+                <div class="guide-text">Operational details are grouped below. Expand only what you need.</div>
+            </div>
+
+            <details class="setup-detail">
+                <summary>Docker Compose Stack</summary>
+                <div class="detail-body">
+                    <pre>docker compose -f docker-compose.wallet-poc.yml up -d --build</pre>
+                    <p class="guide-text">Starts store API, store web, facilitator, and nginx proxy wiring.</p>
+                </div>
+            </details>
+
+            <details class="setup-detail">
+                <summary>.env Example (Store + Facilitator)</summary>
+                <div class="detail-body">
+                    <pre>FACILITATOR_URL=http://localhost:9090
 RPC_URL=https://YOUR_ETHERLINK_RPC
 CHAIN_ID=42793
 SERVER_WALLET=0xYOUR_STORE_WALLET
@@ -182,73 +352,74 @@ STORE_PRIVATE_KEY=0xYOUR_STORE_PRIVATE_KEY
 BBT_TOKEN=0x7EfE4bdd11237610bcFca478937658bE39F8dfd6
 PERMIT2_ADDRESS=0x000000000022D473030F116dDEE9F6B43aC78BA3
 X402_EXACT_PERMIT2_PROXY_ADDRESS=0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E
-PUBLIC_BASE_URL=
-</pre>
-                <pre>docker compose -f docker-compose.wallet-poc.yml up -d --build</pre>
-                <div class="guide-text">
-                    Set `PUBLIC_BASE_URL` only if you want a fixed public URL in `Payment-Required.resource.url`.
+COMPLIANCE_PROVIDER=chainalysis
+CHAINALYSIS_API_KEY=YOUR_CHAINALYSIS_KEY
+PUBLIC_BASE_URL=</pre>
                 </div>
-            </div>
-        </div>
-    </div>
+            </details>
 
-    <div class="tab-panel hidden" data-panel="facilitator">
-        <div class="content">
-            <div class="guide-block">
-                <div class="guide-title">Documentation URLs</div>
-                <ul class="guide-list">
-                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/facilitator_hosting_guide.md" target="_blank" rel="noopener noreferrer">Facilitator Hosting Guide</a></li>
-                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/facilitator_api_glossary.md" target="_blank" rel="noopener noreferrer">Facilitator API Glossary</a></li>
-                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/store_operator_guide.md" target="_blank" rel="noopener noreferrer">Store Operator Guide</a></li>
-                </ul>
-            </div>
-            <div class="guide-block">
-                <div class="guide-title">Facilitator Setup</div>
-                <div class="guide-text">
-                    Facilitator gas mode is the only supported execution path in this Coinbase-aligned branch.
+            <details class="setup-detail">
+                <summary>.env.multitest Example</summary>
+                <div class="detail-body">
+                    <pre>WALLET_ONE_PRIVATE_KEY=0x...
+WALLET_TWO_PRIVATE_KEY=0x...
+FACILITATOR_URL=https://exp-faci.bubbletez.com
+STORE_URL=https://exp-store.bubbletez.com/api/weather
+CHAIN_ID=42793</pre>
                 </div>
-                <ul class="guide-list">
-                    <li>The easiest path is running via `docker-compose.wallet-poc.yml`.</li>
-                    <li>For standalone runs, provide a signer private key and RPC endpoint.</li>
-                </ul>
-                <pre># .env (facilitator standalone)
-FACILITATOR_PRIVATE_KEY=0xYOUR_FACILITATOR_PRIVATE_KEY
-X402_EXACT_PERMIT2_PROXY_ADDRESS=0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E
-X402_EXACT_PERMIT2_PROXY_CODEHASH_ALLOWLIST=0x73020ff18bfd4eaba45de17760ad433063ed6267a8371ef54a39083a14180366
-</pre>
-                <pre>// bbt_config.json
-{
+            </details>
+
+            <details class="setup-detail">
+                <summary>Facilitator Config JSON</summary>
+                <div class="detail-body">
+                    <pre>{
   "port": 9090,
   "host": "0.0.0.0",
   "chains": {
     "eip155:42793": {
       "eip1559": true,
       "signers": ["$FACILITATOR_PRIVATE_KEY"],
-      "rpc": [
-        { "http": "https://YOUR_ETHERLINK_RPC", "rate_limit": 100 }
-      ]
+      "rpc": [{ "http": "https://YOUR_ETHERLINK_RPC", "rate_limit": 100 }]
     }
   },
   "schemes": [
     { "id": "v2-eip155-exact", "chains": "eip155:42793", "enabled": true }
   ]
-}
-</pre>
-                <pre># Option A: pinned image digest (recommended)
+}</pre>
+                </div>
+            </details>
+
+            <details class="setup-detail">
+                <summary>Build/Run Facilitator Image</summary>
+                <div class="detail-body">
+                    <pre># Use published image
 docker run --env-file .env -p 9090:9090 \
   -v $(pwd)/bbt_config.json:/app/bbt_config.json \
-  ghcr.io/tzapac/tzapac-x402-permit2-facilitator@sha256:REPLACE_WITH_PUBLISHED_DIGEST \
+  ghcr.io/tzapac/tzapac-x402-permit2-facilitator:latest \
   --config /app/bbt_config.json
 
-# Option B: build locally from source
-docker build -t bbt-x402-facilitator:local -f bbt-x402-facilitator/Dockerfile.bbt bbt-x402-facilitator
-docker run --env-file .env -p 9090:9090 \
-  -v $(pwd)/bbt_config.json:/app/bbt_config.json \
-  bbt-x402-facilitator:local --config /app/bbt_config.json
-</pre>
-                <div class="guide-text">
-                    Local compose already wires the same facilitator flow.
+# Or build locally
+docker build -t bbt-x402-facilitator:local -f bbt-x402-facilitator/Dockerfile.bbt bbt-x402-facilitator</pre>
                 </div>
+            </details>
+        </div>
+    </div>
+
+    <div class="tab-panel hidden" data-panel="docs">
+        <div class="content">
+            <div class="guide-block">
+                <div class="guide-title">Documentation</div>
+                <ul class="guide-list">
+                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/README.md" target="_blank" rel="noopener noreferrer">Repository README</a></li>
+                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/quick_start.md" target="_blank" rel="noopener noreferrer">Quick Start Guide</a></li>
+                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/client_guide.md" target="_blank" rel="noopener noreferrer">Client Integration Guide</a></li>
+                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/server_guide.md" target="_blank" rel="noopener noreferrer">Server Integration Guide</a></li>
+                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/store_operator_guide.md" target="_blank" rel="noopener noreferrer">Store Operator Guide</a></li>
+                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/facilitator_hosting_guide.md" target="_blank" rel="noopener noreferrer">Facilitator Hosting Guide</a></li>
+                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/facilitator_api_glossary.md" target="_blank" rel="noopener noreferrer">Facilitator API Glossary</a></li>
+                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/coinbase_comparison.md" target="_blank" rel="noopener noreferrer">Coinbase Comparison</a></li>
+                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/deployment_info.md" target="_blank" rel="noopener noreferrer">Deployment Info</a></li>
+                </ul>
             </div>
         </div>
     </div>
@@ -283,7 +454,7 @@ docker run --env-file .env -p 9090:9090 \
                 <div class="guide-title">5. Disclaimer</div>
                 <p class="guide-text">This is not financial advice, and the demo software is provided as-is for technical evaluation and integration testing.</p>
 
-                <div class="actions">
+                <div class="actions compact-actions">
                     <button id="terms-back-btn">RETURN TO DEMO</button>
                 </div>
             </div>
@@ -291,9 +462,10 @@ docker run --env-file .env -p 9090:9090 \
     </div>
 
     <footer>
-        built with <3 by tzapac.
+        built by tzapac for production-grade developer integration reference.
     </footer>
 </div>
-<script src="/wallet_connect_poc.js?v=20260211-5"></script>
+
+<script src="/wallet_connect_poc.js?v=20260214-ia1"></script>
 </body>
 </html>
