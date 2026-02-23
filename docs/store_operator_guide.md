@@ -152,6 +152,36 @@ Body example:
 - `GET /api/products/{id}`: paid endpoint; returns `402` then `200` after payment.
 - `GET /config`: store-level payment defaults (already implemented in this repo).
 
+## Custom token products (creator-scoped)
+
+This store can create temporary custom paid products from user-specified ERC-20 tokens.
+
+Endpoints:
+- `POST /api/catalog/custom-token`: create a custom product for a `creator` wallet from a signed request.
+- `GET /api/catalog?creator=0x...`: always returns built-ins; returns active custom products only for that creator.
+- `GET /api/custom/{product_id}`: paid endpoint with the same `402`/`Payment-Signature`/settle flow as built-ins.
+- `GET /config`: exposes `features.customTokenProducts` and `customProduct` metadata (`ttlSeconds`, tier list).
+
+Tier mapping:
+- `tier_0_01` => `0.01 * 10^decimals`
+- `tier_0_1` => `0.1 * 10^decimals`
+- `tier_1_0` => `1.0 * 10^decimals`
+
+Custom product env defaults:
+- `CUSTOM_PRODUCTS_ENABLED=true`
+- `CUSTOM_PRODUCT_TTL_SECONDS=86400`
+- `CUSTOM_PRODUCT_MAX_PER_CREATOR=5`
+- `CUSTOM_PRODUCT_MAX_GLOBAL=500`
+- `CUSTOM_PRODUCT_CREATE_MAX_PER_IP_PER_HOUR=30`
+- `CUSTOM_PRODUCT_SIGNATURE_MAX_AGE_SECONDS=300`
+
+Operational notes:
+- `RPC_URL` is required when custom products are enabled (token metadata checks).
+- Creation signatures are short-lived and nonces are replay-protected.
+- Custom products are in-memory and expire automatically (TTL), with expired entries purged from catalog.
+- Demo UI must present a final irreversible-payment confirmation before submit.
+- Facilitator API is unchanged; this is a store-layer extension only.
+
 ## Store implementation checklist
 
 - Match `accepted` exactly with the offered requirement object.

@@ -6,9 +6,12 @@ import logging
 import os
 import re
 import time
+import uuid
+from decimal import Decimal
 from typing import Any
 
 import httpx
+from eth_account.messages import encode_defunct
 from fastapi import FastAPI, Request, Response
 from dotenv import load_dotenv
 from web3 import Web3
@@ -20,6 +23,14 @@ load_dotenv()
 app = FastAPI()
 http_client = httpx.AsyncClient(timeout=120.0)
 logger = get_logger("bbt_mvp_server")
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
 
 FACILITATOR_URL = os.getenv("FACILITATOR_URL", "http://localhost:9090")
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").strip()
@@ -37,6 +48,26 @@ MAX_PAYMENT_SIGNATURE_B64_BYTES = int(
     os.getenv("MAX_PAYMENT_SIGNATURE_B64_BYTES", "16384")
 )
 MAX_SETTLE_RESPONSE_BYTES = int(os.getenv("MAX_SETTLE_RESPONSE_BYTES", "65536"))
+RPC_URL = os.getenv("RPC_URL", "").strip()
+CUSTOM_PRODUCTS_ENABLED = _env_bool("CUSTOM_PRODUCTS_ENABLED", True)
+CUSTOM_PRODUCT_TTL_SECONDS = int(os.getenv("CUSTOM_PRODUCT_TTL_SECONDS", "86400"))
+CUSTOM_PRODUCT_MAX_PER_CREATOR = int(os.getenv("CUSTOM_PRODUCT_MAX_PER_CREATOR", "5"))
+CUSTOM_PRODUCT_MAX_GLOBAL = int(os.getenv("CUSTOM_PRODUCT_MAX_GLOBAL", "500"))
+CUSTOM_PRODUCT_CREATE_MAX_PER_IP_PER_HOUR = int(
+    os.getenv("CUSTOM_PRODUCT_CREATE_MAX_PER_IP_PER_HOUR", "30")
+)
+CUSTOM_PRODUCT_SIGNATURE_MAX_AGE_SECONDS = int(
+    os.getenv("CUSTOM_PRODUCT_SIGNATURE_MAX_AGE_SECONDS", "300")
+)
+
+CUSTOM_PRODUCT_TIERS: dict[str, dict[str, str]] = {
+    "tier_0_01": {"label": "0.01", "amount": "0.01"},
+    "tier_0_1": {"label": "0.1", "amount": "0.1"},
+    "tier_1_0": {"label": "1.0", "amount": "1.0"},
+}
+
+CREATE_RATE_WINDOW_SECONDS = 3600
+CUSTOM_CREATE_CLOCK_SKEW_SECONDS = 60
 
 
 def _resolve_server_wallet() -> str:
@@ -62,15 +93,45 @@ def _same_address(a: str, b: str) -> bool:
     return str(a).lower() == str(b).lower()
 
 
+def _to_checksum_strict(raw: Any, field_name: str) -> str:
+    if not isinstance(raw, str):
+        raise RuntimeError(f"Invalid {field_name}: must be a string")
+    address = _to_checksum(raw, field_name)
+    if not Web3.is_checksum_address(raw):
+        raise RuntimeError(f"Invalid {field_name}: must be checksum address")
+    return address
+
+
 SERVER_WALLET = _to_checksum(_resolve_server_wallet(), "server wallet")
 BBT_TOKEN = _to_checksum(BBT_TOKEN, "BBT_TOKEN")
 X402_EXACT_PERMIT2_PROXY_ADDRESS = _to_checksum(
     X402_EXACT_PERMIT2_PROXY_ADDRESS, "X402_EXACT_PERMIT2_PROXY_ADDRESS"
 )
-if not re.match(r"^eip155:\d+$", NETWORK):
+network_match = re.match(r"^eip155:(\d+)$", NETWORK)
+if not network_match:
     raise RuntimeError(
         f"Invalid NETWORK value: {NETWORK!r}. Expected format eip155:<chainId>"
     )
+CHAIN_ID = int(network_match.group(1))
+
+if CUSTOM_PRODUCTS_ENABLED and not RPC_URL:
+    raise RuntimeError("RPC_URL is required when CUSTOM_PRODUCTS_ENABLED=true")
+
+if CUSTOM_PRODUCT_TTL_SECONDS <= 0:
+    raise RuntimeError("CUSTOM_PRODUCT_TTL_SECONDS must be > 0")
+if CUSTOM_PRODUCT_MAX_PER_CREATOR <= 0:
+    raise RuntimeError("CUSTOM_PRODUCT_MAX_PER_CREATOR must be > 0")
+if CUSTOM_PRODUCT_MAX_GLOBAL <= 0:
+    raise RuntimeError("CUSTOM_PRODUCT_MAX_GLOBAL must be > 0")
+if CUSTOM_PRODUCT_CREATE_MAX_PER_IP_PER_HOUR <= 0:
+    raise RuntimeError("CUSTOM_PRODUCT_CREATE_MAX_PER_IP_PER_HOUR must be > 0")
+if CUSTOM_PRODUCT_SIGNATURE_MAX_AGE_SECONDS <= 0:
+    raise RuntimeError("CUSTOM_PRODUCT_SIGNATURE_MAX_AGE_SECONDS must be > 0")
+
+CUSTOM_PRODUCTS_BY_ID: dict[str, dict[str, Any]] = {}
+CUSTOM_PRODUCTS_BY_CREATOR: dict[str, set[str]] = {}
+USED_CREATE_NONCES: dict[str, dict[str, int]] = {}
+CREATE_RATE_LIMIT_BY_IP: dict[str, list[int]] = {}
 
 def _payment_requirements(amount_wei: str) -> dict[str, Any]:
     return {
@@ -148,6 +209,231 @@ def _explorer_url(tx_hash: str | None) -> str | None:
     return f"{base}/{tx_hash}"
 
 
+def _client_ip(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    if request.client and request.client.host:
+        return request.client.host
+    return "unknown"
+
+
+def _cleanup_custom_state(now: int | None = None) -> None:
+    now_ts = int(time.time()) if now is None else now
+
+    expired_product_ids = [
+        product_id
+        for product_id, product in CUSTOM_PRODUCTS_BY_ID.items()
+        if int(product.get("expiresAt", 0) or 0) <= now_ts
+    ]
+    for product_id in expired_product_ids:
+        product = CUSTOM_PRODUCTS_BY_ID.pop(product_id, None)
+        if not product:
+            continue
+        creator_key = str(product.get("creator", "")).lower()
+        creator_products = CUSTOM_PRODUCTS_BY_CREATOR.get(creator_key)
+        if creator_products:
+            creator_products.discard(product_id)
+            if not creator_products:
+                CUSTOM_PRODUCTS_BY_CREATOR.pop(creator_key, None)
+
+    for creator_key, nonce_map in list(USED_CREATE_NONCES.items()):
+        for nonce in [nonce for nonce, expires_at in nonce_map.items() if expires_at <= now_ts]:
+            nonce_map.pop(nonce, None)
+        if not nonce_map:
+            USED_CREATE_NONCES.pop(creator_key, None)
+
+    cutoff = now_ts - CREATE_RATE_WINDOW_SECONDS
+    for ip, timestamps in list(CREATE_RATE_LIMIT_BY_IP.items()):
+        fresh = [ts for ts in timestamps if ts > cutoff]
+        if fresh:
+            CREATE_RATE_LIMIT_BY_IP[ip] = fresh
+        else:
+            CREATE_RATE_LIMIT_BY_IP.pop(ip, None)
+
+
+async def _rpc_request(method: str, params: list[Any]) -> Any:
+    if not RPC_URL:
+        raise RuntimeError("RPC_URL is not configured")
+    payload = {
+        "jsonrpc": "2.0",
+        "id": int(time.time() * 1000),
+        "method": method,
+        "params": params,
+    }
+    try:
+        resp = await http_client.post(RPC_URL, json=payload)
+        resp.raise_for_status()
+        body = resp.json()
+    except Exception as exc:
+        raise RuntimeError(f"RPC request failed for {method}: {exc}") from exc
+    if not isinstance(body, dict):
+        raise RuntimeError(f"RPC returned invalid response for {method}")
+    if body.get("error"):
+        raise RuntimeError(f"RPC error for {method}: {body['error']}")
+    return body.get("result")
+
+
+def _decode_uint256_hex(result: Any, field_name: str) -> int:
+    if not isinstance(result, str) or not result.startswith("0x"):
+        raise ValueError(f"Invalid {field_name} response from token contract")
+    hex_body = result[2:]
+    if not hex_body:
+        raise ValueError(f"Empty {field_name} response from token contract")
+    try:
+        return int(hex_body, 16)
+    except ValueError as exc:
+        raise ValueError(f"Invalid {field_name} response from token contract") from exc
+
+
+def _decode_abi_symbol(result: Any) -> str | None:
+    if not isinstance(result, str) or not result.startswith("0x"):
+        return None
+    raw = bytes.fromhex(result[2:]) if len(result) > 2 else b""
+    if not raw:
+        return None
+    if len(raw) == 32:
+        text = raw.rstrip(b"\x00").decode("utf-8", errors="ignore").strip()
+    else:
+        if len(raw) < 96:
+            return None
+        try:
+            data_offset = int.from_bytes(raw[0:32], "big")
+            if data_offset + 64 > len(raw):
+                return None
+            data_length = int.from_bytes(raw[data_offset : data_offset + 32], "big")
+            start = data_offset + 32
+            end = start + data_length
+            if end > len(raw):
+                return None
+            text = raw[start:end].decode("utf-8", errors="ignore").strip()
+        except Exception:
+            return None
+    if not text:
+        return None
+    cleaned = "".join(ch for ch in text if 32 <= ord(ch) <= 126).strip()
+    if not cleaned:
+        return None
+    return cleaned[:32]
+
+
+async def _resolve_token_metadata(token: str) -> tuple[int, str]:
+    code = await _rpc_request("eth_getCode", [token, "latest"])
+    if not isinstance(code, str) or code in {"0x", "0x0", "0x00"}:
+        raise ValueError("Token address has no deployed contract code")
+
+    try:
+        decimals_hex = await _rpc_request(
+            "eth_call",
+            [{"to": token, "data": "0x313ce567"}, "latest"],
+        )
+    except RuntimeError as exc:
+        raise ValueError("Token contract does not expose decimals()") from exc
+
+    decimals = _decode_uint256_hex(decimals_hex, "decimals")
+    if decimals < 0 or decimals > 255:
+        raise ValueError("Token decimals() is out of supported bounds")
+
+    symbol = "ERC20"
+    try:
+        symbol_hex = await _rpc_request(
+            "eth_call",
+            [{"to": token, "data": "0x95d89b41"}, "latest"],
+        )
+        decoded_symbol = _decode_abi_symbol(symbol_hex)
+        if decoded_symbol:
+            symbol = decoded_symbol
+    except Exception:
+        pass
+    return decimals, symbol
+
+
+def _custom_create_message(
+    chain_id: int,
+    creator: str,
+    token: str,
+    tier_id: str,
+    nonce: str,
+    issued_at: int,
+    expires_at: int,
+) -> str:
+    return (
+        "TZ APAC x402 Custom Product Creation\n"
+        f"chainId:{chain_id}\n"
+        f"creator:{creator}\n"
+        f"token:{token}\n"
+        f"tierId:{tier_id}\n"
+        f"nonce:{nonce}\n"
+        f"issuedAt:{issued_at}\n"
+        f"expiresAt:{expires_at}"
+    )
+
+
+def _tier_amount_to_base_units(tier_id: str, decimals: int) -> int:
+    tier_config = CUSTOM_PRODUCT_TIERS[tier_id]
+    scaled = Decimal(tier_config["amount"]) * (Decimal(10) ** decimals)
+    if scaled != scaled.to_integral_value():
+        raise ValueError("Token decimals too small for selected tier amount")
+    amount_int = int(scaled)
+    if amount_int <= 0:
+        raise ValueError("Computed token amount must be positive")
+    return amount_int
+
+
+def _custom_product_requirements(
+    token: str,
+    amount: str,
+    symbol: str,
+    decimals: int,
+) -> dict[str, Any]:
+    return {
+        "scheme": "exact",
+        "network": NETWORK,
+        "amount": amount,
+        "payTo": SERVER_WALLET,
+        "maxTimeoutSeconds": 60,
+        "asset": token,
+        "extra": {
+            "name": symbol,
+            "version": "1",
+            "assetTransferMethod": "permit2",
+            "decimals": decimals,
+        },
+    }
+
+
+def _build_custom_product(
+    creator: str,
+    token: str,
+    tier_id: str,
+    decimals: int,
+    symbol: str,
+    now_ts: int,
+) -> dict[str, Any]:
+    amount = _tier_amount_to_base_units(tier_id, decimals)
+    product_id = f"custom_{uuid.uuid4().hex}"
+    path = f"/api/custom/{product_id}"
+    expires_at = now_ts + CUSTOM_PRODUCT_TTL_SECONDS
+    return {
+        "id": product_id,
+        "name": "Custom Token Access",
+        "path": path,
+        "description": "Custom token-gated content",
+        "requirements": _custom_product_requirements(token, str(amount), symbol, decimals),
+        "response": {
+            "content": "Custom token-gated content unlocked",
+            "tierId": tier_id,
+            "creator": creator,
+            "asset": token,
+            "symbol": symbol,
+        },
+        "creator": creator,
+        "tierId": tier_id,
+        "expiresAt": expires_at,
+        "createdAt": now_ts,
+    }
+
+
 def _payment_required(
     request: Request,
     requirements: dict[str, Any],
@@ -212,7 +498,7 @@ def _extract_permit2_payload(payment_payload: dict) -> dict | None:
 
 def _catalog_product(request: Request, product: dict[str, Any]) -> dict[str, Any]:
     requirements = product["requirements"]
-    return {
+    catalog_entry = {
         "id": product["id"],
         "name": product["name"],
         "path": product["path"],
@@ -229,6 +515,9 @@ def _catalog_product(request: Request, product: dict[str, Any]) -> dict[str, Any
             "extra": requirements.get("extra"),
         },
     }
+    if "expiresAt" in product:
+        catalog_entry["expiresAt"] = product["expiresAt"]
+    return catalog_entry
 
 
 async def _handle_paid_product(
@@ -611,18 +900,258 @@ async def config():
         "amount": default_product["requirements"]["amount"],
         "facilitatorUrl": FACILITATOR_URL,
         "defaultProductId": DEFAULT_PRODUCT_ID,
+        "features": {
+            "customTokenProducts": CUSTOM_PRODUCTS_ENABLED,
+        },
+        "customProduct": {
+            "ttlSeconds": CUSTOM_PRODUCT_TTL_SECONDS,
+            "tiers": [
+                {"id": tier_id, "label": tier["label"]}
+                for tier_id, tier in CUSTOM_PRODUCT_TIERS.items()
+            ],
+            "maxPerCreator": CUSTOM_PRODUCT_MAX_PER_CREATOR,
+            "maxGlobal": CUSTOM_PRODUCT_MAX_GLOBAL,
+            "createMaxPerIpPerHour": CUSTOM_PRODUCT_CREATE_MAX_PER_IP_PER_HOUR,
+            "signatureMaxAgeSeconds": CUSTOM_PRODUCT_SIGNATURE_MAX_AGE_SECONDS,
+        },
     }
 
 
 @app.get("/api/catalog")
 async def catalog(request: Request):
+    _cleanup_custom_state()
+    products = [
+        _catalog_product(request, PRODUCTS["weather"]),
+        _catalog_product(request, PRODUCTS["premium-content"]),
+    ]
+
+    creator = request.query_params.get("creator")
+    if CUSTOM_PRODUCTS_ENABLED and creator:
+        try:
+            creator_checksum = _to_checksum_strict(creator, "creator query parameter")
+        except RuntimeError as exc:
+            return Response(
+                content=json.dumps({"error": str(exc)}),
+                status_code=400,
+                media_type="application/json",
+            )
+        creator_key = creator_checksum.lower()
+        for product_id in sorted(CUSTOM_PRODUCTS_BY_CREATOR.get(creator_key, set())):
+            product = CUSTOM_PRODUCTS_BY_ID.get(product_id)
+            if product:
+                products.append(_catalog_product(request, product))
+
     return {
         "store": "TZ APAC x402 Store",
         "network": NETWORK,
-        "products": [
-            _catalog_product(request, PRODUCTS["weather"]),
-            _catalog_product(request, PRODUCTS["premium-content"]),
-        ],
+        "products": products,
+    }
+
+
+@app.post("/api/catalog/custom-token")
+async def create_custom_token_product(request: Request):
+    if not CUSTOM_PRODUCTS_ENABLED:
+        return Response(
+            content=json.dumps({"error": "Custom token products are disabled"}),
+            status_code=404,
+            media_type="application/json",
+        )
+
+    now_ts = int(time.time())
+    _cleanup_custom_state(now_ts)
+
+    client_ip = _client_ip(request)
+    ip_activity = CREATE_RATE_LIMIT_BY_IP.setdefault(client_ip, [])
+    if len(ip_activity) >= CUSTOM_PRODUCT_CREATE_MAX_PER_IP_PER_HOUR:
+        return Response(
+            content=json.dumps({"error": "Create rate limit exceeded for this IP"}),
+            status_code=429,
+            media_type="application/json",
+        )
+    ip_activity.append(now_ts)
+
+    try:
+        payload = await request.json()
+    except Exception:
+        return Response(
+            content=json.dumps({"error": "Invalid JSON payload"}),
+            status_code=400,
+            media_type="application/json",
+        )
+    if not isinstance(payload, dict):
+        return Response(
+            content=json.dumps({"error": "Invalid payload format"}),
+            status_code=400,
+            media_type="application/json",
+        )
+
+    nonce = payload.get("nonce")
+    tier_id = payload.get("tierId")
+    signature = payload.get("signature")
+    chain_id_raw = payload.get("chainId")
+    issued_at_raw = payload.get("issuedAt")
+    expires_at_raw = payload.get("expiresAt")
+
+    if tier_id not in CUSTOM_PRODUCT_TIERS:
+        return Response(
+            content=json.dumps({"error": "Invalid tierId"}),
+            status_code=400,
+            media_type="application/json",
+        )
+    if not isinstance(nonce, str) or not nonce.strip():
+        return Response(
+            content=json.dumps({"error": "Invalid nonce"}),
+            status_code=400,
+            media_type="application/json",
+        )
+    nonce = nonce.strip()
+    if len(nonce) > 256:
+        return Response(
+            content=json.dumps({"error": "Nonce too long"}),
+            status_code=400,
+            media_type="application/json",
+        )
+    if not isinstance(signature, str) or not signature.startswith("0x"):
+        return Response(
+            content=json.dumps({"error": "Invalid signature"}),
+            status_code=400,
+            media_type="application/json",
+        )
+
+    try:
+        chain_id = int(chain_id_raw)
+        issued_at = int(issued_at_raw)
+        expires_at = int(expires_at_raw)
+    except (TypeError, ValueError):
+        return Response(
+            content=json.dumps({"error": "Invalid chainId/issuedAt/expiresAt"}),
+            status_code=400,
+            media_type="application/json",
+        )
+
+    if chain_id != CHAIN_ID:
+        return Response(
+            content=json.dumps({"error": f"Unsupported chainId (expected {CHAIN_ID})"}),
+            status_code=400,
+            media_type="application/json",
+        )
+    if issued_at <= 0 or expires_at <= 0 or expires_at <= issued_at:
+        return Response(
+            content=json.dumps({"error": "Invalid issuedAt/expiresAt bounds"}),
+            status_code=400,
+            media_type="application/json",
+        )
+    if (expires_at - issued_at) > CUSTOM_PRODUCT_SIGNATURE_MAX_AGE_SECONDS:
+        return Response(
+            content=json.dumps({"error": "Signature validity window is too large"}),
+            status_code=400,
+            media_type="application/json",
+        )
+    if issued_at > now_ts + CUSTOM_CREATE_CLOCK_SKEW_SECONDS:
+        return Response(
+            content=json.dumps({"error": "issuedAt is too far in the future"}),
+            status_code=400,
+            media_type="application/json",
+        )
+    if expires_at < now_ts:
+        return Response(
+            content=json.dumps({"error": "Create request signature is expired"}),
+            status_code=400,
+            media_type="application/json",
+        )
+
+    try:
+        creator = _to_checksum_strict(payload.get("creator"), "creator")
+        token = _to_checksum_strict(payload.get("token"), "token")
+    except RuntimeError as exc:
+        return Response(
+            content=json.dumps({"error": str(exc)}),
+            status_code=400,
+            media_type="application/json",
+        )
+
+    creator_key = creator.lower()
+    used_nonces = USED_CREATE_NONCES.setdefault(creator_key, {})
+    if nonce in used_nonces:
+        return Response(
+            content=json.dumps({"error": "Nonce already used for creator"}),
+            status_code=400,
+            media_type="application/json",
+        )
+
+    creator_products = CUSTOM_PRODUCTS_BY_CREATOR.get(creator_key, set())
+    if len(creator_products) >= CUSTOM_PRODUCT_MAX_PER_CREATOR:
+        return Response(
+            content=json.dumps({"error": "Creator active custom product limit reached"}),
+            status_code=429,
+            media_type="application/json",
+        )
+    if len(CUSTOM_PRODUCTS_BY_ID) >= CUSTOM_PRODUCT_MAX_GLOBAL:
+        return Response(
+            content=json.dumps({"error": "Global custom product limit reached"}),
+            status_code=429,
+            media_type="application/json",
+        )
+
+    message = _custom_create_message(
+        chain_id=chain_id,
+        creator=creator,
+        token=token,
+        tier_id=tier_id,
+        nonce=nonce,
+        issued_at=issued_at,
+        expires_at=expires_at,
+    )
+    try:
+        recovered = Web3().eth.account.recover_message(
+            encode_defunct(text=message),
+            signature=signature,
+        )
+    except Exception as exc:
+        return Response(
+            content=json.dumps({"error": f"Invalid signature: {exc}"}),
+            status_code=400,
+            media_type="application/json",
+        )
+
+    if not _same_address(recovered, creator):
+        return Response(
+            content=json.dumps({"error": "Signature does not match creator"}),
+            status_code=401,
+            media_type="application/json",
+        )
+
+    try:
+        decimals, symbol = await _resolve_token_metadata(token)
+        product = _build_custom_product(
+            creator=creator,
+            token=token,
+            tier_id=tier_id,
+            decimals=decimals,
+            symbol=symbol,
+            now_ts=now_ts,
+        )
+    except ValueError as exc:
+        return Response(
+            content=json.dumps({"error": str(exc)}),
+            status_code=400,
+            media_type="application/json",
+        )
+    except RuntimeError as exc:
+        logger.exception("Token metadata RPC failure: %s", exc)
+        return Response(
+            content=json.dumps({"error": "Failed to validate token metadata via RPC"}),
+            status_code=502,
+            media_type="application/json",
+        )
+
+    CUSTOM_PRODUCTS_BY_ID[product["id"]] = product
+    CUSTOM_PRODUCTS_BY_CREATOR.setdefault(creator_key, set()).add(product["id"])
+    used_nonces[nonce] = expires_at
+
+    return {
+        "success": True,
+        "product": _catalog_product(request, product),
     }
 
 
@@ -634,6 +1163,25 @@ async def weather(request: Request):
 @app.get("/api/premium-content")
 async def premium_content(request: Request):
     return await _handle_paid_product(request, PRODUCTS["premium-content"])
+
+
+@app.get("/api/custom/{product_id}")
+async def custom_product(product_id: str, request: Request):
+    if not CUSTOM_PRODUCTS_ENABLED:
+        return Response(
+            content=json.dumps({"error": "Custom product not found"}),
+            status_code=404,
+            media_type="application/json",
+        )
+    _cleanup_custom_state()
+    product = CUSTOM_PRODUCTS_BY_ID.get(product_id)
+    if not product:
+        return Response(
+            content=json.dumps({"error": "Custom product not found"}),
+            status_code=404,
+            media_type="application/json",
+        )
+    return await _handle_paid_product(request, product)
 
 
 if __name__ == "__main__":

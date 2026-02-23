@@ -39,6 +39,17 @@ No wallet connected:
 
 - approve button is shown, but wallet actions still require connection when clicked.
 
+## Custom token product flow (browser demo)
+
+1. Connect wallet, choose token + tier, and call `POST /api/catalog/custom-token`.
+2. Creation request is wallet-signed and includes: `creator`, `token`, `tierId`, `nonce`, `issuedAt`, `expiresAt`, `chainId`, `signature`.
+3. Refresh catalog with `GET /api/catalog?creator=<wallet>`.
+4. Built-in products remain visible to everyone; custom products are visible only to the matching creator.
+5. Select the custom product URL, then run `GET PAYMENT`, `APPROVE PERMIT2`, and `SIGN & PAY`.
+6. Right before payment submission, the UI shows a blocking confirmation: `This payment is irreversible. You will not get these tokens back.`
+
+`GET /config` exposes `features.customTokenProducts` and `customProduct` tier/TTL metadata used by the demo controls.
+
 ## Facilitator routing behavior
 
 - Demo UI sends `X-Facilitator-Url` header.

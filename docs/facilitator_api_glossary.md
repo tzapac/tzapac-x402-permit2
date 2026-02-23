@@ -2,6 +2,16 @@
 
 This glossary documents the x402 fields and endpoints your facilitator integration expects.
 
+## Custom token product note
+
+Custom token products are a store API extension. Facilitator API surface is unchanged:
+
+- no new facilitator endpoints
+- no new facilitator headers
+- same `POST /settle` and `POST /verify` payload shapes
+
+Only the store-provided requirement values (for example `asset`, `amount`, and `resource.url`) vary per product.
+
 ## HTTP endpoints
 
 - `GET /health`: liveness check.

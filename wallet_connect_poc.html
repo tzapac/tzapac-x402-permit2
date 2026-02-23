@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/wallet_connect_poc.css?v=20260214-ia1">
+    <link rel="stylesheet" href="/wallet_connect_poc.css?v=20260223-step3">
 </head>
 <body>
 
@@ -197,6 +197,29 @@ Store API
                         <span class="data-label">Store API URL</span>
                         <span class="data-value address"><input id="store-input" class="text-input" type="text" value="" /></span>
                     </div>
+                    <div class="custom-product-panel">
+                        <div class="custom-product-title">Custom Token Product Demo</div>
+                        <div class="custom-product-grid">
+                            <div class="data-row">
+                                <span class="data-label">Token Address</span>
+                                <span class="data-value address"><input id="custom-token-input" class="text-input" type="text" placeholder="0x... ERC-20 token" /></span>
+                            </div>
+                            <div class="data-row">
+                                <span class="data-label">Tier</span>
+                                <span class="data-value address">
+                                    <select id="custom-tier-select" class="text-input">
+                                        <option value="tier_0_01">0.01</option>
+                                        <option value="tier_0_1">0.1</option>
+                                        <option value="tier_1_0">1.0</option>
+                                    </select>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="actions compact-actions">
+                            <button id="custom-create-btn" type="button">CREATE PRODUCT</button>
+                        </div>
+                        <div id="custom-create-status" class="custom-create-status">No custom product created in this session.</div>
+                    </div>
                     <div id="catalog-row" class="data-row hidden">
                         <span class="data-label">Catalog Item</span>
                         <span class="data-value address"><select id="catalog-select" class="text-input"></select></span>
@@ -232,7 +255,9 @@ Store API
                     <button id="token-toggle-btn">SHOW TOKEN DETAILS</button>
                 </div>
                 <div id="token-section" class="hidden">
-                    <div class="data-row"><span class="data-label">Asset</span><span class="data-value">BBT (BubbleTez)</span></div>
+                    <div class="data-row"><span class="data-label">Asset</span><span id="token-symbol-display" class="data-value">BBT</span></div>
+                    <div class="data-row"><span class="data-label">Token Address</span><span id="token-address-display" class="data-value address">0x7EfE4bdd11237610bcFca478937658bE39F8dfd6</span></div>
+                    <div class="data-row"><span class="data-label">Decimals</span><span id="token-decimals-display" class="data-value">18</span></div>
                     <div class="data-row"><span class="data-label">Balance</span><span id="balance-display" class="data-value">0.00</span></div>
                     <div class="data-row"><span class="data-label">ERC20 Allowance -&gt; Permit2</span><span id="allowance-display" class="data-value">0.00</span></div>
                     <div id="permit2-allowance-row" class="data-row hidden"><span class="data-label">Permit2 Allowance</span><span id="permit2-allowance-display" class="data-value">--</span></div>
@@ -480,6 +505,6 @@ docker build -t bbt-x402-facilitator:local -f bbt-x402-facilitator/Dockerfile.bb
     </footer>
 </div>
 
-<script src="/wallet_connect_poc.js?v=20260214-ia1"></script>
+<script src="/wallet_connect_poc.js?v=20260223-step3"></script>
 </body>
 </html>

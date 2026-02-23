@@ -435,6 +435,54 @@ select.text-input {
     font-size: 0.78rem;
 }
 
+.custom-product-panel {
+    border: 1px solid var(--border-color);
+    background: #040404;
+    padding: 10px;
+    margin-top: 10px;
+}
+
+.custom-product-title {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    color: var(--warn-color);
+    letter-spacing: 0.8px;
+    margin-bottom: 8px;
+}
+
+.custom-product-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.custom-product-grid .data-row {
+    margin: 0;
+    padding: 8px 0;
+}
+
+.custom-create-status {
+    margin-top: 8px;
+    border: 1px solid var(--border-color);
+    background: #020202;
+    padding: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    line-height: 1.4;
+}
+
+.custom-create-status.success {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+.custom-create-status.error {
+    border-color: var(--error-color);
+    color: var(--error-color);
+}
+
 .toggle-group {
     display: flex;
     gap: 8px;
@@ -615,6 +663,10 @@ footer {
 
     .actions {
         flex-direction: column;
+    }
+
+    .custom-product-grid {
+        grid-template-columns: 1fr;
     }
 }
 

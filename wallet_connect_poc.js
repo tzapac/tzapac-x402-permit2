@@ -11,6 +11,12 @@ const ROLE_STORAGE_KEY = "tzapac_x402_role";
 const IS_LOCAL_PAGE = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
 const DEFAULT_FACILITATOR_URL = IS_LOCAL_PAGE ? "http://localhost:9090" : "https://exp-faci.bubbletez.com";
 const DEFAULT_STORE_URL = IS_LOCAL_PAGE ? "http://localhost:9091/api/weather" : "https://exp-store.bubbletez.com/api/weather";
+const CUSTOM_TIERS = {
+    tier_0_01: "0.01",
+    tier_0_1: "0.1",
+    tier_1_0: "1.0"
+};
+const CUSTOM_SIGNATURE_WINDOW_SECONDS = 5 * 60;
 const ETHERS_CDN_URLS = [
     "https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js",
     "https://unpkg.com/ethers@6.13.4/dist/ethers.umd.min.js"
@@ -25,7 +31,7 @@ const ROLE_DESCRIPTIONS = {
 // --- STATE ---
 let provider;
 let signer;
-let bbtContract;
+let activeTokenContract;
 let userAddress;
 let gasPayerMode = "facilitator";
 let tokenDetailsOpen = false;
@@ -35,6 +41,9 @@ let catalogItems = [];
 let appInitialized = false;
 let currentRole = "client";
 let cachedRequirements = null;
+let activeTokenAddress = BBT_ADDRESS;
+let activeTokenSymbol = "BBT";
+let activeTokenDecimals = 18;
 
 // --- ABI ---
 const ERC20_ABI = [
@@ -60,6 +69,10 @@ const ui = {
     storeInput: document.getElementById("store-input"),
     catalogRow: document.getElementById("catalog-row"),
     catalogSelect: document.getElementById("catalog-select"),
+    customTokenInput: document.getElementById("custom-token-input"),
+    customTierSelect: document.getElementById("custom-tier-select"),
+    customCreateBtn: document.getElementById("custom-create-btn"),
+    customCreateStatus: document.getElementById("custom-create-status"),
 
     network: document.getElementById("network-display"),
     account: document.getElementById("account-display"),
@@ -71,6 +84,9 @@ const ui = {
     permit2Nonce: document.getElementById("permit2-nonce-display"),
     amount: document.getElementById("amount-display"),
     payTo: document.getElementById("payto-display"),
+    tokenSymbol: document.getElementById("token-symbol-display"),
+    tokenAddress: document.getElementById("token-address-display"),
+    tokenDecimals: document.getElementById("token-decimals-display"),
 
     tokenSection: document.getElementById("token-section"),
     tokenToggleBtn: document.getElementById("token-toggle-btn"),
@@ -133,6 +149,45 @@ function setResponsePreview(element, data) {
     } catch (err) {
         element.textContent = String(data);
     }
+}
+
+function setCustomCreateStatus(message, type = "info") {
+    if (!ui.customCreateStatus) {
+        return;
+    }
+    ui.customCreateStatus.classList.remove("success", "error");
+    if (type === "success" || type === "error") {
+        ui.customCreateStatus.classList.add(type);
+    }
+    ui.customCreateStatus.textContent = message;
+}
+
+function normalizeAddress(value) {
+    try {
+        return ethers.getAddress((value || "").trim());
+    } catch (err) {
+        return null;
+    }
+}
+
+function getCreateNonce() {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+        return window.crypto.randomUUID();
+    }
+    return ethers.hexlify(ethers.randomBytes(16));
+}
+
+function getCanonicalCreateMessage(data) {
+    return [
+        "TZ APAC x402 Custom Product Creation",
+        `chainId:${data.chainId}`,
+        `creator:${data.creator}`,
+        `token:${data.token}`,
+        `tierId:${data.tierId}`,
+        `nonce:${data.nonce}`,
+        `issuedAt:${data.issuedAt}`,
+        `expiresAt:${data.expiresAt}`
+    ].join("\n");
 }
 
 function setStepStatus(step, state, label) {
@@ -324,6 +379,7 @@ async function init() {
     if (ui.healthBtn) ui.healthBtn.addEventListener("click", checkFacilitatorHealth);
     if (ui.requirementsBtn) ui.requirementsBtn.addEventListener("click", fetchPaymentRequirements);
     if (ui.payBtn) ui.payBtn.addEventListener("click", signAndPay);
+    if (ui.customCreateBtn) ui.customCreateBtn.addEventListener("click", createCustomTokenProduct);
     if (ui.tokenToggleBtn) ui.tokenToggleBtn.addEventListener("click", toggleTokenDetails);
     if (ui.gasFacilitatorBtn) ui.gasFacilitatorBtn.addEventListener("click", () => setGasPayerMode("facilitator"));
     if (ui.catalogSelect) ui.catalogSelect.addEventListener("change", onCatalogSelectionChanged);
@@ -397,6 +453,8 @@ async function init() {
     setRole(initialRoleFromContext());
     setGasPayerMode("facilitator");
     updateTokenToggle();
+    updateTokenDetailsDisplay();
+    setCustomCreateStatus("No custom product created in this session.");
     await refreshCatalog();
 
     startFacilitatorPolling();
@@ -516,6 +574,7 @@ async function connectWallet() {
 
         await reportWalletConnection();
         await checkNetwork();
+        await refreshCatalog();
         setStepStatus(1, "success", "Complete");
     } catch (err) {
         setStepStatus(1, "error", "Error");
@@ -594,7 +653,7 @@ async function toggleTokenDetails() {
             updateTokenToggle();
             return;
         }
-        if (!bbtContract) {
+        if (!activeTokenContract) {
             await loadTokenData();
         }
         if (ui.tokenSection) {
@@ -678,16 +737,71 @@ async function switchNetwork() {
 }
 
 // --- TOKEN DATA ---
+function getActivePaymentAccept() {
+    return cachedRequirements && cachedRequirements.accepts ? cachedRequirements.accepts[0] : null;
+}
+
+function getActiveTokenSymbolFromAccept(accept) {
+    if (accept && accept.extra && accept.extra.name) {
+        return String(accept.extra.name);
+    }
+    if (getPermit2Token().toLowerCase() === BBT_ADDRESS.toLowerCase()) {
+        return "BBT";
+    }
+    return "TOKEN";
+}
+
+function getActiveTokenDecimalsFromAccept(accept) {
+    const decimalsRaw = accept && accept.extra
+        ? (accept.extra.decimals ?? accept.extra.assetDecimals ?? accept.extra.tokenDecimals)
+        : null;
+    const decimals = Number(decimalsRaw);
+    if (!Number.isFinite(decimals) || decimals < 0 || decimals > 255) {
+        return 18;
+    }
+    return decimals;
+}
+
+function updateTokenDetailsDisplay() {
+    if (ui.tokenSymbol) {
+        ui.tokenSymbol.innerText = activeTokenSymbol || "TOKEN";
+    }
+    if (ui.tokenAddress) {
+        ui.tokenAddress.innerText = activeTokenAddress || BBT_ADDRESS;
+    }
+    if (ui.tokenDecimals) {
+        ui.tokenDecimals.innerText = String(activeTokenDecimals);
+    }
+}
+
 async function loadTokenData() {
     try {
         if (!signer || !userAddress) {
             return;
         }
-        bbtContract = new ethers.Contract(BBT_ADDRESS, ERC20_ABI, signer);
+        const tokenAddress = getPermit2Token();
+        const accept = getActivePaymentAccept();
 
-        const decimals = await bbtContract.decimals();
-        const balance = await bbtContract.balanceOf(userAddress);
-        const erc20Allowance = await bbtContract.allowance(userAddress, PERMIT2_ADDRESS);
+        if (!activeTokenContract || activeTokenAddress.toLowerCase() !== tokenAddress.toLowerCase()) {
+            activeTokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
+        }
+        activeTokenAddress = tokenAddress;
+        activeTokenSymbol = getActiveTokenSymbolFromAccept(accept);
+
+        let decimals = getActiveTokenDecimalsFromAccept(accept);
+        try {
+            decimals = Number(await activeTokenContract.decimals());
+        } catch (decimalsErr) {
+            // Keep fallback from Payment-Required metadata.
+        }
+        if (!Number.isFinite(decimals) || decimals < 0 || decimals > 255) {
+            decimals = 18;
+        }
+        activeTokenDecimals = decimals;
+        updateTokenDetailsDisplay();
+
+        const balance = await activeTokenContract.balanceOf(userAddress);
+        const erc20Allowance = await activeTokenContract.allowance(userAddress, PERMIT2_ADDRESS);
 
         if (ui.balance) ui.balance.innerText = ethers.formatUnits(balance, decimals);
         if (ui.allowance) ui.allowance.innerText = ethers.formatUnits(erc20Allowance, decimals);
@@ -698,7 +812,6 @@ async function loadTokenData() {
                 "function allowance(address owner,address token,address spender) view returns (uint160 amount,uint48 expiration,uint48 nonce)"
             ];
             const permit2 = new ethers.Contract(PERMIT2_ADDRESS, permit2Abi, provider);
-            const tokenAddress = getPermit2Token();
             const allowanceData = await permit2.allowance(userAddress, tokenAddress, spender);
             const permit2Amount = allowanceData[0];
             const permit2Expiration = allowanceData[1];
@@ -733,7 +846,7 @@ async function loadTokenData() {
             setStepStatus(4, "success", "Ready/Complete");
         }
 
-        log("TOKEN DATA LOADED", "success");
+        log(`TOKEN DATA LOADED (${activeTokenSymbol} ${activeTokenAddress})`, "success");
     } catch (err) {
         log(`FAILED TO LOAD TOKEN DATA: ${err.message}`, "error");
     }
@@ -743,10 +856,10 @@ async function loadTokenData() {
 async function approvePermit2() {
     const ready = await ensureWalletConnected();
     if (!ready) return;
-    if (!bbtContract) {
+    if (!activeTokenContract) {
         await loadTokenData();
     }
-    if (!bbtContract) return;
+    if (!activeTokenContract) return;
 
     try {
         setStepStatus(4, "active", "In progress");
@@ -767,7 +880,7 @@ async function approvePermit2() {
             return;
         }
 
-        const tx = await bbtContract.approve(PERMIT2_ADDRESS, requiredAmount);
+        const tx = await activeTokenContract.approve(PERMIT2_ADDRESS, requiredAmount);
         log(`TX SENT: ${tx.hash}`, "info");
         if (ui.approveBtn) {
             ui.approveBtn.innerText = "PENDING...";
@@ -869,10 +982,127 @@ async function checkFacilitatorHealth() {
     }
 }
 
+async function createCustomTokenProduct() {
+    const walletReady = await ensureWalletConnected();
+    if (!walletReady) {
+        setCustomCreateStatus("Connect wallet before creating a custom product.", "error");
+        return;
+    }
+
+    const baseUrl = getStoreBaseUrl();
+    if (!baseUrl) {
+        setCustomCreateStatus("Valid Store API URL required before creating product.", "error");
+        log("CUSTOM CREATE FAILED: INVALID STORE URL", "error");
+        return;
+    }
+
+    const tokenAddress = normalizeAddress(ui.customTokenInput?.value || "");
+    if (!tokenAddress) {
+        setCustomCreateStatus("Enter a valid ERC-20 token address.", "error");
+        log("CUSTOM CREATE FAILED: INVALID TOKEN ADDRESS", "error");
+        return;
+    }
+
+    const tierId = (ui.customTierSelect?.value || "").trim();
+    if (!CUSTOM_TIERS[tierId]) {
+        setCustomCreateStatus("Choose a valid tier before creating product.", "error");
+        log("CUSTOM CREATE FAILED: INVALID TIER", "error");
+        return;
+    }
+
+    const creator = normalizeAddress(userAddress);
+    if (!creator) {
+        setCustomCreateStatus("Wallet address unavailable. Reconnect wallet and retry.", "error");
+        return;
+    }
+
+    try {
+        if (ui.customCreateBtn) {
+            ui.customCreateBtn.disabled = true;
+            ui.customCreateBtn.textContent = "CREATING...";
+        }
+        setCustomCreateStatus("Signing creation message...", "info");
+        log(`SIGNING CUSTOM PRODUCT MESSAGE (${tierId})`, "info");
+
+        const now = Math.floor(Date.now() / 1000);
+        const payload = {
+            creator,
+            token: tokenAddress,
+            tierId,
+            nonce: getCreateNonce(),
+            issuedAt: now,
+            expiresAt: now + CUSTOM_SIGNATURE_WINDOW_SECONDS,
+            chainId: ETHERLINK_CHAIN_ID
+        };
+        const canonicalMessage = getCanonicalCreateMessage(payload);
+        const signature = await signer.signMessage(canonicalMessage);
+
+        const createBody = { ...payload, signature };
+        const createUrl = `${baseUrl}/api/catalog/custom-token`;
+        setCustomCreateStatus("Submitting create request...", "info");
+        log(`POST ${createUrl}`, "info");
+
+        const resp = await fetch(createUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(createBody)
+        });
+
+        const contentType = resp.headers.get("content-type") || "";
+        const responseBody = contentType.includes("application/json") ? await resp.json() : await resp.text();
+        if (!resp.ok) {
+            const message = typeof responseBody === "string"
+                ? responseBody
+                : (responseBody.error || responseBody.message || JSON.stringify(responseBody));
+            setCustomCreateStatus(`Create failed (${resp.status}): ${message}`, "error");
+            log(`CUSTOM CREATE FAILED (${resp.status})`, "error");
+            return;
+        }
+
+        const product = responseBody && responseBody.product ? responseBody.product : null;
+        const createdUrl = product ? normalizeCatalogItemUrl(baseUrl, product) : null;
+        clearPaymentState();
+        await refreshCatalog(createdUrl || undefined);
+
+        if (createdUrl && ui.storeInput) {
+            ui.storeInput.value = createdUrl;
+        }
+
+        const symbol = product && product.payment && product.payment.extra
+            ? (product.payment.extra.name || "TOKEN")
+            : "TOKEN";
+        setCustomCreateStatus(
+            `Created ${product?.id || "product"} (${CUSTOM_TIERS[tierId]} ${symbol}). Payment cache cleared. Click 3. GET PAYMENT.`,
+            "success"
+        );
+        log(`CUSTOM PRODUCT CREATED: ${product?.id || "unknown-id"}`, "success");
+    } catch (err) {
+        setCustomCreateStatus(`Create failed: ${err.message}`, "error");
+        log(`CUSTOM CREATE ERROR: ${err.message}`, "error");
+    } finally {
+        if (ui.customCreateBtn) {
+            ui.customCreateBtn.disabled = false;
+            ui.customCreateBtn.textContent = "CREATE PRODUCT";
+        }
+    }
+}
+
 function clearPaymentState() {
     cachedRequirements = null;
+    activeTokenContract = null;
+    activeTokenAddress = BBT_ADDRESS;
+    activeTokenSymbol = "BBT";
+    activeTokenDecimals = 18;
     if (ui.amount) ui.amount.innerText = "--";
     if (ui.payTo) ui.payTo.innerText = "--";
+    if (ui.balance) ui.balance.innerText = "--";
+    if (ui.allowance) ui.allowance.innerText = "--";
+    if (ui.permit2Allowance) ui.permit2Allowance.innerText = "--";
+    if (ui.permit2Expiration) ui.permit2Expiration.innerText = "--";
+    if (ui.permit2Nonce) ui.permit2Nonce.innerText = "--";
+    if (ui.permit2AllowanceRow) ui.permit2AllowanceRow.classList.add("hidden");
     if (ui.payBtn) {
         ui.payBtn.disabled = true;
         ui.payBtn.innerText = "5. SIGN & PAY";
@@ -882,6 +1112,7 @@ function clearPaymentState() {
     setStepStatus(5, "pending", "Not started");
     setResponsePreview(ui.requirementsResponse, "Awaiting response...");
     setResponsePreview(ui.settleResponse, "Awaiting response...");
+    updateTokenDetailsDisplay();
 }
 
 function getStoreBaseUrl() {
@@ -927,7 +1158,11 @@ function normalizeCatalogItemUrl(baseUrl, item) {
     return normalizeEndpointUrl(`${baseUrl}${normalizedPath}`, "");
 }
 
-function renderCatalog(items, currentStoreUrl) {
+function getCatalogCreatorAddress() {
+    return userAddress ? normalizeAddress(userAddress) : null;
+}
+
+function renderCatalog(items, currentStoreUrl, preferredSelectionUrl = "") {
     catalogItems = Array.isArray(items) ? items : [];
     if (!ui.catalogSelect || !ui.catalogRow) {
         return;
@@ -945,6 +1180,7 @@ function renderCatalog(items, currentStoreUrl) {
     ui.catalogSelect.appendChild(placeholder);
 
     let selectedValue = "";
+    const preferred = (preferredSelectionUrl || "").toLowerCase();
     const current = (currentStoreUrl || "").toLowerCase();
 
     catalogItems.forEach((item) => {
@@ -955,7 +1191,10 @@ function renderCatalog(items, currentStoreUrl) {
         const name = item.name || item.description || item.path || item.url;
         option.innerText = `${id}: ${name} (${amount})`;
         ui.catalogSelect.appendChild(option);
-        if (item.url && item.url.toLowerCase() === current) {
+        if (preferred && item.url && item.url.toLowerCase() === preferred) {
+            selectedValue = item.url;
+        }
+        if (!selectedValue && item.url && item.url.toLowerCase() === current) {
             selectedValue = item.url;
         }
     });
@@ -975,7 +1214,7 @@ function renderCatalog(items, currentStoreUrl) {
     ui.catalogRow.classList.remove("hidden");
 }
 
-async function refreshCatalog() {
+async function refreshCatalog(preferredSelectionUrl = "") {
     const baseUrl = getStoreBaseUrl();
     if (!baseUrl) {
         if (ui.catalogRow) ui.catalogRow.classList.add("hidden");
@@ -983,7 +1222,12 @@ async function refreshCatalog() {
         return;
     }
 
-    const catalogUrl = `${baseUrl}/api/catalog`;
+    const catalogUrlObject = new URL(`${baseUrl}/api/catalog`);
+    const creatorAddress = getCatalogCreatorAddress();
+    if (creatorAddress) {
+        catalogUrlObject.searchParams.set("creator", creatorAddress);
+    }
+    const catalogUrl = catalogUrlObject.toString();
     try {
         const resp = await fetch(catalogUrl, { cache: "no-store" });
         if (!resp.ok) {
@@ -1018,7 +1262,7 @@ async function refreshCatalog() {
             return;
         }
 
-        renderCatalog(normalizedItems, getStoreUrl());
+        renderCatalog(normalizedItems, getStoreUrl(), preferredSelectionUrl);
         log(`CATALOG LOADED (${normalizedItems.length} ITEM${normalizedItems.length > 1 ? "S" : ""})`, "success");
     } catch (err) {
         if (ui.catalogRow) ui.catalogRow.classList.add("hidden");
@@ -1069,11 +1313,10 @@ function formatExpiry(seconds) {
 }
 
 function getPermit2Token() {
-    if (cachedRequirements && cachedRequirements.accepts && cachedRequirements.accepts[0]) {
-        const asset = cachedRequirements.accepts[0].asset || "";
-        if (asset && asset.startsWith("0x") && asset.length === 42) {
-            return asset;
-        }
+    const accept = getActivePaymentAccept();
+    const asset = normalizeAddress(accept && accept.asset ? accept.asset : "");
+    if (asset) {
+        return asset;
     }
     return BBT_ADDRESS;
 }
@@ -1113,7 +1356,7 @@ function trimFormattedAmount(value) {
 
 function getPaymentDisplay(accept) {
     const raw = accept && (accept.amount || accept.maxAmountRequired);
-    const symbol = (accept && accept.extra && accept.extra.name) || "TOKEN";
+    const symbol = (accept && accept.extra && accept.extra.name) || activeTokenSymbol || "TOKEN";
     if (!raw) {
         return { amountText: "--", symbolText: symbol, buttonText: "5. SIGN & PAY" };
     }
@@ -1210,6 +1453,10 @@ async function fetchPaymentRequirements() {
         }
 
         const payTo = accept.payTo;
+        activeTokenAddress = getPermit2Token();
+        activeTokenSymbol = getActiveTokenSymbolFromAccept(accept);
+        activeTokenDecimals = getActiveTokenDecimalsFromAccept(accept);
+        updateTokenDetailsDisplay();
         const display = getPaymentDisplay(accept);
 
         if (ui.amount) ui.amount.innerText = display.amountText;
@@ -1245,16 +1492,13 @@ async function signAndPay() {
         return;
     }
 
-    if (!bbtContract) {
-        await loadTokenData();
-    }
-    if (!bbtContract) {
-        log("TOKEN CONTRACT NOT READY", "error");
-        setStepStatus(5, "error", "Token unavailable");
+    const accept = getActivePaymentAccept();
+    if (!accept) {
+        log("NO ACCEPTED PAYMENT OPTION FOUND", "error");
+        setStepStatus(5, "error", "No payment option");
         return;
     }
 
-    const accept = cachedRequirements.accepts[0];
     const assetTransferMethod = accept.extra && accept.extra.assetTransferMethod;
     if (assetTransferMethod && assetTransferMethod !== "permit2") {
         log(`UNSUPPORTED assetTransferMethod: ${assetTransferMethod} (expected permit2)`, "error");
@@ -1262,10 +1506,42 @@ async function signAndPay() {
         return;
     }
 
-    const tokenAddress = accept.asset;
-    const payTo = accept.payTo;
+    const tokenAddress = normalizeAddress(accept.asset || "");
+    if (!tokenAddress) {
+        log("INVALID TOKEN ADDRESS IN PAYMENT REQUIREMENT", "error");
+        setStepStatus(5, "error", "Invalid token");
+        return;
+    }
+    const payTo = normalizeAddress(accept.payTo || "");
+    if (!payTo) {
+        log("INVALID PAYTO ADDRESS IN PAYMENT REQUIREMENT", "error");
+        setStepStatus(5, "error", "Invalid payTo");
+        return;
+    }
     const amountRaw = accept.amount || accept.maxAmountRequired;
-    const amount = BigInt(amountRaw);
+    let amount;
+    try {
+        amount = BigInt(amountRaw);
+    } catch (err) {
+        log("INVALID AMOUNT IN PAYMENT REQUIREMENT", "error");
+        setStepStatus(5, "error", "Invalid amount");
+        return;
+    }
+    if (amount <= 0n) {
+        log("PAYMENT AMOUNT MUST BE GREATER THAN ZERO", "error");
+        setStepStatus(5, "error", "Invalid amount");
+        return;
+    }
+
+    if (!activeTokenContract || activeTokenAddress.toLowerCase() !== tokenAddress.toLowerCase()) {
+        await loadTokenData();
+    }
+    if (!activeTokenContract) {
+        log("TOKEN CONTRACT NOT READY", "error");
+        setStepStatus(5, "error", "Token unavailable");
+        return;
+    }
+
     const acceptedRequirement = JSON.parse(JSON.stringify(accept));
 
     const spender = getSpenderForPermit2();
@@ -1277,8 +1553,8 @@ async function signAndPay() {
 
     try {
         setStepStatus(5, "active", "In progress");
-        const decimals = await bbtContract.decimals();
-        const erc20Allowance = await bbtContract.allowance(userAddress, PERMIT2_ADDRESS);
+        const decimals = Number.isFinite(activeTokenDecimals) ? activeTokenDecimals : 18;
+        const erc20Allowance = await activeTokenContract.allowance(userAddress, PERMIT2_ADDRESS);
         if (erc20Allowance < amount) {
             log("ALLOWANCE TOO LOW. APPROVE PERMIT2 FIRST.", "error");
             setStepStatus(5, "error", "Approve required");
@@ -1338,6 +1614,21 @@ async function signAndPay() {
                 extra: "0x"
             }
         };
+
+        const paymentDisplay = getPaymentDisplay(accept);
+        const irreversibleWarning = [
+            "This payment is irreversible. You will not get these tokens back.",
+            `Amount: ${paymentDisplay.amountText} ${paymentDisplay.symbolText}`,
+            `Token: ${tokenAddress}`,
+            `Pay To: ${payTo}`,
+            "Press OK to continue to final signature."
+        ].join("\n");
+        const confirmed = window.confirm(irreversibleWarning);
+        if (!confirmed) {
+            setStepStatus(5, "pending", "Cancelled");
+            log("SIGN/PAY CANCELLED AT IRREVERSIBLE WARNING", "info");
+            return;
+        }
 
         log("SIGNING PERMIT2 (WITNESS)...", "info");
         const signature = await signer.signTypedData(domain, types, value);

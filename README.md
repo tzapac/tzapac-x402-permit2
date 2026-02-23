@@ -13,6 +13,35 @@ This repository is a practical demo of pay-per-request APIs over x402 for Etherl
 
 The protected resource is a sample weather endpoint, and payment is denominated in BBT (`0x7EfE4bdd11237610bcFca478937658bE39F8dfd6`).
 
+## Custom Token Product Demo
+
+The demo UI also supports creator-scoped custom products backed by any ERC-20 token on Etherlink.
+
+Flow summary:
+1. In the Demo tab, enter a token address and tier (`0.01`, `0.1`, `1.0`) and create a product.
+2. The UI signs a wallet-bound creation message and calls `POST /api/catalog/custom-token`.
+3. The UI refreshes `GET /api/catalog?creator=<wallet>`.
+4. Built-in products are always returned; custom products are returned only for the matching creator wallet.
+5. `GET PAYMENT`, `APPROVE PERMIT2`, and `SIGN & PAY` use the selected product token and amount.
+6. Before final submit, the UI shows: `This payment is irreversible. You will not get these tokens back.`
+
+Custom-product endpoints:
+- `POST /api/catalog/custom-token`: create creator-scoped custom paid product.
+- `GET /api/catalog` with optional `creator=0x...`: include creator-matching active custom products.
+- `GET /api/custom/{product_id}`: paid custom endpoint using the same x402 Permit2 settlement flow.
+- `GET /config`: includes `features.customTokenProducts` and `customProduct` metadata (`ttlSeconds`, tiers) for UI behavior.
+
+Custom-product env defaults:
+- `CUSTOM_PRODUCTS_ENABLED=true`
+- `CUSTOM_PRODUCT_TTL_SECONDS=86400`
+- `CUSTOM_PRODUCT_MAX_PER_CREATOR=5`
+- `CUSTOM_PRODUCT_MAX_GLOBAL=500`
+- `CUSTOM_PRODUCT_CREATE_MAX_PER_IP_PER_HOUR=30`
+- `CUSTOM_PRODUCT_SIGNATURE_MAX_AGE_SECONDS=300`
+- `RPC_URL` is required when custom products are enabled (token metadata validation).
+
+Facilitator API is unchanged for this feature (`/settle` and `/verify` request/response shapes are the same).
+
 ## Quick Start
 
 Start here for the fastest setup path:
