@@ -16,7 +16,7 @@
     <div class="modal-card">
         <div class="modal-title">Usage Notice</div>
         <div class="modal-body">
-            While x402 is an open and neutral standard, this website is maintained by TZ APAC. By using this site, you agree to be bound by the Terms of Service and Privacy policy.
+            While x402 is an open and neutral standard, this website is maintained by TZ APAC. By using this site, you agree to be bound by the <a class="modal-link" href="https://tzapac.notion.site/BubbleTez-Terms-of-Service-310c42813a8a80c5bceccc9ac7760cb7?pvs=143" target="_blank" rel="noopener noreferrer">Terms of Service</a> and Privacy policy.
         </div>
         <div class="modal-actions">
             <button id="disclaimer-ok-btn" type="button">I UNDERSTAND</button>
@@ -52,6 +52,7 @@
         <button class="tab-button" data-tab="integration">Integration Guide</button>
         <button class="tab-button" data-tab="setup">Setup Instructions</button>
         <button class="tab-button" data-tab="docs">Docs</button>
+        <button class="tab-button" data-tab="tos">Terms of Service</button>
         <button class="tab-button" data-tab="terms">Terms &amp; Privacy</button>
     </div>
 
@@ -420,6 +421,19 @@ docker build -t bbt-x402-facilitator:local -f bbt-x402-facilitator/Dockerfile.bb
                     <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/coinbase_comparison.md" target="_blank" rel="noopener noreferrer">Coinbase Comparison</a></li>
                     <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/deployment_info.md" target="_blank" rel="noopener noreferrer">Deployment Info</a></li>
                 </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-panel hidden" data-panel="tos">
+        <div class="content">
+            <div class="guide-block">
+                <div class="guide-title">Terms of Service</div>
+                <div class="guide-text">Official Terms of Service are hosted here:</div>
+                <p><a class="guide-link" href="https://tzapac.notion.site/BubbleTez-Terms-of-Service-310c42813a8a80c5bceccc9ac7760cb7?pvs=143" target="_blank" rel="noopener noreferrer">BubbleTez Terms of Service (Notion)</a></p>
+                <div class="actions compact-actions">
+                    <button id="tos-back-btn">RETURN TO DEMO</button>
+                </div>
             </div>
         </div>
     </div>

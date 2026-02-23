@@ -79,6 +79,7 @@ const ui = {
     disclaimerOverlay: document.getElementById("disclaimer-overlay"),
     disclaimerOkBtn: document.getElementById("disclaimer-ok-btn"),
     termsBackBtn: document.getElementById("terms-back-btn"),
+    tosBackBtn: document.getElementById("tos-back-btn"),
 
     goDemoBtn: document.getElementById("go-demo-btn"),
     goIntegrationBtn: document.getElementById("go-integration-btn"),
@@ -387,6 +388,10 @@ async function init() {
     setActiveTab("overview");
     if (ui.termsBackBtn) {
         ui.termsBackBtn.addEventListener("click", () => setActiveTab("demo"));
+    }
+
+    if (ui.tosBackBtn) {
+        ui.tosBackBtn.addEventListener("click", () => setActiveTab("demo"));
     }
 
     setRole(initialRoleFromContext());

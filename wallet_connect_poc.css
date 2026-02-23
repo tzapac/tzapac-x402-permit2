@@ -167,7 +167,7 @@ h1 {
 
 .tab-bar {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 8px;
     padding: 12px 20px;
     border-bottom: 1px solid var(--border-color);
@@ -616,4 +616,13 @@ footer {
     .actions {
         flex-direction: column;
     }
+}
+
+.modal-link {
+    color: var(--accent-color);
+    text-decoration: underline;
+}
+
+.modal-link:hover {
+    opacity: 0.9;
 }
