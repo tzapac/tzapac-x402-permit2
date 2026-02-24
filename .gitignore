@@ -24,3 +24,5 @@ debug_middleware.py
 .venv/
 
 .codex/
+
+site_feedback/

@@ -150,6 +150,15 @@ h1 {
     border-bottom: 1px solid var(--border-color);
 }
 
+.mainnet-banner {
+    border-bottom: 1px solid var(--border-color);
+    padding: 10px 20px;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--warn-color);
+    background: rgba(241, 184, 75, 0.06);
+}
+
 .trust-item {
     border: 1px solid var(--border-color);
     background: #060606;
