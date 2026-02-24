@@ -56,9 +56,8 @@ Local Docker setup (from this repo, and current UI defaults):
 
 Optional hosted endpoints (if your deployment exposes them):
 - Facilitator (current): `https://exp-faci.bubbletez.com`
-- Store API endpoint (current): `https://exp-store.bubbletez.com/api/weather`
-- Planned placeholder: `https://tez402.bubbletez.com`
-- Planned store placeholder: `https://tez402.bubbletez.com/api/weather`
+- Store API endpoint (current): `https://tez402.bubbletez.com/api/weather`
+- Legacy store endpoint: `https://exp-store.bubbletez.com/api/weather`
 
 ## Project Structure
 
@@ -274,10 +273,9 @@ Log event shapes:
   "metadata": {
     "page": "wallet_connect_poc",
     "connectedAt": "2026-02-13T12:34:56.789Z",
-    "storeUrl": "https://exp-store.bubbletez.com/",
+    "storeUrl": "https://tez402.bubbletez.com/",
     "facilitatorUrl": "https://exp-faci.bubbletez.com",
-    "plannedStoreUrl": "https://tez402.bubbletez.com/",
-    "plannedFacilitatorUrl": "https://tez402.bubbletez.com",
+    "legacyStoreUrl": "https://exp-store.bubbletez.com/",
     "source": "wallet_connect_poc",
     "provider": "chainalysis"
   }

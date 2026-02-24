@@ -127,9 +127,8 @@ Store API
                 <div class="address-row"><span class="address-label">x402 Proxy</span><span id="address-x402-proxy" class="address-value">0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E</span><button class="mini-btn copy-btn" data-copy-target="address-x402-proxy">Copy</button></div>
                 <div class="address-row"><span class="address-label">BBT Token</span><span id="address-token" class="address-value">0x7EfE4bdd11237610bcFca478937658bE39F8dfd6</span><button class="mini-btn copy-btn" data-copy-target="address-token">Copy</button></div>
                 <div class="address-row"><span class="address-label">Public Facilitator (Current)</span><span id="address-facilitator" class="address-value">https://exp-faci.bubbletez.com</span><button class="mini-btn copy-btn" data-copy-target="address-facilitator">Copy</button></div>
-                <div class="address-row"><span class="address-label">Public Facilitator (Placeholder)</span><span id="address-facilitator-placeholder" class="address-value">https://tez402.bubbletez.com</span><button class="mini-btn copy-btn" data-copy-target="address-facilitator-placeholder">Copy</button></div>
-                <div class="address-row"><span class="address-label">Public Store (Current)</span><span id="address-store" class="address-value">https://exp-store.bubbletez.com/api/weather</span><button class="mini-btn copy-btn" data-copy-target="address-store">Copy</button></div>
-                <div class="address-row"><span class="address-label">Public Store (Placeholder)</span><span id="address-store-placeholder" class="address-value">https://tez402.bubbletez.com/api/weather</span><button class="mini-btn copy-btn" data-copy-target="address-store-placeholder">Copy</button></div>
+                <div class="address-row"><span class="address-label">Public Store (Current)</span><span id="address-store" class="address-value">https://tez402.bubbletez.com/api/weather</span><button class="mini-btn copy-btn" data-copy-target="address-store">Copy</button></div>
+                <div class="address-row"><span class="address-label">Public Store (Legacy)</span><span id="address-store-placeholder" class="address-value">https://exp-store.bubbletez.com/api/weather</span><button class="mini-btn copy-btn" data-copy-target="address-store-placeholder">Copy</button></div>
                 <p class="guide-text">Gas sponsored means the user signs authorization; the facilitator submits and pays network gas for settlement execution.</p>
             </div>
 
@@ -174,7 +173,7 @@ Store API
                 <div id="facilitator-section">
                     <div class="data-row">
                         <span class="data-label">Facilitator URL</span>
-                        <span class="data-value address"><input id="facilitator-input" class="text-input" type="text" value="" placeholder="Planned cutover: https://tez402.bubbletez.com" /></span>
+                        <span class="data-value address"><input id="facilitator-input" class="text-input" type="text" value="" placeholder="Current endpoint: https://exp-faci.bubbletez.com" /></span>
                     </div>
                     <div class="data-row">
                         <span class="data-label">Facilitator Spender</span>
@@ -197,7 +196,7 @@ Store API
                 <div id="store-section">
                     <div class="data-row">
                         <span class="data-label">Store API URL</span>
-                        <span class="data-value address"><input id="store-input" class="text-input" type="text" value="" placeholder="Planned cutover: https://tez402.bubbletez.com/api/weather" /></span>
+                        <span class="data-value address"><input id="store-input" class="text-input" type="text" value="" placeholder="Legacy endpoint: https://exp-store.bubbletez.com/api/weather" /></span>
                     </div>
                     <div class="custom-product-panel">
                         <div class="custom-product-title">Custom Token Product Demo</div>
@@ -392,10 +391,10 @@ PUBLIC_BASE_URL=</pre>
                     <pre>WALLET_ONE_PRIVATE_KEY=0x...
 WALLET_TWO_PRIVATE_KEY=0x...
 FACILITATOR_URL=https://exp-faci.bubbletez.com
-STORE_URL=https://exp-store.bubbletez.com/api/weather
-# Planned cutover placeholder
-# FACILITATOR_URL=https://tez402.bubbletez.com
-# STORE_URL=https://tez402.bubbletez.com/api/weather
+STORE_URL=https://tez402.bubbletez.com/api/weather
+# Legacy endpoint references
+# FACILITATOR_URL=https://exp-faci.bubbletez.com
+# STORE_URL=https://exp-store.bubbletez.com/api/weather
 CHAIN_ID=42793</pre>
                 </div>
             </details>

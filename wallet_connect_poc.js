@@ -10,9 +10,8 @@ const DISCLAIMER_ACK_TTL_MS = 24 * 60 * 60 * 1000;
 const ROLE_STORAGE_KEY = "tez402_role";
 const IS_LOCAL_PAGE = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
 const DEFAULT_FACILITATOR_URL = IS_LOCAL_PAGE ? "http://localhost:9090" : "https://exp-faci.bubbletez.com";
-const PLANNED_FACILITATOR_URL = "https://tez402.bubbletez.com";
-const DEFAULT_STORE_URL = IS_LOCAL_PAGE ? "http://localhost:9091/api/weather" : "https://exp-store.bubbletez.com/api/weather";
-const PLANNED_STORE_URL = "https://tez402.bubbletez.com/api/weather";
+const DEFAULT_STORE_URL = IS_LOCAL_PAGE ? "http://localhost:9091/api/weather" : "https://tez402.bubbletez.com/api/weather";
+const LEGACY_STORE_URL = "https://exp-store.bubbletez.com/api/weather";
 const CUSTOM_TIERS = {
     tier_0_01: "0.01",
     tier_0_1: "0.1",
@@ -370,13 +369,13 @@ async function init() {
         ui.facilitatorInput.value = DEFAULT_FACILITATOR_URL;
     }
     if (ui.facilitatorInput) {
-        ui.facilitatorInput.placeholder = `Planned cutover: ${PLANNED_FACILITATOR_URL}`;
+        ui.facilitatorInput.placeholder = `Current endpoint: ${DEFAULT_FACILITATOR_URL}`;
     }
     if (ui.storeInput && !ui.storeInput.value) {
         ui.storeInput.value = DEFAULT_STORE_URL;
     }
     if (ui.storeInput) {
-        ui.storeInput.placeholder = `Planned cutover: ${PLANNED_STORE_URL}`;
+        ui.storeInput.placeholder = `Legacy endpoint: ${LEGACY_STORE_URL}`;
     }
     if (ui.spenderInput && !ui.spenderInput.value) {
         ui.spenderInput.value = DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS;
