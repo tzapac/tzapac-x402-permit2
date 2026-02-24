@@ -18,6 +18,18 @@ const CUSTOM_TIERS = {
     tier_1_0: "1.0"
 };
 const CUSTOM_SIGNATURE_WINDOW_SECONDS = 5 * 60;
+const GA_MEASUREMENT_ID = "G-S1FE79SC2W";
+
+function initAnalytics() {
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function gtag() {
+        window.dataLayer.push(arguments);
+    };
+    window.gtag("js", new Date());
+    window.gtag("config", GA_MEASUREMENT_ID);
+}
+
+initAnalytics();
 const ETHERS_CDN_URLS = [
     "https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js",
     "https://unpkg.com/ethers@6.13.4/dist/ethers.umd.min.js"
