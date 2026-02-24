@@ -73,7 +73,7 @@ const ETHERS_CDN_URLS = [
 const ROLE_DESCRIPTIONS = {
     client: "You are viewing client-first guidance. Start with Demo, then implement 402 parsing and Payment-Signature retry.",
     store: "You are viewing store-first guidance. Focus on 402 requirement generation and facilitator settlement gating.",
-    facilitator: "You are viewing facilitator-first guidance. Focus on hosted settlement reliability, allowlist policy, and signer operations."
+    facilitator: "You are viewing facilitator-first guidance. Focus on settlement operations, allowlist policy, and signer controls."
 };
 
 // --- STATE ---
@@ -144,7 +144,6 @@ const ui = {
 
     disclaimerOverlay: document.getElementById("disclaimer-overlay"),
     disclaimerOkBtn: document.getElementById("disclaimer-ok-btn"),
-    legalBackBtn: document.getElementById("legal-back-btn"),
 
     goDemoBtn: document.getElementById("go-demo-btn"),
     resetDemoBtn: document.getElementById("reset-demo-btn"),
@@ -634,9 +633,6 @@ async function init() {
         }
     });
 
-    if (ui.legalBackBtn) {
-        ui.legalBackBtn.addEventListener("click", () => setActiveTab("demo"));
-    }
 
     setRole(initialRoleFromContext());
     setGasPayerMode("facilitator");

@@ -60,7 +60,7 @@
         <button class="tab-button" data-tab="integration">Integration Guide</button>
         <button class="tab-button" data-tab="setup">Setup Instructions</button>
         <button class="tab-button" data-tab="docs">Docs</button>
-        <button class="tab-button" data-tab="legal">Legal / Terms</button>
+        <button class="tab-button" data-tab="legal">FAQ / Legal</button>
     </div>
 
     <div class="tab-panel" data-panel="overview">
@@ -480,6 +480,14 @@ docker build -t bbt-x402-facilitator:local -f bbt-x402-facilitator/Dockerfile.bb
                 <div class="guide-text">Effective date: February 13, 2026</div>
                 <p class="guide-text">Official legal terms are hosted here: <a class="guide-link" href="https://tzapac.notion.site/BubbleTez-Terms-of-Service-310c42813a8a80c5bceccc9ac7760cb7?pvs=143" target="_blank" rel="noopener noreferrer">BubbleTez Terms of Service</a>.</p>
 
+<div class="guide-title">FAQ</div>
+                <ul class="guide-list">
+                    <li><strong>Who pays gas?</strong> The facilitator pays gas for settlement transactions.</li>
+                    <li><strong>Are addresses screened?</strong> Yes, facilitator verify/settle checks enforce compliance screening before settlement.</li>
+                    <li><strong>Do we log compliance events?</strong> Yes, this stack writes compliance audit JSONL entries for verify/settle and wallet-connect events.</li>
+                    <li><strong>Can users reverse payment?</strong> No. Signed payments are treated as final and irreversible.</li>
+                </ul>
+
                 <div class="guide-title">1. Scope</div>
                 <p class="guide-text">This frontend demonstrates a tez402 facilitator/store sample for Permit2-powered payment flows on Etherlink.</p>
 
@@ -499,12 +507,7 @@ docker build -t bbt-x402-facilitator:local -f bbt-x402-facilitator/Dockerfile.bb
                 </ul>
 
                 <div class="guide-title">4. Limitations and disclaimer</div>
-                <p class="guide-text">This is a beta implementation. Network and infrastructure behavior can change. This is not financial advice and software is provided as-is for technical evaluation.</p>
-
-                <div class="actions compact-actions">
-                    <button id="legal-back-btn">RETURN TO DEMO</button>
-                </div>
-            </div>
+                <p class="guide-text">This is a beta implementation. Network and infrastructure behavior can change. This is not financial advice and software is provided as-is for technical evaluation.</p>            </div>
         </div>
     </div>
 
