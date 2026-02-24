@@ -122,6 +122,7 @@ const ui = {
     customTokenInput: document.getElementById("custom-token-input"),
     customTierSelect: document.getElementById("custom-tier-select"),
     customCreateBtn: document.getElementById("custom-create-btn"),
+    customUseBbtBtn: document.getElementById("custom-use-bbt-btn"),
     customCreateStatus: document.getElementById("custom-create-status"),
 
     network: document.getElementById("network-display"),
@@ -441,6 +442,7 @@ async function init() {
     if (ui.requirementsBtn) ui.requirementsBtn.addEventListener("click", fetchPaymentRequirements);
     if (ui.payBtn) ui.payBtn.addEventListener("click", signAndPay);
     if (ui.customCreateBtn) ui.customCreateBtn.addEventListener("click", createCustomTokenProduct);
+    if (ui.customUseBbtBtn) ui.customUseBbtBtn.addEventListener("click", useBbtDefaultProduct);
     if (ui.tokenToggleBtn) ui.tokenToggleBtn.addEventListener("click", toggleTokenDetails);
     if (ui.gasFacilitatorBtn) ui.gasFacilitatorBtn.addEventListener("click", () => setGasPayerMode("facilitator"));
     if (ui.catalogSelect) ui.catalogSelect.addEventListener("change", onCatalogSelectionChanged);
@@ -1187,6 +1189,40 @@ async function createCustomTokenProduct() {
             ui.customCreateBtn.textContent = "CREATE PRODUCT";
         }
     }
+}
+
+
+async function useBbtDefaultProduct() {
+    const baseUrl = getStoreBaseUrl();
+    if (!baseUrl) {
+        setCustomCreateStatus("Valid Store API URL required before selecting BBT product.", "error");
+        log("USE BBT FAILED: INVALID STORE URL", "error");
+        trackEvent("tez402_use_bbt_product_error", { stage: "invalid_store_url" });
+        return;
+    }
+
+    const bbtUrl = normalizeEndpointUrl(`${baseUrl}/api/weather`, "");
+    if (!bbtUrl) {
+        setCustomCreateStatus("Failed to build default BBT endpoint.", "error");
+        log("USE BBT FAILED: CANNOT NORMALIZE BBT URL", "error");
+        trackEvent("tez402_use_bbt_product_error", { stage: "normalize_failed" });
+        return;
+    }
+
+    clearPaymentState();
+    if (ui.storeInput) {
+        ui.storeInput.value = bbtUrl;
+    }
+
+    if (ui.customTokenInput) {
+        ui.customTokenInput.value = "";
+    }
+
+    await refreshCatalog(bbtUrl);
+
+    setCustomCreateStatus("Using built-in BBT product. Click 3. GET PAYMENT.", "success");
+    log("SWITCHED TO BUILT-IN BBT PRODUCT", "success");
+    trackEvent("tez402_use_bbt_product", { product_id: "weather" });
 }
 
 function clearPaymentState() {
