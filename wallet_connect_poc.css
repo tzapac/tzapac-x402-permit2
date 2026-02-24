@@ -85,6 +85,13 @@ h1 {
     line-height: 1.45;
 }
 
+.value-prop {
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    color: var(--accent-color);
+    line-height: 1.45;
+}
+
 .beta-badge {
     font-family: var(--font-mono);
     font-size: 0.62rem;
@@ -167,7 +174,7 @@ h1 {
 
 .tab-bar {
     display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 8px;
     padding: 12px 20px;
     border-bottom: 1px solid var(--border-color);
@@ -229,9 +236,24 @@ h1 {
     list-style: decimal;
 }
 
+.setup-sequence {
+    margin-top: 4px;
+}
+
 .guide-link {
     color: var(--accent-color);
     text-decoration: underline;
+}
+
+.doc-item {
+    margin-bottom: 8px;
+}
+
+.doc-note {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    line-height: 1.45;
 }
 
 pre {
@@ -249,6 +271,36 @@ pre {
     min-height: 82px;
     max-height: 220px;
     overflow-y: auto;
+}
+
+.response-links {
+    margin-top: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+}
+
+.ethers-load-status {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    border: 1px solid var(--border-color);
+    padding: 8px;
+    color: var(--text-dim);
+    background: #020202;
+}
+
+.ethers-load-status.loading {
+    border-color: var(--warn-color);
+    color: var(--warn-color);
+}
+
+.ethers-load-status.success {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+.ethers-load-status.error {
+    border-color: var(--error-color);
+    color: var(--error-color);
 }
 
 .role-selector {
@@ -300,6 +352,15 @@ pre {
     font-size: 0.75rem;
     color: var(--accent-color);
     overflow-wrap: anywhere;
+}
+
+.address-link {
+    color: var(--accent-color);
+    text-decoration: underline;
+}
+
+.address-link:hover {
+    opacity: 0.9;
 }
 
 button,

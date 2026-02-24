@@ -3,13 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="TEZ402 is a reference implementation for x402 Payment Required flow with Permit2 and facilitator-sponsored gas on Etherlink.">
+    <meta property="og:title" content="TEZ402 // PERMIT2 UPLINK">
+    <meta property="og:description" content="Test x402 + Permit2 payments on Etherlink with facilitator-sponsored gas.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://tez402.bubbletez.com">
+    <meta property="og:image" content="https://www.etherlink.com/favicon.ico">
     <link rel="icon" href="https://www.etherlink.com/favicon.ico" sizes="any">
     <title>TEZ402 // PERMIT2 UPLINK</title>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-S1FE79SC2W"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/wallet_connect_poc.css?v=20260223-step3">
+    <link rel="stylesheet" href="/wallet_connect_poc.css?v=20260224-feedback-1">
 </head>
 <body>
 
@@ -30,6 +36,7 @@
         <div class="header-main">
             <h1>TEZ402 // PERMIT2 UPLINK <span class="beta-badge">BETA</span></h1>
             <p class="subtitle">Reference implementation for x402 payments, Permit2 signing, and facilitator-sponsored gas.</p>
+            <p class="value-prop">Accept crypto payments with zero gas costs for end users. Settle on-chain. Stay compliant.</p>
         </div>
         <div class="header-side">
             <div class="status-indicator">
@@ -47,14 +54,13 @@
         <div class="trust-item"><span class="trust-label">Gas Model</span><span class="trust-value">Facilitator Sponsored</span></div>
     </div>
 
-    <div class="tab-bar">
+        <div class="tab-bar">
         <button class="tab-button active" data-tab="overview">Overview</button>
         <button class="tab-button" data-tab="demo">Demo</button>
         <button class="tab-button" data-tab="integration">Integration Guide</button>
         <button class="tab-button" data-tab="setup">Setup Instructions</button>
         <button class="tab-button" data-tab="docs">Docs</button>
-        <button class="tab-button" data-tab="tos">Terms of Service</button>
-        <button class="tab-button" data-tab="terms">Terms &amp; Privacy</button>
+        <button class="tab-button" data-tab="legal">Legal / Terms</button>
     </div>
 
     <div class="tab-panel" data-panel="overview">
@@ -124,13 +130,15 @@ Store API
             <div class="guide-block">
                 <div class="guide-title">On-Chain Endpoints &amp; References</div>
                 <div class="address-row"><span class="address-label">Chain ID</span><span class="address-value">42793</span></div>
-                <div class="address-row"><span class="address-label">Permit2</span><span id="address-permit2" class="address-value">0x000000000022D473030F116dDEE9F6B43aC78BA3</span><button class="mini-btn copy-btn" data-copy-target="address-permit2">Copy</button></div>
-                <div class="address-row"><span class="address-label">x402 Proxy</span><span id="address-x402-proxy" class="address-value">0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E</span><button class="mini-btn copy-btn" data-copy-target="address-x402-proxy">Copy</button></div>
-                <div class="address-row"><span class="address-label">BBT Token</span><span id="address-token" class="address-value">0x7EfE4bdd11237610bcFca478937658bE39F8dfd6</span><button class="mini-btn copy-btn" data-copy-target="address-token">Copy</button></div>
+                <div class="address-row"><span class="address-label">Permit2</span><span id="address-permit2" class="address-value"><a class="address-link" href="https://explorer.etherlink.com/address/0x000000000022D473030F116dDEE9F6B43aC78BA3" target="_blank" rel="noopener noreferrer">0x000000000022D473030F116dDEE9F6B43aC78BA3</a></span><button class="mini-btn copy-btn" data-copy-target="address-permit2">Copy</button></div>
+                <div class="address-row"><span class="address-label">x402 Proxy</span><span id="address-x402-proxy" class="address-value"><a class="address-link" href="https://explorer.etherlink.com/address/0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E" target="_blank" rel="noopener noreferrer">0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E</a></span><button class="mini-btn copy-btn" data-copy-target="address-x402-proxy">Copy</button></div>
+                <div class="address-row"><span class="address-label">BBT Token</span><span id="address-token" class="address-value"><a class="address-link" href="https://explorer.etherlink.com/address/0x7EfE4bdd11237610bcFca478937658bE39F8dfd6" target="_blank" rel="noopener noreferrer">0x7EfE4bdd11237610bcFca478937658bE39F8dfd6</a></span><button class="mini-btn copy-btn" data-copy-target="address-token">Copy</button></div>
                 <div class="address-row"><span class="address-label">Public Facilitator (Current)</span><span id="address-facilitator" class="address-value">https://exp-faci.bubbletez.com</span><button class="mini-btn copy-btn" data-copy-target="address-facilitator">Copy</button></div>
                 <div class="address-row"><span class="address-label">Public Store (Current)</span><span id="address-store" class="address-value">https://tez402.bubbletez.com/api/weather</span><button class="mini-btn copy-btn" data-copy-target="address-store">Copy</button></div>
                 <div class="address-row"><span class="address-label">Public Store (Legacy)</span><span id="address-store-placeholder" class="address-value">https://exp-store.bubbletez.com/api/weather</span><button class="mini-btn copy-btn" data-copy-target="address-store-placeholder">Copy</button></div>
                 <p class="guide-text">Gas sponsored means the user signs authorization; the facilitator submits and pays network gas for settlement execution.</p>
+                <p class="guide-text">Need BBT for testing? Use the built-in BBT product option in Demo Step 3 and see the <a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/bbt_token_reference.md" target="_blank" rel="noopener noreferrer">BBT token reference</a>.</p>
+                <p class="guide-text">How this compares with upstream Coinbase behavior: <a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/coinbase_comparison.md" target="_blank" rel="noopener noreferrer">Coinbase comparison report</a>.</p>
             </div>
 
             <div class="actions compact-actions">
@@ -146,6 +154,10 @@ Store API
             <div class="guide-block">
                 <div class="guide-title">Interactive Demo (End-to-End)</div>
                 <div class="guide-text">This demo runs the exact 5-step payment flow with facilitator-sponsored gas.</div>
+                <div id="ethers-load-status" class="ethers-load-status loading">Loading dependencies...</div>
+                <div class="actions compact-actions">
+                    <button id="reset-demo-btn" type="button">RESET DEMO</button>
+                </div>
             </div>
 
             <div class="step-card" data-step="1">
@@ -174,11 +186,11 @@ Store API
                 <div id="facilitator-section">
                     <div class="data-row">
                         <span class="data-label">Facilitator URL</span>
-                        <span class="data-value address"><input id="facilitator-input" class="text-input" type="text" value="" placeholder="Current endpoint: https://exp-faci.bubbletez.com" /></span>
+                        <span class="data-value address"><input id="facilitator-input" class="text-input" type="text" value="https://exp-faci.bubbletez.com" placeholder="Current endpoint: https://exp-faci.bubbletez.com" /></span>
                     </div>
                     <div class="data-row">
                         <span class="data-label">Facilitator Spender</span>
-                        <span class="data-value address"><input id="spender-input" class="text-input" type="text" placeholder="0x... (x402 proxy address)" /></span>
+                        <span class="data-value address"><input id="spender-input" class="text-input" type="text" value="0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E" placeholder="0x... (x402 proxy address)" /></span>
                     </div>
                 </div>
                 <div class="actions compact-actions">
@@ -255,9 +267,9 @@ Store API
                     <button id="approve-btn" class="hidden">4. APPROVE PERMIT2</button>
                 </div>
                 <div class="actions compact-actions">
-                    <button id="token-toggle-btn">SHOW TOKEN DETAILS</button>
+                    <button id="token-toggle-btn">HIDE TOKEN DETAILS</button>
                 </div>
-                <div id="token-section" class="hidden">
+                <div id="token-section">
                     <div class="data-row"><span class="data-label">Asset</span><span id="token-symbol-display" class="data-value">BBT</span></div>
                     <div class="data-row"><span class="data-label">Token Address</span><span id="token-address-display" class="data-value address">0x7EfE4bdd11237610bcFca478937658bE39F8dfd6</span></div>
                     <div class="data-row"><span class="data-label">Decimals</span><span id="token-decimals-display" class="data-value">18</span></div>
@@ -280,6 +292,7 @@ Store API
                     <button id="pay-btn" disabled>5. SIGN &amp; PAY</button>
                 </div>
                 <pre id="settle-response" class="response-preview">Awaiting response...</pre>
+                <div id="settle-links" class="response-links hidden"></div>
             </div>
 
             <div id="console-output">
@@ -359,11 +372,17 @@ return tx hash + status to store</pre>
         <div class="content">
             <div class="guide-block">
                 <div class="guide-title">Setup Instructions</div>
-                <div class="guide-text">Operational details are grouped below. Expand only what you need.</div>
+                <div class="guide-text">Follow this sequence for a clean deployment.</div>
+                <ol class="guide-list ordered-list setup-sequence">
+                    <li>Clone repository and configure <code>.env</code> values.</li>
+                    <li>Start Docker services and verify health checks.</li>
+                    <li>Run demo or playbook tests against your endpoints.</li>
+                    <li>Harden production deployment with your own domains and secrets.</li>
+                </ol>
             </div>
 
             <details class="setup-detail">
-                <summary>Docker Compose Stack</summary>
+                <summary>1. Docker Compose Stack</summary>
                 <div class="detail-body">
                     <pre>docker compose -f docker-compose.wallet-poc.yml up -d --build</pre>
                     <p class="guide-text">Starts store API, store web, facilitator, and nginx proxy wiring.</p>
@@ -371,7 +390,7 @@ return tx hash + status to store</pre>
             </details>
 
             <details class="setup-detail">
-                <summary>.env Example (Store + Facilitator)</summary>
+                <summary>2. .env Example (Store + Facilitator)</summary>
                 <div class="detail-body">
                     <pre>FACILITATOR_URL=http://localhost:9090
 RPC_URL=https://YOUR_ETHERLINK_RPC
@@ -388,7 +407,7 @@ PUBLIC_BASE_URL=</pre>
             </details>
 
             <details class="setup-detail">
-                <summary>.env.multitest Example</summary>
+                <summary>3. .env.multitest Example</summary>
                 <div class="detail-body">
                     <pre>WALLET_ONE_PRIVATE_KEY=0x...
 WALLET_TWO_PRIVATE_KEY=0x...
@@ -402,7 +421,7 @@ CHAIN_ID=42793</pre>
             </details>
 
             <details class="setup-detail">
-                <summary>Facilitator Config JSON</summary>
+                <summary>4. Facilitator Config JSON</summary>
                 <div class="detail-body">
                     <pre>{
   "port": 9090,
@@ -422,7 +441,7 @@ CHAIN_ID=42793</pre>
             </details>
 
             <details class="setup-detail">
-                <summary>Build/Run Facilitator Image</summary>
+                <summary>5. Build/Run Facilitator Image</summary>
                 <div class="detail-body">
                     <pre># Use published image
 docker run --env-file .env -p 9090:9090 \
@@ -442,65 +461,50 @@ docker build -t bbt-x402-facilitator:local -f bbt-x402-facilitator/Dockerfile.bb
             <div class="guide-block">
                 <div class="guide-title">Documentation</div>
                 <ul class="guide-list">
-                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/README.md" target="_blank" rel="noopener noreferrer">Repository README</a></li>
-                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/quick_start.md" target="_blank" rel="noopener noreferrer">Quick Start Guide</a></li>
-                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/client_guide.md" target="_blank" rel="noopener noreferrer">Client Integration Guide</a></li>
-                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/server_guide.md" target="_blank" rel="noopener noreferrer">Server Integration Guide</a></li>
-                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/store_operator_guide.md" target="_blank" rel="noopener noreferrer">Store Operator Guide</a></li>
-                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/facilitator_hosting_guide.md" target="_blank" rel="noopener noreferrer">Facilitator Hosting Guide</a></li>
-                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/facilitator_api_glossary.md" target="_blank" rel="noopener noreferrer">Facilitator API Glossary</a></li>
-                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/coinbase_comparison.md" target="_blank" rel="noopener noreferrer">Coinbase Comparison</a></li>
-                    <li><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/deployment_info.md" target="_blank" rel="noopener noreferrer">Deployment Info</a></li>
+                    <li class="doc-item"><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/README.md" target="_blank" rel="noopener noreferrer">Repository README</a><span class="doc-note">Project overview, architecture, and top-level flow.</span></li>
+                    <li class="doc-item"><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/quick_start.md" target="_blank" rel="noopener noreferrer">Quick Start Guide</a><span class="doc-note">Fastest path to run the stack and validate endpoints.</span></li>
+                    <li class="doc-item"><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/client_guide.md" target="_blank" rel="noopener noreferrer">Client Integration Guide</a><span class="doc-note">How to detect 402, sign Permit2, and retry with Payment-Signature.</span></li>
+                    <li class="doc-item"><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/server_guide.md" target="_blank" rel="noopener noreferrer">Server Integration Guide</a><span class="doc-note">How servers issue requirements and gate protected resources.</span></li>
+                    <li class="doc-item"><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/store_operator_guide.md" target="_blank" rel="noopener noreferrer">Store Operator Guide</a><span class="doc-note">Catalog, product setup, and settlement orchestration details.</span></li>
+                    <li class="doc-item"><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/facilitator_hosting_guide.md" target="_blank" rel="noopener noreferrer">Facilitator Hosting Guide</a><span class="doc-note">Run your own facilitator with allowlists and operational controls.</span></li>
+                    <li class="doc-item"><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/facilitator_api_glossary.md" target="_blank" rel="noopener noreferrer">Facilitator API Glossary</a><span class="doc-note">Endpoint contracts and payload field definitions.</span></li>
+                    <li class="doc-item"><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/coinbase_comparison.md" target="_blank" rel="noopener noreferrer">Coinbase Comparison</a><span class="doc-note">Feature and flow parity notes versus Coinbase implementation.</span></li>
+                    <li class="doc-item"><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/deployment_info.md" target="_blank" rel="noopener noreferrer">Deployment Info</a><span class="doc-note">Deployment assumptions, trust boundaries, and environment notes.</span></li>
                 </ul>
             </div>
         </div>
     </div>
 
-    <div class="tab-panel hidden" data-panel="tos">
+        <div class="tab-panel hidden" data-panel="legal">
         <div class="content">
             <div class="guide-block">
-                <div class="guide-title">Terms of Service</div>
-                <div class="guide-text">Official Terms of Service are hosted here:</div>
-                <p><a class="guide-link" href="https://tzapac.notion.site/BubbleTez-Terms-of-Service-310c42813a8a80c5bceccc9ac7760cb7?pvs=143" target="_blank" rel="noopener noreferrer">BubbleTez Terms of Service (Notion)</a></p>
-                <div class="actions compact-actions">
-                    <button id="tos-back-btn">RETURN TO DEMO</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="tab-panel hidden" data-panel="terms">
-        <div class="content">
-            <div class="guide-block">
-                <div class="guide-title">Terms &amp; Privacy</div>
+                <div class="guide-title">Legal / Terms</div>
                 <div class="guide-text">Effective date: February 13, 2026</div>
+                <p class="guide-text">Official legal terms are hosted here: <a class="guide-link" href="https://tzapac.notion.site/BubbleTez-Terms-of-Service-310c42813a8a80c5bceccc9ac7760cb7?pvs=143" target="_blank" rel="noopener noreferrer">BubbleTez Terms of Service</a>.</p>
 
-                <div class="guide-title">1. What this site is</div>
-                <p class="guide-text">This frontend demonstrates a tez402 facilitator/store sample and is provided for demonstration of Permit2-powered payment flows on Etherlink.</p>
+                <div class="guide-title">1. Scope</div>
+                <p class="guide-text">This frontend demonstrates a tez402 facilitator/store sample for Permit2-powered payment flows on Etherlink.</p>
 
                 <div class="guide-title">2. Terms of use</div>
                 <ul class="guide-list">
                     <li>You use the service in good faith and at your own risk.</li>
-                    <li>You are responsible for safeguarding your own wallet, private keys, and signatures.</li>
+                    <li>You are responsible for safeguarding your wallet, keys, and signatures.</li>
                     <li>Verify contract addresses and facilitator endpoints before approving transactions.</li>
                     <li>Payments and wallet signing are executed only when you explicitly initiate actions in the UI.</li>
                 </ul>
 
                 <div class="guide-title">3. Privacy note</div>
                 <ul class="guide-list">
-                    <li>The client reads your wallet account and request/response data needed to request payment requirements.</li>
-                    <li>Data sent to a store or facilitator is limited to on-demand payment request payloads and signature headers required for settlement.</li>
-                    <li>No unnecessary private keys are stored by this frontend.</li>
+                    <li>The client reads wallet account and request/response data needed to request payment requirements.</li>
+                    <li>Data sent to store/facilitator is limited to payment payloads and headers required for settlement.</li>
+                    <li>This site uses Google Analytics (G-S1FE79SC2W) for anonymized usage statistics.</li>
                 </ul>
 
-                <div class="guide-title">4. Limitations</div>
-                <p class="guide-text">This is a beta implementation. Network, chain, and service behavior can change; external infrastructure reliability may affect the flow.</p>
-
-                <div class="guide-title">5. Disclaimer</div>
-                <p class="guide-text">This is not financial advice, and the demo software is provided as-is for technical evaluation and integration testing.</p>
+                <div class="guide-title">4. Limitations and disclaimer</div>
+                <p class="guide-text">This is a beta implementation. Network and infrastructure behavior can change. This is not financial advice and software is provided as-is for technical evaluation.</p>
 
                 <div class="actions compact-actions">
-                    <button id="terms-back-btn">RETURN TO DEMO</button>
+                    <button id="legal-back-btn">RETURN TO DEMO</button>
                 </div>
             </div>
         </div>
@@ -511,6 +515,6 @@ docker build -t bbt-x402-facilitator:local -f bbt-x402-facilitator/Dockerfile.bb
     </footer>
 </div>
 
-<script src="/wallet_connect_poc.js?v=20260224-ga2"></script>
+<script src="/wallet_connect_poc.js?v=20260224-feedback-1"></script>
 </body>
 </html>

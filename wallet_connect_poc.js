@@ -83,7 +83,7 @@ let signer;
 let activeTokenContract;
 let userAddress;
 let gasPayerMode = "facilitator";
-let tokenDetailsOpen = false;
+let tokenDetailsOpen = true;
 let facilitatorOnline = null;
 let facilitatorPollTimer = null;
 let catalogItems = [];
@@ -145,10 +145,11 @@ const ui = {
 
     disclaimerOverlay: document.getElementById("disclaimer-overlay"),
     disclaimerOkBtn: document.getElementById("disclaimer-ok-btn"),
-    termsBackBtn: document.getElementById("terms-back-btn"),
-    tosBackBtn: document.getElementById("tos-back-btn"),
+    legalBackBtn: document.getElementById("legal-back-btn"),
 
     goDemoBtn: document.getElementById("go-demo-btn"),
+    resetDemoBtn: document.getElementById("reset-demo-btn"),
+    ethersLoadStatus: document.getElementById("ethers-load-status"),
     goIntegrationBtn: document.getElementById("go-integration-btn"),
     goSetupBtn: document.getElementById("go-setup-btn"),
 
@@ -166,6 +167,7 @@ const ui = {
     healthResponse: document.getElementById("health-response"),
     requirementsResponse: document.getElementById("requirements-response"),
     settleResponse: document.getElementById("settle-response"),
+    settleLinks: document.getElementById("settle-links"),
 
     console: document.getElementById("console-output")
 };
@@ -373,6 +375,115 @@ function bindCopyButtons() {
     });
 }
 
+function setEthersLoadState(state, message) {
+    if (!ui.ethersLoadStatus) {
+        return;
+    }
+    ui.ethersLoadStatus.classList.remove("loading", "success", "error");
+    if (state) {
+        ui.ethersLoadStatus.classList.add(state);
+    }
+    ui.ethersLoadStatus.textContent = message;
+}
+
+function resetDemoUi() {
+    clearPaymentState();
+    resetDemoStepStatuses();
+    setResponsePreview(ui.healthResponse, "Awaiting response...");
+    setResponsePreview(ui.requirementsResponse, "Awaiting response...");
+    setResponsePreview(ui.settleResponse, "Awaiting response...");
+    setCustomCreateStatus("No custom product created in this session.");
+    renderSettlementTxLink(null);
+
+    if (ui.console) {
+        ui.console.innerHTML = "";
+        log("SYSTEM READY", "info");
+        log("WAITING FOR CONNECTION...", "info");
+    }
+
+    if (ui.connectBtn) {
+        ui.connectBtn.disabled = Boolean(userAddress);
+        ui.connectBtn.innerText = userAddress ? "1. CONNECTED" : "1. CONNECT WALLET";
+    }
+
+    if (!userAddress) {
+        if (ui.network) ui.network.innerText = "--";
+        if (ui.account) ui.account.innerText = "--";
+    }
+
+    log("DEMO STATE RESET", "success");
+    trackEvent("tez402_reset_demo", { source: "button" });
+}
+
+function getTabFromHash() {
+    const hash = (window.location.hash || "").replace("#", "").trim().toLowerCase();
+    if (!hash) {
+        return "";
+    }
+    const exists = tabPanels.some((panel) => panel.dataset.panel === hash);
+    return exists ? hash : "";
+}
+
+function buildExplorerTxUrl(txHash) {
+    if (!/^0x[a-fA-F0-9]{64}$/.test(txHash || "")) {
+        return null;
+    }
+    return "https://explorer.etherlink.com/tx/" + txHash;
+}
+
+function extractSettlementTxHash(payload) {
+    if (!payload) {
+        return null;
+    }
+
+    if (typeof payload === "string") {
+        const match = payload.match(/0x[a-fA-F0-9]{64}/);
+        return match ? match[0] : null;
+    }
+
+    if (Array.isArray(payload)) {
+        for (const item of payload) {
+            const found = extractSettlementTxHash(item);
+            if (found) {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    if (typeof payload === "object") {
+        const directKeys = ["txHash", "transactionHash", "tx_hash", "hash"];
+        for (const key of directKeys) {
+            const value = payload[key];
+            if (typeof value === "string" && /^0x[a-fA-F0-9]{64}$/.test(value)) {
+                return value;
+            }
+        }
+        for (const value of Object.values(payload)) {
+            const found = extractSettlementTxHash(value);
+            if (found) {
+                return found;
+            }
+        }
+    }
+
+    return null;
+}
+
+function renderSettlementTxLink(txHash) {
+    if (!ui.settleLinks) {
+        return;
+    }
+    const url = buildExplorerTxUrl(txHash);
+    if (!url) {
+        ui.settleLinks.innerHTML = "";
+        ui.settleLinks.classList.add("hidden");
+        return;
+    }
+    ui.settleLinks.innerHTML = '<a class="guide-link" href="' + url + '" target="_blank" rel="noopener noreferrer">View settlement tx on Etherlink Explorer</a>';
+    ui.settleLinks.classList.remove("hidden");
+}
+
 // --- INITIALIZATION ---
 function loadScript(src) {
     return new Promise((resolve, reject) => {
@@ -387,22 +498,27 @@ function loadScript(src) {
 
 async function ensureEthers() {
     if (typeof ethers !== "undefined") {
+        setEthersLoadState("success", "Dependencies loaded.");
         return true;
     }
 
+    setEthersLoadState("loading", "Loading ethers.js dependency...");
     for (const src of ETHERS_CDN_URLS) {
         try {
-            log(`LOADING ETHERS: ${src}`, "info");
+            log("LOADING ETHERS: " + src, "info");
+            setEthersLoadState("loading", "Loading ethers.js from " + (new URL(src)).hostname + "...");
             await loadScript(src);
             if (typeof ethers !== "undefined") {
                 log("ETHERS LOADED", "success");
+                setEthersLoadState("success", "Dependencies loaded.");
                 return true;
             }
         } catch (err) {
-            log(`ETHERS LOAD FAILED: ${err.message}`, "error");
+            log("ETHERS LOAD FAILED: " + err.message, "error");
         }
     }
 
+    setEthersLoadState("error", "Failed to load ethers.js. Check your network or CSP settings.");
     return false;
 }
 
@@ -443,6 +559,7 @@ async function init() {
     if (ui.payBtn) ui.payBtn.addEventListener("click", signAndPay);
     if (ui.customCreateBtn) ui.customCreateBtn.addEventListener("click", createCustomTokenProduct);
     if (ui.customUseBbtBtn) ui.customUseBbtBtn.addEventListener("click", useBbtDefaultProduct);
+    if (ui.resetDemoBtn) ui.resetDemoBtn.addEventListener("click", resetDemoUi);
     if (ui.tokenToggleBtn) ui.tokenToggleBtn.addEventListener("click", toggleTokenDetails);
     if (ui.gasFacilitatorBtn) ui.gasFacilitatorBtn.addEventListener("click", () => setGasPayerMode("facilitator"));
     if (ui.catalogSelect) ui.catalogSelect.addEventListener("change", onCatalogSelectionChanged);
@@ -509,13 +626,17 @@ async function init() {
         button.addEventListener("click", () => setActiveTab(button.dataset.tab));
     });
 
-    setActiveTab("overview");
-    if (ui.termsBackBtn) {
-        ui.termsBackBtn.addEventListener("click", () => setActiveTab("demo"));
-    }
+    const tabFromHash = getTabFromHash();
+    setActiveTab(tabFromHash || "overview", { updateHash: false });
+    window.addEventListener("hashchange", () => {
+        const hashTab = getTabFromHash();
+        if (hashTab && hashTab !== currentActiveTab) {
+            setActiveTab(hashTab, { updateHash: false });
+        }
+    });
 
-    if (ui.tosBackBtn) {
-        ui.tosBackBtn.addEventListener("click", () => setActiveTab("demo"));
+    if (ui.legalBackBtn) {
+        ui.legalBackBtn.addEventListener("click", () => setActiveTab("demo"));
     }
 
     setRole(initialRoleFromContext());
@@ -555,16 +676,25 @@ async function init() {
     window.ethereum.on("accountsChanged", () => window.location.reload());
 }
 
-function setActiveTab(tabName) {
+function setActiveTab(tabName, options = {}) {
     const normalized = tabPanels.some((panel) => panel.dataset.panel === tabName)
         ? tabName
         : "overview";
+    const shouldUpdateHash = options.updateHash !== false;
+
     tabButtons.forEach((button) => {
         button.classList.toggle("active", button.dataset.tab === normalized);
     });
     tabPanels.forEach((panel) => {
         panel.classList.toggle("hidden", panel.dataset.panel !== normalized);
     });
+
+    if (shouldUpdateHash) {
+        if (window.location.hash !== "#" + normalized) {
+            window.history.replaceState(null, "", "#" + normalized);
+        }
+    }
+
     if (currentActiveTab !== normalized) {
         currentActiveTab = normalized;
         trackEvent("tez402_tab_view", { tab_name: normalized });
@@ -1248,6 +1378,7 @@ function clearPaymentState() {
     setStepStatus(5, "pending", "Not started");
     setResponsePreview(ui.requirementsResponse, "Awaiting response...");
     setResponsePreview(ui.settleResponse, "Awaiting response...");
+    renderSettlementTxLink(null);
     updateTokenDetailsDisplay();
 }
 
@@ -1834,6 +1965,8 @@ async function signAndPay() {
         } catch (err) {
             // keep text
         }
+        const settlementTxHash = extractSettlementTxHash(responsePreview);
+        renderSettlementTxLink(settlementTxHash);
         setResponsePreview(ui.settleResponse, responsePreview);
 
         if (!resp.ok) {
