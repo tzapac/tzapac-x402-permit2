@@ -9,6 +9,7 @@ const DISCLAIMER_ACK_STORAGE_KEY = "tez402_disclaimer_ack_at";
 const DISCLAIMER_ACK_TTL_MS = 24 * 60 * 60 * 1000;
 const ROLE_STORAGE_KEY = "tez402_role";
 const IS_LOCAL_PAGE = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+const ANALYTICS_ENABLED = !IS_LOCAL_PAGE;
 const DEFAULT_FACILITATOR_URL = IS_LOCAL_PAGE ? "http://localhost:9090" : "https://exp-faci.bubbletez.com";
 const DEFAULT_STORE_URL = IS_LOCAL_PAGE ? "http://localhost:9091/api/weather" : "https://tez402.bubbletez.com/api/weather";
 const LEGACY_STORE_URL = "https://exp-store.bubbletez.com/api/weather";
@@ -26,7 +27,42 @@ function initAnalytics() {
         window.dataLayer.push(arguments);
     };
     window.gtag("js", new Date());
-    window.gtag("config", GA_MEASUREMENT_ID);
+    window.gtag("config", GA_MEASUREMENT_ID, { anonymize_ip: true });
+}
+
+function sanitizeAnalyticsParams(params) {
+    const safe = {};
+    if (!params || typeof params !== "object") {
+        return safe;
+    }
+    Object.entries(params).forEach(([key, value]) => {
+        if (typeof value === "boolean" || typeof value === "number") {
+            safe[key] = value;
+            return;
+        }
+        if (typeof value !== "string") {
+            return;
+        }
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return;
+        }
+        if (/^0x[a-fA-F0-9]{40}$/.test(trimmed)) {
+            return;
+        }
+        safe[key] = trimmed.slice(0, 80);
+    });
+    return safe;
+}
+
+function trackEvent(eventName, params = {}) {
+    if (!ANALYTICS_ENABLED || typeof window.gtag !== "function") {
+        return;
+    }
+    if (typeof eventName !== "string" || !eventName.startsWith("tez402_")) {
+        return;
+    }
+    window.gtag("event", eventName, sanitizeAnalyticsParams(params));
 }
 
 initAnalytics();
@@ -53,6 +89,7 @@ let facilitatorPollTimer = null;
 let catalogItems = [];
 let appInitialized = false;
 let currentRole = "client";
+let currentActiveTab = "";
 let cachedRequirements = null;
 let activeTokenAddress = BBT_ADDRESS;
 let activeTokenSymbol = "BBT";
@@ -320,6 +357,7 @@ function bindCopyButtons() {
             try {
                 await navigator.clipboard.writeText(value.trim());
                 log("COPIED TO CLIPBOARD", "success");
+                trackEvent("tez402_copy_address", { target: targetId || "unknown" });
             } catch (err) {
                 const temp = document.createElement("textarea");
                 temp.value = value.trim();
@@ -328,6 +366,7 @@ function bindCopyButtons() {
                 document.execCommand("copy");
                 document.body.removeChild(temp);
                 log("COPIED TO CLIPBOARD", "success");
+                trackEvent("tez402_copy_address", { target: targetId || "unknown" });
             }
         });
     });
@@ -371,6 +410,7 @@ async function init() {
         return;
     }
     appInitialized = true;
+    trackEvent("tez402_page_loaded", { host: window.location.hostname });
 
     resetDemoStepStatuses();
     setResponsePreview(ui.healthResponse, "Awaiting response...");
@@ -393,6 +433,8 @@ async function init() {
         ui.spenderInput.value = DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS;
     }
 
+    bindCopyButtons();
+
     if (ui.connectBtn) ui.connectBtn.addEventListener("click", connectWallet);
     if (ui.approveBtn) ui.approveBtn.addEventListener("click", approvePermit2);
     if (ui.healthBtn) ui.healthBtn.addEventListener("click", checkFacilitatorHealth);
@@ -412,7 +454,11 @@ async function init() {
     if (ui.goSetupBtn) ui.goSetupBtn.addEventListener("click", () => setActiveTab("setup"));
 
     roleButtons.forEach((button) => {
-        button.addEventListener("click", () => setRole(button.dataset.role));
+        button.addEventListener("click", () => {
+            const selectedRole = normalizeRole(button.dataset.role);
+            setRole(selectedRole);
+            trackEvent("tez402_role_select", { role: selectedRole });
+        });
     });
 
     const hideDisclaimerOverlay = (event) => {
@@ -424,6 +470,7 @@ async function init() {
         }
 
         setDisclaimerAcknowledged();
+        trackEvent("tez402_disclaimer_ack", { source: "modal" });
 
         if (document.activeElement === ui.disclaimerOkBtn) {
             ui.disclaimerOkBtn.blur();
@@ -516,6 +563,10 @@ function setActiveTab(tabName) {
     tabPanels.forEach((panel) => {
         panel.classList.toggle("hidden", panel.dataset.panel !== normalized);
     });
+    if (currentActiveTab !== normalized) {
+        currentActiveTab = normalized;
+        trackEvent("tez402_tab_view", { tab_name: normalized });
+    }
 }
 
 function setFacilitatorStatus(isOnline) {
@@ -575,6 +626,7 @@ async function connectWallet() {
     try {
         setStepStatus(1, "active", "In progress");
         log("INITIALIZING CONNECTION...", "info");
+        trackEvent("tez402_wallet_connect_click", { source: "button" });
         provider = new ethers.BrowserProvider(window.ethereum);
 
         await provider.send("eth_requestAccounts", []);
@@ -595,9 +647,11 @@ async function connectWallet() {
         await checkNetwork();
         await refreshCatalog();
         setStepStatus(1, "success", "Complete");
+        trackEvent("tez402_wallet_connect_success", { network_target: ETHERLINK_CHAIN_ID });
     } catch (err) {
         setStepStatus(1, "error", "Error");
         log(`CONNECTION FAILED: ${err.message}`, "error");
+        trackEvent("tez402_wallet_connect_error", { reason: "connect_failed" });
     }
 }
 
@@ -702,6 +756,7 @@ async function checkNetwork() {
 
     if (chainId !== ETHERLINK_CHAIN_ID) {
         log(`WRONG NETWORK DETECTED (ID: ${chainId})`, "error");
+        trackEvent("tez402_network_mismatch", { chain_id: chainId });
         if (ui.network) {
             ui.network.innerText = "WRONG NETWORK";
             ui.network.style.color = "var(--error-color)";
@@ -713,6 +768,7 @@ async function checkNetwork() {
             ui.network.style.color = "var(--accent-color)";
         }
         log("NETWORK VERIFIED: ETHERLINK", "success");
+        trackEvent("tez402_network_verified", { chain_id: chainId });
         await loadTokenData();
     }
 }
@@ -720,14 +776,17 @@ async function checkNetwork() {
 async function switchNetwork() {
     try {
         log("ATTEMPTING NETWORK SWITCH...", "info");
+        trackEvent("tez402_network_switch_attempt", { target_chain_id: ETHERLINK_CHAIN_ID });
         await window.ethereum.request({
             method: "wallet_switchEthereumChain",
             params: [{ chainId: ETHERLINK_CHAIN_ID_HEX }]
         });
+        trackEvent("tez402_network_switch_success", { method: "switch" });
         window.location.reload();
     } catch (switchError) {
         if (switchError.code === 4902) {
             log("NETWORK NOT FOUND. ADDING ETHERLINK...", "info");
+            trackEvent("tez402_network_add_attempt", { target_chain_id: ETHERLINK_CHAIN_ID });
             try {
                 await window.ethereum.request({
                     method: "wallet_addEthereumChain",
@@ -745,12 +804,15 @@ async function switchNetwork() {
                         }
                     ]
                 });
+                trackEvent("tez402_network_add_success", { method: "add_chain" });
                 window.location.reload();
             } catch (addError) {
                 log(`FAILED TO ADD NETWORK: ${addError.message}`, "error");
+                trackEvent("tez402_network_add_error", { reason: "add_failed" });
             }
         } else {
             log(`FAILED TO SWITCH NETWORK: ${switchError.message}`, "error");
+            trackEvent("tez402_network_switch_error", { reason: "switch_failed" });
         }
     }
 }
@@ -874,7 +936,11 @@ async function loadTokenData() {
 // --- APPROVE ---
 async function approvePermit2() {
     const ready = await ensureWalletConnected();
-    if (!ready) return;
+    if (!ready) {
+        trackEvent("tez402_approve_error", { stage: "wallet_not_ready" });
+        return;
+    }
+    trackEvent("tez402_approve_click", { source: "step4" });
     if (!activeTokenContract) {
         await loadTokenData();
     }
@@ -901,6 +967,7 @@ async function approvePermit2() {
 
         const tx = await activeTokenContract.approve(PERMIT2_ADDRESS, requiredAmount);
         log(`TX SENT: ${tx.hash}`, "info");
+        trackEvent("tez402_approve_tx_sent", { source: "step4" });
         if (ui.approveBtn) {
             ui.approveBtn.innerText = "PENDING...";
         }
@@ -909,11 +976,13 @@ async function approvePermit2() {
 
         log("APPROVAL CONFIRMED", "success");
         setStepStatus(4, "success", "Complete");
+        trackEvent("tez402_approve_confirmed", { source: "step4" });
 
         await loadTokenData();
     } catch (err) {
         log(`APPROVAL FAILED: ${err.message}`, "error");
         setStepStatus(4, "error", "Error");
+        trackEvent("tez402_approve_error", { stage: "transaction_failed" });
         if (ui.approveBtn) {
             ui.approveBtn.disabled = false;
             ui.approveBtn.innerText = "APPROVE PERMIT2";
@@ -965,6 +1034,7 @@ async function checkFacilitatorHealth() {
         setFacilitatorStatus(false);
         setStepStatus(2, "error", "Invalid URL");
         log("INVALID FACILITATOR URL. USE HTTPS (OR HTTP FOR LOCALHOST).", "error");
+        trackEvent("tez402_facilitator_health_error", { reason: "invalid_url" });
         return;
     }
 
@@ -972,6 +1042,7 @@ async function checkFacilitatorHealth() {
     try {
         setStepStatus(2, "active", "In progress");
         log(`CHECKING FACILITATOR: ${url}`, "info");
+        trackEvent("tez402_facilitator_health_check", { endpoint: "health" });
         const resp = await fetch(url);
         const contentType = resp.headers.get("content-type") || "";
         const body = contentType.includes("application/json") ? await resp.json() : await resp.text();
@@ -984,6 +1055,7 @@ async function checkFacilitatorHealth() {
         log("FACILITATOR HEALTHY", "success");
         setStepStatus(2, "success", "Complete");
         setFacilitatorStatus(true);
+        trackEvent("tez402_facilitator_health_success", { status: resp.status });
 
         if (ui.spenderInput && !ui.spenderInput.value) {
             ui.spenderInput.value = DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS;
@@ -994,6 +1066,7 @@ async function checkFacilitatorHealth() {
     } catch (err) {
         setStepStatus(2, "error", "Error");
         log(`FACILITATOR CHECK FAILED: ${err.message}`, "error");
+        trackEvent("tez402_facilitator_health_error", { reason: "request_failed" });
         if (err.message.includes("Failed to fetch")) {
             log("HINT: Check CORS or Mixed Content (HTTPS vs HTTP)", "info");
             log("HINT: Ensure Facilitator is running and accessible", "info");
@@ -1005,6 +1078,7 @@ async function createCustomTokenProduct() {
     const walletReady = await ensureWalletConnected();
     if (!walletReady) {
         setCustomCreateStatus("Connect wallet before creating a custom product.", "error");
+        trackEvent("tez402_custom_product_create_error", { stage: "wallet_not_ready" });
         return;
     }
 
@@ -1012,6 +1086,7 @@ async function createCustomTokenProduct() {
     if (!baseUrl) {
         setCustomCreateStatus("Valid Store API URL required before creating product.", "error");
         log("CUSTOM CREATE FAILED: INVALID STORE URL", "error");
+        trackEvent("tez402_custom_product_create_error", { stage: "invalid_store_url" });
         return;
     }
 
@@ -1019,6 +1094,7 @@ async function createCustomTokenProduct() {
     if (!tokenAddress) {
         setCustomCreateStatus("Enter a valid ERC-20 token address.", "error");
         log("CUSTOM CREATE FAILED: INVALID TOKEN ADDRESS", "error");
+        trackEvent("tez402_custom_product_create_error", { stage: "invalid_token" });
         return;
     }
 
@@ -1026,6 +1102,7 @@ async function createCustomTokenProduct() {
     if (!CUSTOM_TIERS[tierId]) {
         setCustomCreateStatus("Choose a valid tier before creating product.", "error");
         log("CUSTOM CREATE FAILED: INVALID TIER", "error");
+        trackEvent("tez402_custom_product_create_error", { stage: "invalid_tier" });
         return;
     }
 
@@ -1042,6 +1119,7 @@ async function createCustomTokenProduct() {
         }
         setCustomCreateStatus("Signing creation message...", "info");
         log(`SIGNING CUSTOM PRODUCT MESSAGE (${tierId})`, "info");
+        trackEvent("tez402_custom_product_create_attempt", { tier_id: tierId });
 
         const now = Math.floor(Date.now() / 1000);
         const payload = {
@@ -1077,6 +1155,7 @@ async function createCustomTokenProduct() {
                 : (responseBody.error || responseBody.message || JSON.stringify(responseBody));
             setCustomCreateStatus(`Create failed (${resp.status}): ${message}`, "error");
             log(`CUSTOM CREATE FAILED (${resp.status})`, "error");
+            trackEvent("tez402_custom_product_create_error", { stage: "http_error", status: resp.status });
             return;
         }
 
@@ -1097,9 +1176,11 @@ async function createCustomTokenProduct() {
             "success"
         );
         log(`CUSTOM PRODUCT CREATED: ${product?.id || "unknown-id"}`, "success");
+        trackEvent("tez402_custom_product_create_success", { tier_id: tierId });
     } catch (err) {
         setCustomCreateStatus(`Create failed: ${err.message}`, "error");
         log(`CUSTOM CREATE ERROR: ${err.message}`, "error");
+        trackEvent("tez402_custom_product_create_error", { stage: "exception" });
     } finally {
         if (ui.customCreateBtn) {
             ui.customCreateBtn.disabled = false;
@@ -1247,12 +1328,14 @@ async function refreshCatalog(preferredSelectionUrl = "") {
         catalogUrlObject.searchParams.set("creator", creatorAddress);
     }
     const catalogUrl = catalogUrlObject.toString();
+    trackEvent("tez402_catalog_request", { creator_scoped: Boolean(creatorAddress) });
     try {
         const resp = await fetch(catalogUrl, { cache: "no-store" });
         if (!resp.ok) {
             if (ui.catalogRow) ui.catalogRow.classList.add("hidden");
             catalogItems = [];
             log(`CATALOG UNAVAILABLE (${resp.status}); USING DIRECT STORE URL`, "info");
+            trackEvent("tez402_catalog_error", { status: resp.status });
             return;
         }
 
@@ -1278,15 +1361,18 @@ async function refreshCatalog(preferredSelectionUrl = "") {
             if (ui.catalogRow) ui.catalogRow.classList.add("hidden");
             catalogItems = [];
             log("CATALOG HAS NO USABLE PRODUCTS; USING DIRECT STORE URL", "info");
+            trackEvent("tez402_catalog_load", { item_count: 0, creator_scoped: Boolean(creatorAddress) });
             return;
         }
 
         renderCatalog(normalizedItems, getStoreUrl(), preferredSelectionUrl);
         log(`CATALOG LOADED (${normalizedItems.length} ITEM${normalizedItems.length > 1 ? "S" : ""})`, "success");
+        trackEvent("tez402_catalog_load", { item_count: normalizedItems.length, creator_scoped: Boolean(creatorAddress) });
     } catch (err) {
         if (ui.catalogRow) ui.catalogRow.classList.add("hidden");
         catalogItems = [];
         log(`CATALOG LOOKUP FAILED: ${err.message}`, "error");
+        trackEvent("tez402_catalog_error", { reason: "request_failed" });
     }
 }
 
@@ -1295,9 +1381,11 @@ function onCatalogSelectionChanged() {
     if (!selectedUrl) {
         return;
     }
+    const selectedItem = catalogItems.find((item) => item.url === selectedUrl);
     ui.storeInput.value = selectedUrl;
     clearPaymentState();
     log(`CATALOG ITEM SELECTED: ${selectedUrl}`, "info");
+    trackEvent("tez402_catalog_select", { product_id: selectedItem?.id || "unknown" });
 }
 
 async function onStoreUrlChanged() {
@@ -1430,6 +1518,7 @@ async function fetchPaymentRequirements() {
     if (!url) {
         log("VALID STORE URL REQUIRED (HTTPS OR LOCALHOST HTTP)", "error");
         setStepStatus(3, "error", "Invalid URL");
+        trackEvent("tez402_get_payment_error", { stage: "invalid_store_url" });
         return;
     }
     clearPaymentState();
@@ -1437,11 +1526,13 @@ async function fetchPaymentRequirements() {
     try {
         setStepStatus(3, "active", "In progress");
         log(`REQUESTING PAYMENT REQUIREMENTS: ${url}`, "info");
+        trackEvent("tez402_get_payment_attempt", { source: "step3" });
         const resp = await fetch(url);
         if (resp.status !== 402) {
             setResponsePreview(ui.requirementsResponse, `Expected 402, got ${resp.status}`);
             setStepStatus(3, "error", "Expected 402");
             log(`EXPECTED 402, GOT ${resp.status}`, "error");
+            trackEvent("tez402_get_payment_error", { stage: "unexpected_status", status: resp.status });
             return;
         }
 
@@ -1449,6 +1540,7 @@ async function fetchPaymentRequirements() {
         if (!header) {
             setStepStatus(3, "error", "Missing header");
             log("MISSING Payment-Required HEADER", "error");
+            trackEvent("tez402_get_payment_error", { stage: "missing_header" });
             return;
         }
 
@@ -1460,6 +1552,7 @@ async function fetchPaymentRequirements() {
         if (!accept) {
             setStepStatus(3, "error", "No options");
             log("NO PAYMENT OPTIONS FOUND", "error");
+            trackEvent("tez402_get_payment_error", { stage: "no_accepts" });
             return;
         }
 
@@ -1468,6 +1561,7 @@ async function fetchPaymentRequirements() {
             setStepStatus(3, "error", "Unsupported method");
             log(`UNSUPPORTED assetTransferMethod: ${assetTransferMethod} (expected permit2)`, "error");
             if (ui.payBtn) ui.payBtn.disabled = true;
+            trackEvent("tez402_get_payment_error", { stage: "unsupported_method" });
             return;
         }
 
@@ -1491,16 +1585,20 @@ async function fetchPaymentRequirements() {
 
         setStepStatus(3, "success", "Complete");
         log("PAYMENT REQUIREMENTS LOADED", "success");
+        trackEvent("tez402_get_payment_success", { asset_method: assetTransferMethod || "permit2" });
     } catch (err) {
         setStepStatus(3, "error", "Error");
         log(`FAILED TO GET REQUIREMENTS: ${err.message}`, "error");
+        trackEvent("tez402_get_payment_error", { stage: "exception" });
     }
 }
 
 async function signAndPay() {
+    trackEvent("tez402_sign_pay_click", { source: "step5" });
     if (!cachedRequirements) {
         log("GET PAYMENT REQUIREMENTS FIRST", "error");
         setStepStatus(5, "error", "Missing step 3");
+        trackEvent("tez402_sign_pay_error", { stage: "missing_requirements" });
         return;
     }
 
@@ -1508,6 +1606,7 @@ async function signAndPay() {
     if (!ready) {
         log("WALLET NOT CONNECTED", "error");
         setStepStatus(5, "error", "Wallet required");
+        trackEvent("tez402_sign_pay_error", { stage: "wallet_not_ready" });
         return;
     }
 
@@ -1646,6 +1745,7 @@ async function signAndPay() {
         if (!confirmed) {
             setStepStatus(5, "pending", "Cancelled");
             log("SIGN/PAY CANCELLED AT IRREVERSIBLE WARNING", "info");
+            trackEvent("tez402_sign_pay_confirm_cancelled", { source: "warning_modal" });
             return;
         }
 
@@ -1688,6 +1788,7 @@ async function signAndPay() {
         }
 
         log("SENDING Payment-Signature...", "info");
+        trackEvent("tez402_sign_pay_submitted", { source: "step5" });
         const resp = await fetch(storeUrl, { headers });
         const bodyText = await resp.text();
 
@@ -1703,11 +1804,13 @@ async function signAndPay() {
             log(`PAYMENT FAILED: HTTP ${resp.status}`, "error");
             log(`RESPONSE: ${bodyText}`, "error");
             setStepStatus(5, "error", `HTTP ${resp.status}`);
+            trackEvent("tez402_sign_pay_error", { stage: "payment_failed", status: resp.status });
             return;
         }
 
         log("PAYMENT SENT. RESPONSE RECEIVED", "success");
         setStepStatus(5, "success", "Complete");
+        trackEvent("tez402_sign_pay_success", { source: "step5" });
 
         if (ui.amount) {
             ui.amount.innerText = ethers.formatUnits(amount, decimals);
@@ -1715,6 +1818,7 @@ async function signAndPay() {
     } catch (err) {
         setStepStatus(5, "error", "Error");
         log(`SIGN/PAY FAILED: ${err.message}`, "error");
+        trackEvent("tez402_sign_pay_error", { stage: "exception" });
     }
 }
 
