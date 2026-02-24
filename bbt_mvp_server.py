@@ -358,7 +358,7 @@ def _custom_create_message(
     expires_at: int,
 ) -> str:
     return (
-        "TZ APAC x402 Custom Product Creation\n"
+        "tez402 Custom Product Creation\n"
         f"chainId:{chain_id}\n"
         f"creator:{creator}\n"
         f"token:{token}\n"
@@ -882,7 +882,7 @@ async def _handle_paid_product(
 @app.get("/")
 async def root():
     return {
-        "status": "BBT Permit2 MVP x402 Server",
+        "status": "tez402 Permit2 Beta x402 Server",
         "network": NETWORK,
         "facilitator": FACILITATOR_URL,
     }
@@ -942,7 +942,7 @@ async def catalog(request: Request):
                 products.append(_catalog_product(request, product))
 
     return {
-        "store": "TZ APAC x402 Store",
+        "store": "tez402 Store",
         "network": NETWORK,
         "products": products,
     }

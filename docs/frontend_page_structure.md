@@ -73,8 +73,8 @@ This document maps the public page layout, functional IDs, and role-based behavi
 
 ## Persisted Browser State
 
-- Role selection: `localStorage["tzapac_x402_role"]`
-- Usage notice acknowledgement (24h TTL): `localStorage["tzapac_x402_disclaimer_ack_at"]`
+- Role selection: `localStorage["tez402_role"]`
+- Usage notice acknowledgement (24h TTL): `localStorage["tez402_disclaimer_ack_at"]`
 
 ## Notes for Future Changes
 

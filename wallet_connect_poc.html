@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="https://www.etherlink.com/favicon.ico" sizes="any">
-    <title>ETHERLINK x402 // PERMIT2 UPLINK</title>
+    <title>TEZ402 // PERMIT2 UPLINK</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
@@ -27,7 +27,7 @@
 <div class="container">
     <header>
         <div class="header-main">
-            <h1>ETHERLINK x402 // PERMIT2 UPLINK <span class="beta-badge">BETA</span></h1>
+            <h1>TEZ402 // PERMIT2 UPLINK <span class="beta-badge">BETA</span></h1>
             <p class="subtitle">Reference implementation for x402 payments, Permit2 signing, and facilitator-sponsored gas.</p>
         </div>
         <div class="header-side">
@@ -126,8 +126,10 @@ Store API
                 <div class="address-row"><span class="address-label">Permit2</span><span id="address-permit2" class="address-value">0x000000000022D473030F116dDEE9F6B43aC78BA3</span><button class="mini-btn copy-btn" data-copy-target="address-permit2">Copy</button></div>
                 <div class="address-row"><span class="address-label">x402 Proxy</span><span id="address-x402-proxy" class="address-value">0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E</span><button class="mini-btn copy-btn" data-copy-target="address-x402-proxy">Copy</button></div>
                 <div class="address-row"><span class="address-label">BBT Token</span><span id="address-token" class="address-value">0x7EfE4bdd11237610bcFca478937658bE39F8dfd6</span><button class="mini-btn copy-btn" data-copy-target="address-token">Copy</button></div>
-                <div class="address-row"><span class="address-label">Public Facilitator</span><span id="address-facilitator" class="address-value">https://exp-faci.bubbletez.com</span><button class="mini-btn copy-btn" data-copy-target="address-facilitator">Copy</button></div>
-                <div class="address-row"><span class="address-label">Public Store</span><span id="address-store" class="address-value">https://exp-store.bubbletez.com/api/weather</span><button class="mini-btn copy-btn" data-copy-target="address-store">Copy</button></div>
+                <div class="address-row"><span class="address-label">Public Facilitator (Current)</span><span id="address-facilitator" class="address-value">https://exp-faci.bubbletez.com</span><button class="mini-btn copy-btn" data-copy-target="address-facilitator">Copy</button></div>
+                <div class="address-row"><span class="address-label">Public Facilitator (Placeholder)</span><span id="address-facilitator-placeholder" class="address-value">https://tez402.bubbletez.com</span><button class="mini-btn copy-btn" data-copy-target="address-facilitator-placeholder">Copy</button></div>
+                <div class="address-row"><span class="address-label">Public Store (Current)</span><span id="address-store" class="address-value">https://exp-store.bubbletez.com/api/weather</span><button class="mini-btn copy-btn" data-copy-target="address-store">Copy</button></div>
+                <div class="address-row"><span class="address-label">Public Store (Placeholder)</span><span id="address-store-placeholder" class="address-value">https://tez402.bubbletez.com/api/weather</span><button class="mini-btn copy-btn" data-copy-target="address-store-placeholder">Copy</button></div>
                 <p class="guide-text">Gas sponsored means the user signs authorization; the facilitator submits and pays network gas for settlement execution.</p>
             </div>
 
@@ -172,7 +174,7 @@ Store API
                 <div id="facilitator-section">
                     <div class="data-row">
                         <span class="data-label">Facilitator URL</span>
-                        <span class="data-value address"><input id="facilitator-input" class="text-input" type="text" value="" /></span>
+                        <span class="data-value address"><input id="facilitator-input" class="text-input" type="text" value="" placeholder="Planned cutover: https://tez402.bubbletez.com" /></span>
                     </div>
                     <div class="data-row">
                         <span class="data-label">Facilitator Spender</span>
@@ -195,7 +197,7 @@ Store API
                 <div id="store-section">
                     <div class="data-row">
                         <span class="data-label">Store API URL</span>
-                        <span class="data-value address"><input id="store-input" class="text-input" type="text" value="" /></span>
+                        <span class="data-value address"><input id="store-input" class="text-input" type="text" value="" placeholder="Planned cutover: https://tez402.bubbletez.com/api/weather" /></span>
                     </div>
                     <div class="custom-product-panel">
                         <div class="custom-product-title">Custom Token Product Demo</div>
@@ -244,7 +246,7 @@ Store API
                     <span class="data-label">Gas Payer</span>
                     <span class="data-value">
                         <div class="toggle-group">
-                            <button id="gas-facilitator-btn" class="toggle-button active">FACILITATOR PAYS GAS (TZAPAC)</button>
+                            <button id="gas-facilitator-btn" class="toggle-button active">FACILITATOR PAYS GAS (TEZ402)</button>
                         </div>
                     </span>
                 </div>
@@ -391,6 +393,9 @@ PUBLIC_BASE_URL=</pre>
 WALLET_TWO_PRIVATE_KEY=0x...
 FACILITATOR_URL=https://exp-faci.bubbletez.com
 STORE_URL=https://exp-store.bubbletez.com/api/weather
+# Planned cutover placeholder
+# FACILITATOR_URL=https://tez402.bubbletez.com
+# STORE_URL=https://tez402.bubbletez.com/api/weather
 CHAIN_ID=42793</pre>
                 </div>
             </details>
@@ -470,7 +475,7 @@ docker build -t bbt-x402-facilitator:local -f bbt-x402-facilitator/Dockerfile.bb
                 <div class="guide-text">Effective date: February 13, 2026</div>
 
                 <div class="guide-title">1. What this site is</div>
-                <p class="guide-text">This frontend demonstrates a TZ APAC x402 facilitator/store sample and is provided for demonstration of Permit2-powered payment flows on Etherlink.</p>
+                <p class="guide-text">This frontend demonstrates a tez402 facilitator/store sample and is provided for demonstration of Permit2-powered payment flows on Etherlink.</p>
 
                 <div class="guide-title">2. Terms of use</div>
                 <ul class="guide-list">

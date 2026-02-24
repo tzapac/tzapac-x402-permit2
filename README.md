@@ -55,8 +55,10 @@ Local Docker setup (from this repo, and current UI defaults):
 - Local protected endpoint via proxy: `http://localhost:9091/api/weather`
 
 Optional hosted endpoints (if your deployment exposes them):
-- Facilitator: `https://exp-faci.bubbletez.com`
-- Store API endpoint: `https://exp-store.bubbletez.com/api/weather`
+- Facilitator (current): `https://exp-faci.bubbletez.com`
+- Store API endpoint (current): `https://exp-store.bubbletez.com/api/weather`
+- Planned placeholder: `https://tez402.bubbletez.com`
+- Planned store placeholder: `https://tez402.bubbletez.com/api/weather`
 
 ## Project Structure
 
@@ -274,6 +276,8 @@ Log event shapes:
     "connectedAt": "2026-02-13T12:34:56.789Z",
     "storeUrl": "https://exp-store.bubbletez.com/",
     "facilitatorUrl": "https://exp-faci.bubbletez.com",
+    "plannedStoreUrl": "https://tez402.bubbletez.com/",
+    "plannedFacilitatorUrl": "https://tez402.bubbletez.com",
     "source": "wallet_connect_poc",
     "provider": "chainalysis"
   }
