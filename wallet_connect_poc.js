@@ -12,7 +12,6 @@ const IS_LOCAL_PAGE = ["localhost", "127.0.0.1", "::1"].includes(window.location
 const ANALYTICS_ENABLED = !IS_LOCAL_PAGE;
 const DEFAULT_FACILITATOR_URL = IS_LOCAL_PAGE ? "http://localhost:9090" : "https://exp-faci.bubbletez.com";
 const DEFAULT_STORE_URL = IS_LOCAL_PAGE ? "http://localhost:9091/api/weather" : "https://tez402.bubbletez.com/api/weather";
-const LEGACY_STORE_URL = "https://exp-store.bubbletez.com/api/weather";
 const CUSTOM_TIERS = {
     tier_0_01: "0.01",
     tier_0_1: "0.1",
@@ -544,7 +543,7 @@ async function init() {
         ui.storeInput.value = DEFAULT_STORE_URL;
     }
     if (ui.storeInput) {
-        ui.storeInput.placeholder = `Legacy endpoint: ${LEGACY_STORE_URL}`;
+        ui.storeInput.placeholder = `Current endpoint: ${DEFAULT_STORE_URL}`;
     }
     if (ui.spenderInput && !ui.spenderInput.value) {
         ui.spenderInput.value = DEFAULT_X402_EXACT_PERMIT2_PROXY_ADDRESS;

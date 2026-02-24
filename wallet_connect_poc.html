@@ -135,8 +135,7 @@ Store API
                 <div class="address-row"><span class="address-label">BBT Token</span><span id="address-token" class="address-value"><a class="address-link" href="https://explorer.etherlink.com/address/0x7EfE4bdd11237610bcFca478937658bE39F8dfd6" target="_blank" rel="noopener noreferrer">0x7EfE4bdd11237610bcFca478937658bE39F8dfd6</a></span><button class="mini-btn copy-btn" data-copy-target="address-token">Copy</button></div>
                 <div class="address-row"><span class="address-label">Public Facilitator (Current)</span><span id="address-facilitator" class="address-value">https://exp-faci.bubbletez.com</span><button class="mini-btn copy-btn" data-copy-target="address-facilitator">Copy</button></div>
                 <div class="address-row"><span class="address-label">Public Store (Current)</span><span id="address-store" class="address-value">https://tez402.bubbletez.com/api/weather</span><button class="mini-btn copy-btn" data-copy-target="address-store">Copy</button></div>
-                <div class="address-row"><span class="address-label">Public Store (Legacy)</span><span id="address-store-placeholder" class="address-value">https://exp-store.bubbletez.com/api/weather</span><button class="mini-btn copy-btn" data-copy-target="address-store-placeholder">Copy</button></div>
-                <p class="guide-text">Gas sponsored means the user signs authorization; the facilitator submits and pays network gas for settlement execution.</p>
+                                <p class="guide-text">Gas sponsored means the user signs authorization; the facilitator submits and pays network gas for settlement execution.</p>
                 <p class="guide-text">Need BBT for testing? Use the built-in BBT product option in Demo Step 3 and see the <a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/bbt_token_reference.md" target="_blank" rel="noopener noreferrer">BBT token reference</a>.</p>
                 <p class="guide-text">How this compares with upstream Coinbase behavior: <a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/coinbase_comparison.md" target="_blank" rel="noopener noreferrer">Coinbase comparison report</a>.</p>
             </div>
@@ -209,7 +208,7 @@ Store API
                 <div id="store-section">
                     <div class="data-row">
                         <span class="data-label">Store API URL</span>
-                        <span class="data-value address"><input id="store-input" class="text-input" type="text" value="" placeholder="Legacy endpoint: https://exp-store.bubbletez.com/api/weather" /></span>
+                        <span class="data-value address"><input id="store-input" class="text-input" type="text" value="" placeholder="Current endpoint: https://tez402.bubbletez.com/api/weather" /></span>
                     </div>
                     <div class="custom-product-panel">
                         <div class="custom-product-title">Custom Token Product Demo</div>
@@ -413,9 +412,8 @@ PUBLIC_BASE_URL=</pre>
 WALLET_TWO_PRIVATE_KEY=0x...
 FACILITATOR_URL=https://exp-faci.bubbletez.com
 STORE_URL=https://tez402.bubbletez.com/api/weather
-# Legacy endpoint references
+# Public endpoint reference
 # FACILITATOR_URL=https://exp-faci.bubbletez.com
-# STORE_URL=https://exp-store.bubbletez.com/api/weather
 CHAIN_ID=42793</pre>
                 </div>
             </details>
