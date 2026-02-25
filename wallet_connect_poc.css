@@ -42,7 +42,7 @@ body {
 }
 
 .container::before {
-    content: ;
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
@@ -179,6 +179,15 @@ h1 {
     font-family: var(--font-mono);
     font-size: 0.77rem;
     color: var(--accent-color);
+}
+
+.trust-link {
+    color: var(--accent-color);
+    text-decoration: underline;
+}
+
+.trust-link:hover {
+    opacity: 0.9;
 }
 
 .tab-bar {
@@ -576,8 +585,10 @@ select.text-input {
     padding: 12px;
     font-family: var(--font-mono);
     font-size: 0.76rem;
-    height: 170px;
+    min-height: 170px;
+    max-height: 60vh;
     overflow-y: auto;
+    resize: vertical;
     color: var(--text-dim);
 }
 
@@ -645,6 +656,11 @@ footer {
     text-align: center;
     text-transform: uppercase;
     letter-spacing: 1px;
+}
+
+.footer-link {
+    color: var(--accent-color);
+    text-decoration: underline;
 }
 
 .modal-overlay {

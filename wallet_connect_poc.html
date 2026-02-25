@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/wallet_connect_poc.css?v=20260224-feedback-1">
+    <link rel="stylesheet" href="/wallet_connect_poc.css?v=20260225-feedback-triage-1">
 </head>
 <body>
 
@@ -37,6 +37,7 @@
             <h1>TEZ402 // PERMIT2 UPLINK <span class="beta-badge">BETA</span></h1>
             <p class="subtitle">Reference implementation for x402 payments, Permit2 signing, and facilitator-sponsored gas.</p>
             <p class="value-prop">Accept crypto payments with zero gas costs for end users. Settle on-chain. Stay compliant.</p>
+            <p class="subtitle">Evaluation path: run the 5-step demo, then use Quick Start to deploy your own stack.</p>
         </div>
         <div class="header-side">
             <div class="status-indicator">
@@ -44,11 +45,13 @@
                 <span id="status-text">OFFLINE</span>
             </div>
             <a class="header-link" href="https://github.com/tzapac/tzapac-x402-permit2" target="_blank" rel="noopener noreferrer">GitHub Repository</a>
+            <a class="header-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/quick_start.md" target="_blank" rel="noopener noreferrer">Quick Start</a>
+            <a class="header-link" href="https://github.com/tzapac/tzapac-x402-permit2/issues/new/choose" target="_blank" rel="noopener noreferrer">Request Pilot / Contact</a>
         </div>
     </header>
 
     <div class="trust-strip">
-        <div class="trust-item"><span class="trust-label">x402 Spec</span><span class="trust-value">v2</span></div>
+        <div class="trust-item"><span class="trust-label">x402 Spec</span><span class="trust-value"><a class="trust-link" href="https://github.com/coinbase/x402" target="_blank" rel="noopener noreferrer">v2 reference</a></span></div>
         <div class="trust-item"><span class="trust-label">Chain</span><span class="trust-value">Etherlink (42793)</span></div>
         <div class="trust-item"><span class="trust-label">Settlement</span><span class="trust-value">Permit2</span></div>
         <div class="trust-item"><span class="trust-label">Gas Model</span><span class="trust-value">Facilitator Sponsored</span></div>
@@ -135,8 +138,9 @@ Store API
                 <div class="address-row"><span class="address-label">BBT Token</span><span id="address-token" class="address-value"><a class="address-link" href="https://explorer.etherlink.com/address/0x7EfE4bdd11237610bcFca478937658bE39F8dfd6" target="_blank" rel="noopener noreferrer">0x7EfE4bdd11237610bcFca478937658bE39F8dfd6</a></span><button class="mini-btn copy-btn" data-copy-target="address-token">Copy</button></div>
                 <div class="address-row"><span class="address-label">Public Facilitator (Current)</span><span id="address-facilitator" class="address-value">https://exp-faci.bubbletez.com</span><button class="mini-btn copy-btn" data-copy-target="address-facilitator">Copy</button></div>
                 <div class="address-row"><span class="address-label">Public Store (Current)</span><span id="address-store" class="address-value">https://tez402.bubbletez.com/api/weather</span><button class="mini-btn copy-btn" data-copy-target="address-store">Copy</button></div>
-                                <p class="guide-text">Gas sponsored means the user signs authorization; the facilitator submits and pays network gas for settlement execution.</p>
-                <p class="guide-text">Need BBT for testing? Use the built-in BBT product option in Demo Step 3 and see the <a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/bbt_token_reference.md" target="_blank" rel="noopener noreferrer">BBT token reference</a>.</p>
+                <p class="guide-text">Gas sponsored means the user signs authorization; the facilitator submits and pays network gas for settlement execution.</p>
+                <p class="guide-text">BBT is the sample ERC-20 token used by this beta flow. See the <a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/bbt_token_reference.md" target="_blank" rel="noopener noreferrer">BBT token reference</a> for contract details.</p>
+                <p class="guide-text">No public faucet is bundled in this beta. If you do not have BBT, either test with your own ERC-20 using Custom Token Product in Demo Step 3, or request test allocation via <a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/issues/new/choose" target="_blank" rel="noopener noreferrer">GitHub issue</a>.</p>
                 <p class="guide-text">How this compares with upstream Coinbase behavior: <a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/coinbase_comparison.md" target="_blank" rel="noopener noreferrer">Coinbase comparison report</a>.</p>
             </div>
 
@@ -166,6 +170,7 @@ Store API
                 </div>
                 <p class="guide-text">What happens: initialize provider and load selected account context.</p>
                 <p class="guide-text">On-chain interaction: none.</p>
+                <p class="guide-text">Supported wallets: EIP-1193 injected providers (MetaMask, Rabby, Frame). WalletConnect support is not yet included in this beta.</p>
                 <div class="actions compact-actions">
                     <button id="connect-btn">1. CONNECT WALLET</button>
                 </div>
@@ -336,33 +341,288 @@ Store API
                 </div>
             </div>
 
+            <div class="guide-block">
+                <div class="guide-title">Payload Schemas (x402 v2 + Permit2)</div>
+                <div class="guide-text">`Payment-Required` and `Payment-Signature` are base64-encoded JSON headers in this beta branch.</div>
+                <pre>// TypeScript shapes used by this stack
+type AcceptRequirement = {
+  scheme: "exact";
+  network: "eip155:42793";
+  amount: string;
+  payTo: string;
+  asset: string;
+  maxTimeoutSeconds: number;
+  extra?: {
+    assetTransferMethod?: "permit2";
+    name?: string;
+    decimals?: number;
+  };
+};
+
+type PaymentRequired = {
+  x402Version: 2;
+  accepts: AcceptRequirement[];
+  resource?: {
+    url: string;
+    mimeType?: string;
+    description?: string;
+  };
+  error?: string;
+};
+
+type PaymentSignature = {
+  x402Version: 2;
+  scheme: "exact";
+  network: "eip155:42793";
+  accepted: AcceptRequirement;
+  payload: {
+    signature: string;
+    permit2Authorization: {
+      from: string;
+      permitted: { token: string; amount: string };
+      spender: string;
+      nonce: string;
+      deadline: string;
+      witness: { to: string; validAfter: string; extra: string };
+    };
+  };
+};</pre>
+                <pre>// Permit2 typed data sent to signer.signTypedData(...)
+const domain = {
+  name: "Permit2",
+  chainId: 42793,
+  verifyingContract: "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+};
+
+const types = {
+  PermitWitnessTransferFrom: [
+    { name: "permitted", type: "TokenPermissions" },
+    { name: "spender", type: "address" },
+    { name: "nonce", type: "uint256" },
+    { name: "deadline", type: "uint256" },
+    { name: "witness", type: "Witness" }
+  ],
+  TokenPermissions: [
+    { name: "token", type: "address" },
+    { name: "amount", type: "uint256" }
+  ],
+  Witness: [
+    { name: "to", type: "address" },
+    { name: "validAfter", type: "uint256" },
+    { name: "extra", type: "bytes" }
+  ]
+};</pre>
+            </div>
+
             <div class="guide-block" data-role-checklist="client">
-                <div class="guide-title">Role Checklist: Client Integrator</div>
-                <pre>// Pseudocode
-resp = fetch(protectedUrl)
-if resp.status == 402:
-  req = decodePaymentRequired(resp)
-  sig = signPermit2(req.accepts[0])
-  paid = fetch(protectedUrl, { headers: { "Payment-Signature": sig } })</pre>
+                <div class="guide-title">Role Example: Client Integrator (TypeScript + ethers v6)</div>
+                <pre>import { ethers } from "ethers";
+
+const PERMIT2_ADDRESS = "0x000000000022D473030F116dDEE9F6B43aC78BA3";
+const X402_PROXY = "0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E";
+const CHAIN_ID = 42793;
+
+const toBase64 = (obj: unknown) => {
+  const bytes = new TextEncoder().encode(JSON.stringify(obj));
+  return btoa(String.fromCharCode(...bytes));
+};
+
+const fromBase64 = (value: string) => {
+  const bin = atob(value);
+  const bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
+  return JSON.parse(new TextDecoder().decode(bytes));
+};
+
+export async function payAndRetry(protectedUrl: string, signer: ethers.Signer) {
+  const first = await fetch(protectedUrl);
+  if (first.status !== 402) {
+    return first.json();
+  }
+
+  const required = fromBase64(first.headers.get("Payment-Required") || "");
+  const accepted = required.accepts[0];
+  if (!accepted || accepted.extra?.assetTransferMethod !== "permit2") {
+    throw new Error("No supported permit2 requirement");
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const deadline = BigInt(now + Number(accepted.maxTimeoutSeconds || 60));
+  const validAfter = BigInt(now);
+  const nonce = ethers.toBigInt(ethers.hexlify(ethers.randomBytes(32)));
+
+  const permit2Authorization = {
+    from: await signer.getAddress(),
+    permitted: { token: accepted.asset, amount: String(accepted.amount) },
+    spender: X402_PROXY,
+    nonce: nonce.toString(),
+    deadline: deadline.toString(),
+    witness: { to: accepted.payTo, validAfter: validAfter.toString(), extra: "0x" }
+  };
+
+  const signature = await signer.signTypedData(
+    { name: "Permit2", chainId: CHAIN_ID, verifyingContract: PERMIT2_ADDRESS },
+    {
+      PermitWitnessTransferFrom: [
+        { name: "permitted", type: "TokenPermissions" },
+        { name: "spender", type: "address" },
+        { name: "nonce", type: "uint256" },
+        { name: "deadline", type: "uint256" },
+        { name: "witness", type: "Witness" }
+      ],
+      TokenPermissions: [
+        { name: "token", type: "address" },
+        { name: "amount", type: "uint256" }
+      ],
+      Witness: [
+        { name: "to", type: "address" },
+        { name: "validAfter", type: "uint256" },
+        { name: "extra", type: "bytes" }
+      ]
+    },
+    {
+      permitted: { token: accepted.asset, amount: BigInt(String(accepted.amount)) },
+      spender: X402_PROXY,
+      nonce,
+      deadline,
+      witness: { to: accepted.payTo, validAfter, extra: "0x" }
+    }
+  );
+
+  const paymentPayload = {
+    x402Version: 2,
+    scheme: "exact",
+    network: "eip155:42793",
+    accepted,
+    payload: { signature, permit2Authorization }
+  };
+
+  const paid = await fetch(protectedUrl, {
+    headers: {
+      "Payment-Signature": toBase64(paymentPayload),
+      "X-GAS-PAYER": "facilitator"
+    }
+  });
+
+  if (!paid.ok) {
+    throw new Error(`Paid request failed: ${paid.status}`);
+  }
+  return paid.json();
+}</pre>
             </div>
 
             <div class="guide-block hidden" data-role-checklist="store">
-                <div class="guide-title">Role Checklist: Store Operator</div>
-                <pre>// Pseudocode
-if no Payment-Signature:
-  return 402 + payment requirement
-validate(signaturePayload, requiredTerms)
-settlement = POST facilitator /settle
-if settlement.success: return protected resource</pre>
+                <div class="guide-title">Role Example: Store Operator (Python / FastAPI)</div>
+                <pre>import base64
+import json
+import os
+import requests
+from fastapi import FastAPI, Header, HTTPException
+
+app = FastAPI()
+
+FACILITATOR_URL = os.environ["FACILITATOR_URL"]
+PAY_TO = os.environ["SERVER_WALLET"]
+TOKEN = os.getenv("BBT_TOKEN", "0x7EfE4bdd11237610bcFca478937658bE39F8dfd6")
+PROXY = os.getenv("X402_EXACT_PERMIT2_PROXY_ADDRESS", "0xB6FD384A0626BfeF85f3dBaf5223Dd964684B09E")
+AMOUNT = "10000000000000000"  # 0.01 token at 18 decimals
+
+def b64_json_encode(obj: dict) -> str:
+    raw = json.dumps(obj, separators=(",", ":")).encode("utf-8")
+    return base64.b64encode(raw).decode("utf-8")
+
+def b64_json_decode(value: str) -> dict:
+    return json.loads(base64.b64decode(value).decode("utf-8"))
+
+def payment_required(resource_url: str) -> dict:
+    return {
+        "x402Version": 2,
+        "accepts": [{
+            "scheme": "exact",
+            "network": "eip155:42793",
+            "amount": AMOUNT,
+            "payTo": PAY_TO,
+            "asset": TOKEN,
+            "maxTimeoutSeconds": 60,
+            "extra": {"assetTransferMethod": "permit2"}
+        }],
+        "resource": {
+            "url": resource_url,
+            "mimeType": "application/json",
+            "description": "Paid weather response"
+        }
+    }
+
+@app.get("/api/weather")
+def weather(
+    payment_signature: str | None = Header(default=None, alias="Payment-Signature"),
+    x_facilitator_url: str | None = Header(default=None, alias="X-Facilitator-Url")
+):
+    req = payment_required("https://your-store.example/api/weather")
+    effective_facilitator = x_facilitator_url or FACILITATOR_URL
+
+    if not payment_signature:
+        raise HTTPException(
+            status_code=402,
+            detail="Payment required",
+            headers={
+                "Payment-Required": b64_json_encode(req),
+                "X-Facilitator-Url": effective_facilitator
+            }
+        )
+
+    payload = b64_json_decode(payment_signature)
+    accepted = payload.get("accepted", {})
+    permit2_auth = payload.get("payload", {}).get("permit2Authorization", {})
+
+    if accepted.get("payTo", "").lower() != PAY_TO.lower():
+        raise HTTPException(status_code=402, detail="Recipient mismatch")
+    if accepted.get("asset", "").lower() != TOKEN.lower():
+        raise HTTPException(status_code=402, detail="Asset mismatch")
+    if str(accepted.get("amount")) != AMOUNT:
+        raise HTTPException(status_code=402, detail="Amount mismatch")
+    if permit2_auth.get("spender", "").lower() != PROXY.lower():
+        raise HTTPException(status_code=402, detail="Invalid spender")
+
+    settle_body = {
+        "x402Version": 2,
+        "paymentPayload": payload,
+        "paymentRequirements": accepted
+    }
+    settle = requests.post(f"{effective_facilitator}/settle", json=settle_body, timeout=20)
+    if settle.status_code >= 400:
+        raise HTTPException(status_code=402, detail=f"Facilitator reject: {settle.text}")
+
+    return {"ok": True, "settlement": settle.json()}</pre>
             </div>
 
             <div class="guide-block hidden" data-role-checklist="facilitator">
-                <div class="guide-title">Role Checklist: Facilitator Host</div>
-                <pre>// Pseudocode
-verify payload and requirement match
-enforce codehash allowlist
-send settlement tx via signer wallet
-return tx hash + status to store</pre>
+                <div class="guide-title">Role Example: Facilitator Host Ops Check (Python)</div>
+                <pre>import json
+import requests
+
+FACILITATOR_URL = "https://exp-faci.bubbletez.com"
+
+def require_ok(resp: requests.Response) -> dict:
+    resp.raise_for_status()
+    if not resp.text:
+        return {}
+    return resp.json()
+
+def smoke_check():
+    health = require_ok(requests.get(f"{FACILITATOR_URL}/health", timeout=10))
+    supported = require_ok(requests.get(f"{FACILITATOR_URL}/supported", timeout=10))
+    print("health:", json.dumps(health, indent=2))
+    print("supported:", json.dumps(supported, indent=2))
+
+    # For verify/settle testing, send:
+    # {
+    #   "x402Version": 2,
+    #   "paymentPayload": {...decoded Payment-Signature...},
+    #   "paymentRequirements": {...accepted requirement...}
+    # }
+
+if __name__ == "__main__":
+    smoke_check()</pre>
             </div>
         </div>
     </div>
@@ -459,6 +719,7 @@ docker build -t bbt-x402-facilitator:local -f bbt-x402-facilitator/Dockerfile.bb
             <div class="guide-block">
                 <div class="guide-title">Documentation</div>
                 <ul class="guide-list">
+                    <li class="doc-item"><a class="guide-link" href="https://github.com/coinbase/x402" target="_blank" rel="noopener noreferrer">x402 Upstream Spec / Reference Repo</a><span class="doc-note">Protocol reference and upstream implementation baseline.</span></li>
                     <li class="doc-item"><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/README.md" target="_blank" rel="noopener noreferrer">Repository README</a><span class="doc-note">Project overview, architecture, and top-level flow.</span></li>
                     <li class="doc-item"><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/quick_start.md" target="_blank" rel="noopener noreferrer">Quick Start Guide</a><span class="doc-note">Fastest path to run the stack and validate endpoints.</span></li>
                     <li class="doc-item"><a class="guide-link" href="https://github.com/tzapac/tzapac-x402-permit2/blob/main/docs/client_guide.md" target="_blank" rel="noopener noreferrer">Client Integration Guide</a><span class="doc-note">How to detect 402, sign Permit2, and retry with Payment-Signature.</span></li>
@@ -502,7 +763,8 @@ docker build -t bbt-x402-facilitator:local -f bbt-x402-facilitator/Dockerfile.bb
                 <div class="guide-title">3. Privacy note</div>
                 <ul class="guide-list">
                     <li>The client reads wallet account and request/response data needed to request payment requirements.</li>
-                    <li>Data sent to store/facilitator is limited to payment payloads and headers required for settlement.</li>
+                    <li>Store/facilitator operators receive wallet address, signed payment payloads, and request headers required to process settlement.</li>
+                    <li>As with typical web services, endpoint operators can see network metadata such as source IP and user agent, and may retain request/compliance logs for operations and auditing.</li>
                     <li>This site uses Google Analytics (G-S1FE79SC2W) for anonymized usage statistics.</li>
                 </ul>
 
@@ -512,7 +774,9 @@ docker build -t bbt-x402-facilitator:local -f bbt-x402-facilitator/Dockerfile.bb
     </div>
 
     <footer>
-        built with <3 by tzapac
+        built with &lt;3 by tzapac |
+        <a class="footer-link" href="https://github.com/tzapac/tzapac-x402-permit2/issues/new/choose" target="_blank" rel="noopener noreferrer">request pilot</a> |
+        <a class="footer-link" href="https://github.com/tzapac/tzapac-x402-permit2" target="_blank" rel="noopener noreferrer">github</a>
     </footer>
 </div>
 
