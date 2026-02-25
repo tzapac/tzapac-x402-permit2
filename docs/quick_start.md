@@ -13,8 +13,10 @@ Use this guide to run the Beta stack quickly, then follow the deeper guides for 
 From repo root:
 
 ```bash
-cp .env.example .env
+cp .env.example .env.multitest
 ```
+
+The wallet-poc compose stack loads runtime service variables from `.env.multitest`.
 
 Set at minimum:
 
@@ -27,7 +29,7 @@ Set at minimum:
 ## 3) Start the stack
 
 ```bash
-docker compose -f docker-compose.wallet-poc.yml --env-file .env up -d --build
+docker compose -f docker-compose.wallet-poc.yml --env-file .env.multitest up -d --build
 ```
 
 ## 4) Open and test
